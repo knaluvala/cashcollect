@@ -36,7 +36,7 @@ const NAV_GROUPS = [
     items: [
       {
         key: 'nav-users',
-        href: '#',
+        href: '/user-management',
         icon: Users,
         label: 'User Management',
         badge: null,

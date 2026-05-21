@@ -6,6 +6,7 @@ import LoginPage from "@/app/sign-up-login-screen/page";
 import DailyCollectionPage from "@/app/daily-collection-entry/page";
 import ReportsPage from "@/app/reports/page";
 import ParlorMasterPage from "@/app/super-admin/parlor-master/page";
+import UserManagementPage from "@/app/user-management/page";
 import NotFound from "@/app/not-found";
 
 const queryClient = new QueryClient();
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/daily-collection-entry" component={DailyCollectionPage} />
       <Route path="/reports" component={ReportsPage} />
       <Route path="/super-admin/parlor-master" component={ParlorMasterPage} />
+      <Route path="/user-management" component={UserManagementPage} />
       <Route component={NotFound} />
     </Switch>
   );
