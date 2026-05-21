@@ -60,7 +60,7 @@ const NAV_GROUPS = [
 ];
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
-  const [pathname] = useLocation();
+  const [pathname, setLocation] = useLocation();
 
   return (
     <aside
@@ -166,6 +166,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </p>
             </div>
             <button
+              onClick={() => setLocation('/')}
               className="text-muted-foreground hover:text-red-500 transition-colors"
               title="Sign out"
             >
@@ -176,6 +177,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
         {collapsed && (
           <button
+            onClick={() => setLocation('/')}
             className="w-full flex items-center justify-center px-2 py-2 rounded-md text-muted-foreground hover:bg-muted hover:text-red-500 transition-all duration-150"
             title="Sign out"
           >
