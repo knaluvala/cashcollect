@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "CashCollect",
-    "slug": "cashcollect-mobile",
+    "name": "CashCollection",
+    "slug": "cashcollection",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "cashcollect-mobile",
+    "scheme": "cashcollection",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -14,9 +14,12 @@
       "backgroundColor": "#0f4c81"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "com.cashcollection.app"
     },
-    "android": {},
+    "android": {
+      "package": "com.cashcollection.app"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },

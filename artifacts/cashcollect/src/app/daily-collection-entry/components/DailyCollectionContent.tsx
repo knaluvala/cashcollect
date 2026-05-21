@@ -1,9 +1,10 @@
 'use client';
 import React, { useState } from 'react';
-import { Calendar, RefreshCw, Users, CheckSquare, AlertCircle } from 'lucide-react';
+import { Calendar, RefreshCw, Users, CheckSquare, AlertCircle, Plus } from 'lucide-react';
 import ParlorList from './ParlorList';
 import CollectionEntryForm from './CollectionEntryForm';
 import SupervisorAcknowledgePanel from './SupervisorAcknowledgePanel';
+import NewEntryModal from './NewEntryModal';
 import {
   MOCK_PARLORS,
   ParlorEntry,
@@ -20,6 +21,7 @@ export default function DailyCollectionContent() {
     MOCK_PARLORS[0].id
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [newEntryOpen, setNewEntryOpen] = useState(false);
 
   const selectedParlor = parlors.find((p) => p.id === selectedParlorId)!;
 
@@ -132,6 +134,14 @@ export default function DailyCollectionContent() {
             />
             Refresh
           </button>
+
+          <button
+            onClick={() => setNewEntryOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 active:scale-[0.98] transition-all duration-150"
+          >
+            <Plus size={14} />
+            New Entry
+          </button>
         </div>
       </div>
 
@@ -175,6 +185,30 @@ export default function DailyCollectionContent() {
           </>
         )}
       </div>
+
+      {/* New Entry Modal */}
+      {newEntryOpen && (
+        <NewEntryModal
+          parlors={parlors}
+          onClose={() => setNewEntryOpen(false)}
+          onSaved={(id, data) => {
+            setParlors((prev) =>
+              prev.map((p) =>
+                p.id === id ? { ...p, ...data, status: 'entered' as CollectionStatus } : p
+              )
+            );
+          }}
+          onSubmitted={(id) => {
+            setParlors((prev) =>
+              prev.map((p) =>
+                p.id === id
+                  ? { ...p, status: 'submitted' as CollectionStatus, submittedAt: '08/05/2026 12:28' }
+                  : p
+              )
+            );
+          }}
+        />
+      )}
 
       {/* Main Content */}
       {viewMode === 'agent' ? (

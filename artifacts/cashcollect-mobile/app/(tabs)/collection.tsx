@@ -80,6 +80,20 @@ export default function CollectionScreen() {
 
   return (
     <View style={s.container}>
+      {/* FAB — New Entry */}
+      {viewMode === "agent" && user?.role !== "superadmin" && (
+        <TouchableOpacity
+          style={[fabStyle.fab, { backgroundColor: colors.accent }]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            router.push("/new-entry");
+          }}
+          activeOpacity={0.85}
+        >
+          <Feather name="plus" size={24} color="#fff" />
+        </TouchableOpacity>
+      )}
+
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerTop}>
@@ -636,5 +650,24 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
+  },
+});
+
+const fabStyle = StyleSheet.create({
+  fab: {
+    position: "absolute",
+    right: 20,
+    bottom: Platform.OS === "web" ? 34 + 84 + 16 : 84 + 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+    zIndex: 10,
   },
 });

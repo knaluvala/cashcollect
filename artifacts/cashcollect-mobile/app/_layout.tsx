@@ -46,6 +46,16 @@ function RootLayoutNav() {
           headerShadowVisible: true,
         }}
       />
+      <Stack.Screen
+        name="new-entry"
+        options={{
+          title: "New Collection Entry",
+          headerBackTitle: "Back",
+          headerTintColor: "#0f4c81",
+          headerStyle: { backgroundColor: "#ffffff" },
+          headerShadowVisible: true,
+        }}
+      />
     </Stack>
   );
 }
