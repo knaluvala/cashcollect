@@ -72,22 +72,15 @@ export default function LoginForm() {
     setTimeout(() => setCopiedField(null), 1500);
   };
 
-  const handleAutofill = (cred: DemoCredential) => {
-    setValue('email', cred.email);
-    setValue('password', cred.password);
-    setActiveRole(cred.roleKey);
-    setLoginError(null);
-  };
-
-  const onSubmit = async (data: LoginFormValues) => {
+  const loginWithCredentials = async (email: string, password: string) => {
     setIsLoading(true);
     setLoginError(null);
 
     // BACKEND INTEGRATION POINT: POST /api/auth/login with { email, password, role: activeRole }
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 800));
 
     const match = DEMO_CREDENTIALS.find(
-      (c) => c.email === data.email && c.password === data.password
+      (c) => c.email === email && c.password === password
     );
 
     if (!match) {
@@ -100,6 +93,18 @@ export default function LoginForm() {
 
     setIsLoading(false);
     setLocation('/daily-collection-entry');
+  };
+
+  const handleAutofill = (cred: DemoCredential) => {
+    setValue('email', cred.email);
+    setValue('password', cred.password);
+    setActiveRole(cred.roleKey);
+    setLoginError(null);
+    loginWithCredentials(cred.email, cred.password);
+  };
+
+  const onSubmit = async (data: LoginFormValues) => {
+    loginWithCredentials(data.email, data.password);
   };
 
   return (

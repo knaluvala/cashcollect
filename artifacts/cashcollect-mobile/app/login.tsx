@@ -38,19 +38,9 @@ export default function LoginScreen() {
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  function autofill(role: RoleTab) {
-    const account = DEMO_ACCOUNTS.find((a) => a.role === role);
-    if (account) {
-      setEmail(account.email);
-      setPassword(account.password);
-      setActiveRole(role);
-      Haptics.selectionAsync();
-    }
-  }
-
-  async function handleLogin() {
+  async function loginWithAccount(emailVal: string, passwordVal: string) {
     const account = DEMO_ACCOUNTS.find(
-      (a) => a.email === email && a.password === password
+      (a) => a.email === emailVal && a.password === passwordVal
     );
     if (!account) {
       Alert.alert("Invalid credentials", "Please check your email and password.");
@@ -70,6 +60,20 @@ export default function LoginScreen() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function autofill(role: RoleTab) {
+    const account = DEMO_ACCOUNTS.find((a) => a.role === role);
+    if (account) {
+      setEmail(account.email);
+      setPassword(account.password);
+      setActiveRole(role);
+      loginWithAccount(account.email, account.password);
+    }
+  }
+
+  async function handleLogin() {
+    loginWithAccount(email, password);
   }
 
   const s = makeStyles(colors, topPad);
