@@ -147,20 +147,23 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* User Footer */}
       <div className="border-t border-border p-2 space-y-1">
-        <button
-          className={`w-full flex items-center gap-3 px-2 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150 ${
-            collapsed ? 'justify-center' : ''
-          }`}
+        <Link
+          href="/notifications"
+          className={`w-full flex items-center gap-3 px-2 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
+            pathname === '/notifications'
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          } ${collapsed ? 'justify-center' : ''}`}
           title={collapsed ? 'Notifications' : undefined}
         >
-          <Bell size={18} className="shrink-0" />
+          <Bell size={18} className={`shrink-0 ${pathname === '/notifications' ? 'text-primary' : ''}`} />
           {!collapsed && <span>Notifications</span>}
           {!collapsed && (
             <span className="ml-auto text-[11px] font-semibold bg-red-100 text-red-600 rounded-full px-1.5 py-0.5 leading-none">
               2
             </span>
           )}
-        </button>
+        </Link>
 
         {!collapsed && (
           <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-muted">
