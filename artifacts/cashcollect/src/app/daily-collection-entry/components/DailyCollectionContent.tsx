@@ -228,7 +228,7 @@ export default function DailyCollectionContent() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto scrollbar-thin">
-          <SupervisorAcknowledgePanel />
+          <SupervisorAcknowledgePanel onCreateNew={() => setNewEntryOpen(true)} />
         </div>
       )}
     </div>

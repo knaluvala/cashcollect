@@ -80,10 +80,10 @@ export default function CollectionScreen() {
 
   return (
     <View style={s.container}>
-      {/* FAB — New Entry */}
-      {viewMode === "agent" && user?.role !== "superadmin" && (
+      {/* FAB — New Entry (agent view) or Create New Entry (supervisor view) */}
+      {user?.role !== "superadmin" && (
         <TouchableOpacity
-          style={[fabStyle.fab, { backgroundColor: colors.accent }]}
+          style={[fabStyle.fab, { backgroundColor: viewMode === "supervisor" ? colors.primary : colors.accent }]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             router.push("/new-entry");

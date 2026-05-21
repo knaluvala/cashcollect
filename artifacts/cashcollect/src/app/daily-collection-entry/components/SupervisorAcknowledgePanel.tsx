@@ -1,11 +1,15 @@
 'use client';
 import React, { useState } from 'react';
-import { CheckCircle, Clock, User, Route } from 'lucide-react';
+import { CheckCircle, Clock, User, Route, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { SUPERVISOR_PENDING, SupervisorPendingItem } from './mockData';
 
-export default function SupervisorAcknowledgePanel() {
+interface Props {
+  onCreateNew?: () => void;
+}
+
+export default function SupervisorAcknowledgePanel({ onCreateNew }: Props) {
   const [items, setItems] = useState<SupervisorPendingItem[]>(SUPERVISOR_PENDING);
   const [acknowledging, setAcknowledging] = useState<string | null>(null);
 
@@ -49,12 +53,21 @@ export default function SupervisorAcknowledgePanel() {
             Meena Sharma (SUP-012) · Route RT-04 & RT-05 · 08 May 2026
           </p>
         </div>
-        {pending.length > 0 && (
-          <div className="flex items-center gap-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-            <Clock size={14} />
-            {pending.length} pending acknowledgment{pending.length > 1 ? 's' : ''}
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {pending.length > 0 && (
+            <div className="flex items-center gap-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <Clock size={14} />
+              {pending.length} pending acknowledgment{pending.length > 1 ? 's' : ''}
+            </div>
+          )}
+          <button
+            onClick={onCreateNew}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 active:scale-[0.98] transition-all duration-150"
+          >
+            <Plus size={14} />
+            Create New Entry
+          </button>
+        </div>
       </div>
 
       {/* Pending Summary Card */}
