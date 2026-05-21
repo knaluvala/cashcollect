@@ -51,7 +51,7 @@ const NAV_GROUPS = [
       },
       {
         key: 'nav-settings',
-        href: '#',
+        href: '/settings',
         icon: Settings,
         label: 'Settings',
         badge: null,

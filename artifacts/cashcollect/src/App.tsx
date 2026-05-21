@@ -8,6 +8,7 @@ import ReportsPage from "@/app/reports/page";
 import ParlorMasterPage from "@/app/super-admin/parlor-master/page";
 import UserManagementPage from "@/app/user-management/page";
 import NotificationsPage from "@/app/notifications/page";
+import SettingsPage from "@/app/settings/page";
 import NotFound from "@/app/not-found";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 
@@ -30,6 +31,7 @@ function Router() {
         {() => <SuperAdminRoute component={UserManagementPage} />}
       </Route>
       <Route path="/notifications" component={NotificationsPage} />
+      <Route path="/settings" component={SettingsPage} />
       <Route component={NotFound} />
     </Switch>
   );
