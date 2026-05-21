@@ -4,6 +4,7 @@ import { Link, useLocation } from 'wouter';
 import AppLogo from '@/components/ui/AppLogo';
 import { ClipboardList, BarChart2, Users, Store, ChevronLeft, ChevronRight, LogOut, Settings, Bell,  } from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
+import { useAuth } from '@/context/AuthContext';
 
 
 interface SidebarProps {
@@ -61,6 +62,8 @@ const NAV_GROUPS = [
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const [pathname, setLocation] = useLocation();
+  const { user, logout } = useAuth();
+  const isSuperAdmin = user?.role === 'superadmin';
 
   return (
     <aside
@@ -83,7 +86,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
       {/* Nav Groups */}
       <nav className="flex-1 overflow-y-auto scrollbar-thin py-3 px-2 space-y-4">
-        {NAV_GROUPS.map((group) => (
+        {NAV_GROUPS.map((group) => {
+          const visibleItems = group.items.filter((item) => {
+            if (item.key === 'nav-users') return isSuperAdmin;
+            return true;
+          });
+          if (visibleItems.length === 0) return null;
+          return (
           <div key={`group-${group.label}`}>
             {!collapsed && (
               <p className="text-[11px] font-600 uppercase tracking-widest text-muted-foreground px-2 mb-1">
@@ -91,7 +100,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </p>
             )}
             <ul className="space-y-0.5">
-              {group.items.map((item) => {
+              {visibleItems.map((item) => {
                 const Icon = item.icon;
                 const isActive =
                   item.href !== '#' && pathname === item.href;
@@ -132,7 +141,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               })}
             </ul>
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* User Footer */}
@@ -155,18 +165,18 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {!collapsed && (
           <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-muted">
             <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold shrink-0">
-              RK
+              {user?.name ? user.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase() : 'U'}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-foreground truncate">
-                Rajan Kumar
+                {user?.name ?? 'User'}
               </p>
-              <p className="text-[11px] text-muted-foreground truncate">
-                Agent · RT-04
+              <p className="text-[11px] text-muted-foreground truncate capitalize">
+                {user?.role === 'superadmin' ? 'Super Admin' : user?.role ?? ''}
               </p>
             </div>
             <button
-              onClick={() => setLocation('/')}
+              onClick={() => { logout(); setLocation('/'); }}
               className="text-muted-foreground hover:text-red-500 transition-colors"
               title="Sign out"
             >
@@ -177,7 +187,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
         {collapsed && (
           <button
-            onClick={() => setLocation('/')}
+            onClick={() => { logout(); setLocation('/'); }}
             className="w-full flex items-center justify-center px-2 py-2 rounded-md text-muted-foreground hover:bg-muted hover:text-red-500 transition-all duration-150"
             title="Sign out"
           >

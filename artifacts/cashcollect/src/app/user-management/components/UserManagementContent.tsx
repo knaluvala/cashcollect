@@ -420,45 +420,36 @@ export default function UserManagementContent() {
                   {/* Created */}
                   <td className="px-4 py-3 text-muted-foreground text-xs">{u.createdAt}</td>
                   {/* Actions */}
-                  <td className="px-4 py-3 relative">
-                    <div className="relative inline-block">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
                       <button
-                        onClick={() => setMenuOpenId(menuOpenId === u.id ? null : u.id)}
-                        className="w-7 h-7 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-all duration-150"
+                        onClick={() => openEdit(u)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border transition-all duration-150"
+                        title="Edit user"
                       >
-                        <MoreHorizontal size={15} />
+                        <Pencil size={12} />
+                        Edit
                       </button>
-                      {menuOpenId === u.id && (
-                        <div
-                          className="absolute right-0 top-8 z-20 w-44 bg-card border border-border rounded-lg shadow-lg overflow-hidden"
-                          onMouseLeave={() => setMenuOpenId(null)}
-                        >
-                          <button
-                            onClick={() => openEdit(u)}
-                            className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                          >
-                            <Pencil size={13} className="text-muted-foreground" />
-                            Edit user
-                          </button>
-                          <button
-                            onClick={() => toggleStatus(u)}
-                            className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                          >
-                            {u.status === 'active'
-                              ? <XCircle size={13} className="text-amber-500" />
-                              : <CheckCircle size={13} className="text-emerald-500" />}
-                            Mark as {u.status === 'active' ? 'inactive' : 'active'}
-                          </button>
-                          <div className="border-t border-border" />
-                          <button
-                            onClick={() => handleDelete(u)}
-                            className="w-full text-left flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 size={13} />
-                            Delete user
-                          </button>
-                        </div>
-                      )}
+                      <button
+                        onClick={() => toggleStatus(u)}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border transition-all duration-150 ${
+                          u.status === 'active'
+                            ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                            : 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                        }`}
+                        title={u.status === 'active' ? 'Mark as inactive' : 'Mark as active'}
+                      >
+                        {u.status === 'active'
+                          ? <><XCircle size={12} /> Deactivate</>
+                          : <><CheckCircle size={12} /> Activate</>}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(u)}
+                        className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all duration-150"
+                        title="Delete user"
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   </td>
                 </tr>

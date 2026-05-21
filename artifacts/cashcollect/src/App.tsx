@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 
@@ -8,8 +8,15 @@ import ReportsPage from "@/app/reports/page";
 import ParlorMasterPage from "@/app/super-admin/parlor-master/page";
 import UserManagementPage from "@/app/user-management/page";
 import NotFound from "@/app/not-found";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 
 const queryClient = new QueryClient();
+
+function SuperAdminRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user } = useAuth();
+  if (!user || user.role !== 'superadmin') return <Redirect to="/daily-collection-entry" />;
+  return <Component />;
+}
 
 function Router() {
   return (
@@ -18,7 +25,9 @@ function Router() {
       <Route path="/daily-collection-entry" component={DailyCollectionPage} />
       <Route path="/reports" component={ReportsPage} />
       <Route path="/super-admin/parlor-master" component={ParlorMasterPage} />
-      <Route path="/user-management" component={UserManagementPage} />
+      <Route path="/user-management">
+        {() => <SuperAdminRoute component={UserManagementPage} />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
@@ -26,12 +35,14 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-        <Router />
-      </WouterRouter>
-      <Toaster position="bottom-right" richColors closeButton />
-    </QueryClientProvider>
+    <AuthProvider>
+      <QueryClientProvider client={queryClient}>
+        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <Router />
+        </WouterRouter>
+        <Toaster position="bottom-right" richColors closeButton />
+      </QueryClientProvider>
+    </AuthProvider>
   );
 }
 

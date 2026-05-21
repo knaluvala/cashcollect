@@ -5,6 +5,7 @@ import { useLocation } from 'wouter';
 import { Eye, EyeOff, Copy, Check, IceCream, TrendingUp, Shield } from 'lucide-react';
 import AppLogo from '@/components/ui/AppLogo';
 import Icon from '@/components/ui/AppIcon';
+import { useAuth } from '@/context/AuthContext';
 
 
 type Role = 'agent' | 'supervisor' | 'superadmin';
@@ -49,8 +50,15 @@ const ROLE_TABS: { key: Role; label: string; icon: React.ElementType }[] = [
   { key: 'superadmin', label: 'Super Admin', icon: Shield },
 ];
 
+const DEMO_NAMES: Record<string, string> = {
+  'rajan.kumar@cashcollect.in': 'Rajan Kumar',
+  'meena.sharma@cashcollect.in': 'Meena Sharma',
+  'admin@cashcollect.in': 'Super Admin',
+};
+
 export default function LoginForm() {
   const [, setLocation] = useLocation();
+  const { login: authLogin } = useAuth();
   const [activeRole, setActiveRole] = useState<Role>('agent');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -91,8 +99,13 @@ export default function LoginForm() {
       return;
     }
 
+    authLogin({
+      role: match.roleKey,
+      name: DEMO_NAMES[email] ?? match.role,
+      email,
+    });
     setIsLoading(false);
-    setLocation('/daily-collection-entry');
+    setLocation(match.roleKey === 'superadmin' ? '/user-management' : '/daily-collection-entry');
   };
 
   const handleAutofill = (cred: DemoCredential) => {
