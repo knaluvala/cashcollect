@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import AppLogo from '@/components/ui/AppLogo';
-import { ClipboardList, BarChart2, Users, Store, ChevronLeft, ChevronRight, LogOut, Settings, Bell,  } from 'lucide-react';
+import { ClipboardList, BarChart2, Users, Store, ChevronLeft, ChevronRight, LogOut, Settings, Bell, Map } from 'lucide-react';
 import Icon from '@/components/ui/AppIcon';
 import { useAuth } from '@/context/AuthContext';
 
@@ -50,6 +50,13 @@ const NAV_GROUPS = [
         badge: null,
       },
       {
+        key: 'nav-routes',
+        href: '/super-admin/route-master',
+        icon: Map,
+        label: 'Route Master',
+        badge: null,
+      },
+      {
         key: 'nav-settings',
         href: '/settings',
         icon: Settings,
@@ -90,6 +97,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           const visibleItems = group.items.filter((item) => {
             if (item.key === 'nav-users') return isSuperAdmin;
             if (item.key === 'nav-parlors') return isSuperAdmin;
+            if (item.key === 'nav-routes') return isSuperAdmin;
             return true;
           });
           if (visibleItems.length === 0) return null;

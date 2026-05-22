@@ -6,6 +6,7 @@ import LoginPage from "@/app/sign-up-login-screen/page";
 import DailyCollectionPage from "@/app/daily-collection-entry/page";
 import ReportsPage from "@/app/reports/page";
 import ParlorMasterPage from "@/app/super-admin/parlor-master/page";
+import RouteMasterPage from "@/app/super-admin/route-master/page";
 import UserManagementPage from "@/app/user-management/page";
 import NotificationsPage from "@/app/notifications/page";
 import SettingsPage from "@/app/settings/page";
@@ -28,6 +29,9 @@ function Router() {
       <Route path="/reports" component={ReportsPage} />
       <Route path="/super-admin/parlor-master">
         {() => <SuperAdminRoute component={ParlorMasterPage} />}
+      </Route>
+      <Route path="/super-admin/route-master">
+        {() => <SuperAdminRoute component={RouteMasterPage} />}
       </Route>
       <Route path="/user-management">
         {() => <SuperAdminRoute component={UserManagementPage} />}
