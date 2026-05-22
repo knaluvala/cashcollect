@@ -6,6 +6,8 @@ export interface WebAuthUser {
   role: WebUserRole;
   name: string;
   email: string;
+  agentCode?: string;
+  supervisorCode?: string;
 }
 
 interface AuthContextType {

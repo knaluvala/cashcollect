@@ -1,10 +1,11 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { BarChart2, FileText, Download, Filter, X } from 'lucide-react';
 import DetailedReport from './DetailedReport';
 import SummaryReport from './SummaryReport';
-import { COLLECTORS, PARLORS_FILTER } from './reportsMockData';
+import { COLLECTORS, PARLORS_FILTER, SUMMARY_REPORT_DATA } from './reportsMockData';
 import Icon from '@/components/ui/AppIcon';
+import { useAuth } from '@/context/AuthContext';
 
 
 type ReportTab = 'detailed' | 'summary';
@@ -18,6 +19,7 @@ export interface ReportFilters {
 }
 
 export default function ReportsContent() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<ReportTab>('detailed');
   const [filters, setFilters] = useState<ReportFilters>({
     dateFrom: '2026-05-06',
@@ -27,6 +29,29 @@ export default function ReportsContent() {
     status: '',
   });
   const [showFilters, setShowFilters] = useState(true);
+
+  const scopeAgentCodes = useMemo<string[] | null>(() => {
+    if (!user || user.role === 'superadmin') return null;
+    if (user.role === 'agent' && user.agentCode) return [user.agentCode];
+    if (user.role === 'supervisor' && user.supervisorCode) {
+      return SUMMARY_REPORT_DATA
+        .filter((r) => r.supervisorCode === user.supervisorCode)
+        .map((r) => r.agentCode);
+    }
+    return null;
+  }, [user]);
+
+  const scopedCollectors = useMemo(() => {
+    if (!scopeAgentCodes) return COLLECTORS;
+    return COLLECTORS.filter((c) => scopeAgentCodes.includes(c.code));
+  }, [scopeAgentCodes]);
+
+  const headerSubtitle = useMemo(() => {
+    if (!user || user.role === 'superadmin') return 'Collection data across all routes and parlors';
+    if (user.role === 'agent') return 'Your personal collection history';
+    if (user.role === 'supervisor') return 'Collections from agents assigned to you';
+    return 'Collection data across all routes and parlors';
+  }, [user]);
 
   const handleFilterChange = (key: keyof ReportFilters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -54,9 +79,7 @@ export default function ReportsContent() {
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Reports</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Collection data across all routes and parlors
-          </p>
+          <p className="text-sm text-muted-foreground mt-0.5">{headerSubtitle}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -118,24 +141,26 @@ export default function ReportsContent() {
               />
             </div>
 
-            {/* Collector */}
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
-                Collector
-              </label>
-              <select
-                value={filters.agentCode}
-                onChange={(e) => handleFilterChange('agentCode', e.target.value)}
-                className="h-8 px-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]"
-              >
-                <option value="">All Collectors</option>
-                {COLLECTORS.map((c) => (
-                  <option key={`filter-collector-${c.code}`} value={c.code}>
-                    {c.name} ({c.code})
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Collector — hidden for agents (they only have their own data) */}
+            {user?.role !== 'agent' && (
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Collector
+                </label>
+                <select
+                  value={filters.agentCode}
+                  onChange={(e) => handleFilterChange('agentCode', e.target.value)}
+                  className="h-8 px-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]"
+                >
+                  <option value="">{user?.role === 'supervisor' ? 'All My Agents' : 'All Collectors'}</option>
+                  {scopedCollectors.map((c) => (
+                    <option key={`filter-collector-${c.code}`} value={c.code}>
+                      {c.name} ({c.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Parlor */}
             <div>
@@ -215,9 +240,9 @@ export default function ReportsContent() {
       {/* Report Content */}
       <div className="flex-1 overflow-hidden">
         {activeTab === 'detailed' ? (
-          <DetailedReport filters={filters} />
+          <DetailedReport filters={filters} scopeAgentCodes={scopeAgentCodes} />
         ) : (
-          <SummaryReport filters={filters} />
+          <SummaryReport filters={filters} scopeAgentCodes={scopeAgentCodes} />
         )}
       </div>
     </div>

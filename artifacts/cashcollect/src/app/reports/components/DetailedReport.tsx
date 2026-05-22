@@ -7,6 +7,7 @@ import { ReportFilters } from './ReportsContent';
 
 interface Props {
   filters: ReportFilters;
+  scopeAgentCodes: string[] | null;
 }
 
 type SortKey = keyof DetailedReportRow;
@@ -19,7 +20,7 @@ const PARLOR_TYPE_COLORS: Record<string, string> = {
   Kiosk: 'bg-purple-100 text-purple-700',
 };
 
-export default function DetailedReport({ filters }: Props) {
+export default function DetailedReport({ filters, scopeAgentCodes }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage] = useState(1);
@@ -38,12 +39,13 @@ export default function DetailedReport({ filters }: Props) {
   const filtered = useMemo(() => {
     // BACKEND INTEGRATION POINT: GET /api/reports/detailed with filter params
     return DETAILED_REPORT_DATA.filter((row) => {
+      if (scopeAgentCodes && !scopeAgentCodes.includes(row.agentCode)) return false;
       if (filters.agentCode && row.agentCode !== filters.agentCode) return false;
       if (filters.parlorCode && row.parlorCode !== filters.parlorCode) return false;
       if (filters.status && row.status !== filters.status) return false;
       return true;
     });
-  }, [filters]);
+  }, [filters, scopeAgentCodes]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {

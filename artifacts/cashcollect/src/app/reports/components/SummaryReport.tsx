@@ -8,12 +8,13 @@ import SummaryBarChart from './SummaryBarChart';
 
 interface Props {
   filters: ReportFilters;
+  scopeAgentCodes: string[] | null;
 }
 
 type SortKey = keyof SummaryReportRow;
 type SortDir = 'asc' | 'desc';
 
-export default function SummaryReport({ filters }: Props) {
+export default function SummaryReport({ filters, scopeAgentCodes }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('grandTotal');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
@@ -29,10 +30,11 @@ export default function SummaryReport({ filters }: Props) {
   const filtered = useMemo(() => {
     // BACKEND INTEGRATION POINT: GET /api/reports/summary with filter params
     return SUMMARY_REPORT_DATA.filter((row) => {
+      if (scopeAgentCodes && !scopeAgentCodes.includes(row.agentCode)) return false;
       if (filters.agentCode && row.agentCode !== filters.agentCode) return false;
       return true;
     });
-  }, [filters]);
+  }, [filters, scopeAgentCodes]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {

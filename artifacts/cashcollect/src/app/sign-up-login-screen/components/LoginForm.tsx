@@ -56,6 +56,12 @@ const DEMO_NAMES: Record<string, string> = {
   'admin@cashcollect.in': 'Super Admin',
 };
 
+const DEMO_CODES: Record<string, { agentCode?: string; supervisorCode?: string }> = {
+  'rajan.kumar@cashcollect.in': { agentCode: 'AGT-042', supervisorCode: 'SUP-012' },
+  'meena.sharma@cashcollect.in': { supervisorCode: 'SUP-012' },
+  'admin@cashcollect.in': {},
+};
+
 export default function LoginForm() {
   const [, setLocation] = useLocation();
   const { login: authLogin } = useAuth();
@@ -103,6 +109,7 @@ export default function LoginForm() {
       role: match.roleKey,
       name: DEMO_NAMES[email] ?? match.role,
       email,
+      ...(DEMO_CODES[email] ?? {}),
     });
     setIsLoading(false);
     setLocation(match.roleKey === 'superadmin' ? '/user-management' : '/daily-collection-entry');
