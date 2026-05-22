@@ -89,6 +89,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         {NAV_GROUPS.map((group) => {
           const visibleItems = group.items.filter((item) => {
             if (item.key === 'nav-users') return isSuperAdmin;
+            if (item.key === 'nav-parlors') return isSuperAdmin;
             return true;
           });
           if (visibleItems.length === 0) return null;

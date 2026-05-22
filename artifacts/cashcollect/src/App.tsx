@@ -26,7 +26,9 @@ function Router() {
       <Route path="/" component={LoginPage} />
       <Route path="/daily-collection-entry" component={DailyCollectionPage} />
       <Route path="/reports" component={ReportsPage} />
-      <Route path="/super-admin/parlor-master" component={ParlorMasterPage} />
+      <Route path="/super-admin/parlor-master">
+        {() => <SuperAdminRoute component={ParlorMasterPage} />}
+      </Route>
       <Route path="/user-management">
         {() => <SuperAdminRoute component={UserManagementPage} />}
       </Route>
