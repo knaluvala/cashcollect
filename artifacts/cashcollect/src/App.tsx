@@ -15,18 +15,49 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 
 const queryClient = new QueryClient();
 
+/** Redirect logged-in users away from the login page to their home */
+function LoginRoute() {
+  const { user } = useAuth();
+  if (user) return <Redirect to="/daily-collection-entry" />;
+  return <LoginPage />;
+}
+
+/** Any authenticated user — redirects to login if not signed in */
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+  const { user } = useAuth();
+  if (!user) return <Redirect to="/" />;
+  return <Component />;
+}
+
+/** Super-admin only — redirects to login or daily-collection for lesser roles */
 function SuperAdminRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
-  if (!user || user.role !== 'superadmin') return <Redirect to="/daily-collection-entry" />;
+  if (!user) return <Redirect to="/" />;
+  if (user.role !== 'superadmin') return <Redirect to="/daily-collection-entry" />;
   return <Component />;
 }
 
 function Router() {
   return (
     <Switch>
-      <Route path="/" component={LoginPage} />
-      <Route path="/daily-collection-entry" component={DailyCollectionPage} />
-      <Route path="/reports" component={ReportsPage} />
+      {/* Public */}
+      <Route path="/" component={LoginRoute} />
+
+      {/* All authenticated users */}
+      <Route path="/daily-collection-entry">
+        {() => <ProtectedRoute component={DailyCollectionPage} />}
+      </Route>
+      <Route path="/reports">
+        {() => <ProtectedRoute component={ReportsPage} />}
+      </Route>
+      <Route path="/notifications">
+        {() => <ProtectedRoute component={NotificationsPage} />}
+      </Route>
+      <Route path="/settings">
+        {() => <ProtectedRoute component={SettingsPage} />}
+      </Route>
+
+      {/* Super-admin only */}
       <Route path="/super-admin/parlor-master">
         {() => <SuperAdminRoute component={ParlorMasterPage} />}
       </Route>
@@ -36,8 +67,7 @@ function Router() {
       <Route path="/user-management">
         {() => <SuperAdminRoute component={UserManagementPage} />}
       </Route>
-      <Route path="/notifications" component={NotificationsPage} />
-      <Route path="/settings" component={SettingsPage} />
+
       <Route component={NotFound} />
     </Switch>
   );

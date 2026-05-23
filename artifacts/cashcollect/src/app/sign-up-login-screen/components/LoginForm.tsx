@@ -112,7 +112,7 @@ export default function LoginForm() {
       ...(DEMO_CODES[email] ?? {}),
     });
     setIsLoading(false);
-    setLocation(match.roleKey === 'superadmin' ? '/user-management' : '/daily-collection-entry');
+    setLocation('/daily-collection-entry');
   };
 
   const handleAutofill = (cred: DemoCredential) => {

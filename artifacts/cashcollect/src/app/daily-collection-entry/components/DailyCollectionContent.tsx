@@ -96,8 +96,8 @@ export default function DailyCollectionContent() {
     setIsRefreshing(false);
   };
 
-  const canSeeAgentView = role !== 'supervisor'; // agents + superadmin see agent view
-  const canSeeSupervisorView = role !== 'agent';  // supervisors + superadmin see supervisor view
+  const canSeeAgentView = true;                  // all roles can browse the parlor list
+  const canSeeSupervisorView = role !== 'agent'; // supervisors + superadmin see acknowledgment panel
 
   return (
     <div className="flex flex-col h-full">
