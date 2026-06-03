@@ -75,9 +75,9 @@ export default function DailyCollectionContent() {
     [role, agentCode, supervisorCode]
   );
 
-  // Merge DB collections with base parlors
-  const [parlors, setParlors] = useState<ParlorEntry[]>(baseParlors);
-  const [activeParlorId, setActiveParlorId] = useState<string>(baseParlors[0]?.id ?? '');
+  // Show only parlors with DB entries for the selected date
+  const [parlors, setParlors] = useState<ParlorEntry[]>([]);
+  const [activeParlorId, setActiveParlorId] = useState<string>('');
   const selectedParlor = parlors.find((p) => p.id === activeParlorId) ?? parlors[0];
 
   const refreshData = async () => {
@@ -97,34 +97,23 @@ export default function DailyCollectionContent() {
 
       const collMap = new Map(collections.map((c) => [c.parlorCode, c]));
 
-      const merged: ParlorEntry[] = baseParlors.map((p) => {
-        const c = collMap.get(p.parlorCode);
-        if (!c) {
-          // No collection for this parlor on this date → reset to pending
+      // Only show parlors that have a DB entry for this date
+      const merged: ParlorEntry[] = baseParlors
+        .filter((p) => collMap.has(p.parlorCode))
+        .map((p) => {
+          const c = collMap.get(p.parlorCode)!;
           return {
             ...p,
-            status: 'pending' as CollectionStatus,
-            cashAmount: null,
-            couponAmount: null,
-            ccAmount: null,
-            notes: '',
-            submittedAt: null,
-            acknowledgedAt: null,
-            acknowledgedBy: null,
+            status: c.status,
+            cashAmount: numVal(c.cashAmount),
+            couponAmount: numVal(c.couponAmount),
+            ccAmount: numVal(c.ccAmount),
+            notes: c.notes,
+            submittedAt: c.submittedAt ? fmtDBDate(c.submittedAt) : null,
+            acknowledgedAt: c.acknowledgedAt ? fmtDBDate(c.acknowledgedAt) : null,
+            acknowledgedBy: c.acknowledgedBy,
           };
-        }
-        return {
-          ...p,
-          status: c.status,
-          cashAmount: numVal(c.cashAmount),
-          couponAmount: numVal(c.couponAmount),
-          ccAmount: numVal(c.ccAmount),
-          notes: c.notes,
-          submittedAt: c.submittedAt ? fmtDBDate(c.submittedAt) : null,
-          acknowledgedAt: c.acknowledgedAt ? fmtDBDate(c.acknowledgedAt) : null,
-          acknowledgedBy: c.acknowledgedBy,
-        };
-      });
+        });
       setParlors(merged);
       toast.success(`Refreshed ${collections.length} collections for ${selectedDate}`);
     } catch (e) {
@@ -141,12 +130,12 @@ export default function DailyCollectionContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate]);
 
-  // Reset active parlor when baseParlors change
+  // Reset active parlor when parlors change
   useEffect(() => {
-    if (baseParlors.length > 0) {
-      setActiveParlorId(baseParlors[0].id);
+    if (parlors.length > 0) {
+      setActiveParlorId(parlors[0].id);
     }
-  }, [baseParlors]);
+  }, [parlors]);
 
   // ── Header subtitle ────────────────────────────────────────────
   const headerSubtitle = useMemo(() => {
