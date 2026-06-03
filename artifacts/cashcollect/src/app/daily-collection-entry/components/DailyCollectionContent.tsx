@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useMemo } from 'react';
 import { Calendar, RefreshCw, Users, CheckSquare, AlertCircle, Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import ParlorList from './ParlorList';
 import CollectionEntryForm from './CollectionEntryForm';
 import SupervisorAcknowledgePanel from './SupervisorAcknowledgePanel';
@@ -212,6 +213,7 @@ export default function DailyCollectionContent() {
       {newEntryOpen && (
         <NewEntryModal
           parlors={parlors}
+          defaultDate={selectedDate}
           onClose={() => setNewEntryOpen(false)}
           onSaved={(id, data) => {
             setParlors((prev) =>
@@ -219,15 +221,17 @@ export default function DailyCollectionContent() {
                 p.id === id ? { ...p, ...data, status: 'entered' as CollectionStatus } : p
               )
             );
+            toast.success(`Saved draft for ${data.date}`);
           }}
-          onSubmitted={(id) => {
+          onSubmitted={(id, date) => {
             setParlors((prev) =>
               prev.map((p) =>
                 p.id === id
-                  ? { ...p, status: 'submitted' as CollectionStatus, submittedAt: '08/05/2026 12:28' }
+                  ? { ...p, status: 'submitted' as CollectionStatus, submittedAt: `${date} 12:28` }
                   : p
               )
             );
+            toast.success(`Submitted for ${date}`);
           }}
         />
       )}

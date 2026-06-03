@@ -11,9 +11,10 @@ import {
   Save,
   ChevronDown,
   CheckCircle,
+  CalendarDays,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { MOCK_PARLORS, ParlorEntry, ParlorType } from './mockData';
+import { ParlorEntry, ParlorType } from './mockData';
 
 interface NewEntryFormValues {
   cashAmount: string;
@@ -24,9 +25,10 @@ interface NewEntryFormValues {
 
 interface Props {
   onClose: () => void;
-  onSaved: (id: string, data: { cashAmount: number; couponAmount: number; ccAmount: number; notes: string }) => void;
-  onSubmitted: (id: string) => void;
+  onSaved: (id: string, data: { cashAmount: number; couponAmount: number; ccAmount: number; notes: string; date: string }) => void;
+  onSubmitted: (id: string, date: string) => void;
   parlors: ParlorEntry[];
+  defaultDate: string;
 }
 
 const PARLOR_TYPE_COLORS: Record<ParlorType, string> = {
@@ -43,10 +45,11 @@ const STATUS_COLORS = {
   acknowledged: 'bg-emerald-100 text-emerald-700',
 };
 
-export default function NewEntryModal({ onClose, onSaved, onSubmitted, parlors }: Props) {
+export default function NewEntryModal({ onClose, onSaved, onSubmitted, parlors, defaultDate }: Props) {
   const [search, setSearch] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedParlor, setSelectedParlor] = useState<ParlorEntry | null>(null);
+  const [selectedDate, setSelectedDate] = useState(defaultDate);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -114,19 +117,20 @@ export default function NewEntryModal({ onClose, onSaved, onSubmitted, parlors }
       couponAmount: parseFloat(data.couponAmount) || 0,
       ccAmount: parseFloat(data.ccAmount) || 0,
       notes: data.notes,
+      date: selectedDate,
     });
     setIsSaving(false);
     setSaved(true);
-    toast.success(`Saved draft for ${selectedParlor.parlorName}`);
+    toast.success(`Saved draft for ${selectedParlor.parlorName} on ${selectedDate}`);
   };
 
   const handleSubmitEntry = async () => {
     if (!selectedParlor) return;
     setIsSubmitting(true);
     await new Promise((r) => setTimeout(r, 800));
-    onSubmitted(selectedParlor.id);
+    onSubmitted(selectedParlor.id, selectedDate);
     setIsSubmitting(false);
-    toast.success(`Submitted to supervisor: ${selectedParlor.parlorName}`);
+    toast.success(`Submitted to supervisor: ${selectedParlor.parlorName} for ${selectedDate}`);
     onClose();
   };
 
@@ -161,6 +165,22 @@ export default function NewEntryModal({ onClose, onSaved, onSubmitted, parlors }
 
         {/* Scrollable body */}
         <div className="overflow-y-auto scrollbar-thin flex-1 p-5 space-y-4">
+
+          {/* Date Picker */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">
+              Collection Date <span className="text-red-500">*</span>
+            </label>
+            <div className="flex items-center gap-2 border border-border rounded-md px-3 py-1.5 bg-card text-sm w-full">
+              <CalendarDays size={14} className="text-muted-foreground" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent text-sm text-foreground focus:outline-none w-full"
+              />
+            </div>
+          </div>
 
           {/* Parlor Selector */}
           <div>
