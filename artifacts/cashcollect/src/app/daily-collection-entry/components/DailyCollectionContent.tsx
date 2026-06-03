@@ -340,6 +340,7 @@ export default function DailyCollectionContent() {
           <SupervisorAcknowledgePanel
             supervisorCode={supervisorCode}
             supervisorName={user?.name}
+            selectedDate={selectedDate}
             onCreateNew={() => setNewEntryOpen(true)}
           />
         </div>

@@ -10,6 +10,7 @@ const API_BASE = '/api';
 interface Props {
   supervisorCode?: string;
   supervisorName?: string;
+  selectedDate?: string;
   onCreateNew?: () => void;
 }
 
@@ -47,6 +48,7 @@ function numVal(v: string | number | null): number {
 export default function SupervisorAcknowledgePanel({
   supervisorCode,
   supervisorName,
+  selectedDate,
   onCreateNew,
 }: Props) {
   const [items, setItems] = useState<SupervisorPendingItem[]>([]);
@@ -62,13 +64,9 @@ export default function SupervisorAcknowledgePanel({
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
-      // Fetch all submitted/acknowledged entries for the last 30 days
-      const d = new Date();
-      const today = d.toISOString().split('T')[0];
-      d.setDate(d.getDate() - 30);
-      const thirtyDaysAgo = d.toISOString().split('T')[0];
-      params.set('dateFrom', thirtyDaysAgo);
-      params.set('dateTo', today);
+      const date = selectedDate ?? new Date().toISOString().split('T')[0];
+      params.set('dateFrom', date);
+      params.set('dateTo', date);
       const res = await fetch(`${API_BASE}/collections/reports?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const result = await res.json();
@@ -101,7 +99,7 @@ export default function SupervisorAcknowledgePanel({
     } finally {
       setIsLoading(false);
     }
-  }, [agentCodes]);
+  }, [agentCodes, selectedDate]);
 
   useEffect(() => {
     fetchItems();
