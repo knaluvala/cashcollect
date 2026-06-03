@@ -12,6 +12,7 @@ import {
   ChevronDown,
   CheckCircle,
   CalendarDays,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ParlorEntry, ParlorType } from './mockData';
@@ -23,13 +24,33 @@ interface NewEntryFormValues {
   notes: string;
 }
 
+interface CollectionRecord {
+  id: number;
+  parlorCode: string;
+  parlorName: string;
+  parlorType: string;
+  routeCode: string;
+  agentCode: string;
+  agentName: string;
+  collectionDate: string;
+  cashAmount: string;
+  couponAmount: string;
+  ccAmount: string;
+  notes: string;
+  status: 'entered' | 'submitted' | 'acknowledged';
+  submittedAt: string | null;
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
+}
+
 interface Props {
   onClose: () => void;
-  onSaved: (id: string, data: { cashAmount: number; couponAmount: number; ccAmount: number; notes: string; date: string }) => void;
-  onSubmitted: (id: string, date: string) => void;
+  onSaved: () => void;
   parlors: ParlorEntry[];
   defaultDate: string;
 }
+
+const API_BASE = '/api';
 
 const PARLOR_TYPE_COLORS: Record<ParlorType, string> = {
   Mall: 'bg-blue-100 text-blue-700',
@@ -45,14 +66,17 @@ const STATUS_COLORS = {
   acknowledged: 'bg-emerald-100 text-emerald-700',
 };
 
-export default function NewEntryModal({ onClose, onSaved, onSubmitted, parlors, defaultDate }: Props) {
+export default function NewEntryModal({ onClose, onSaved, parlors, defaultDate }: Props) {
   const [search, setSearch] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedParlor, setSelectedParlor] = useState<ParlorEntry | null>(null);
   const [selectedDate, setSelectedDate] = useState(defaultDate);
+  const [existingCollection, setExistingCollection] = useState<CollectionRecord | null>(null);
+  const [checking, setChecking] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [dbId, setDbId] = useState<number | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -100,42 +124,121 @@ export default function NewEntryModal({ onClose, onSaved, onSubmitted, parlors, 
     }
   }, [dropdownOpen]);
 
+  // Check for existing collection when date or parlor changes
+  useEffect(() => {
+    if (!selectedParlor) return;
+    setChecking(true);
+    fetch(`${API_BASE}/collections?date=${selectedDate}&parlorCode=${selectedParlor.parlorCode}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const coll = data.collection as CollectionRecord | null;
+        setExistingCollection(coll);
+        if (coll) {
+          setDbId(coll.id);
+          reset({
+            cashAmount: coll.cashAmount ?? '',
+            couponAmount: coll.couponAmount ?? '',
+            ccAmount: coll.ccAmount ?? '',
+            notes: coll.notes ?? '',
+          });
+        } else {
+          setDbId(null);
+          reset({ cashAmount: '', couponAmount: '', ccAmount: '', notes: '' });
+        }
+        setSaved(false);
+      })
+      .catch(() => {
+        setExistingCollection(null);
+        setDbId(null);
+      })
+      .finally(() => setChecking(false));
+  }, [selectedParlor, selectedDate, reset]);
+
   function selectParlor(parlor: ParlorEntry) {
     setSelectedParlor(parlor);
     setDropdownOpen(false);
     setSearch('');
     setSaved(false);
-    reset({ cashAmount: parlor.cashAmount?.toString() ?? '', couponAmount: parlor.couponAmount?.toString() ?? '', ccAmount: parlor.ccAmount?.toString() ?? '', notes: parlor.notes ?? '' });
   }
 
   const handleSave = async (data: NewEntryFormValues) => {
     if (!selectedParlor) return;
     setIsSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    onSaved(selectedParlor.id, {
+    const payload = {
+      parlorCode: selectedParlor.parlorCode,
+      parlorName: selectedParlor.parlorName,
+      parlorType: selectedParlor.parlorType,
+      routeCode: selectedParlor.routeCode,
+      agentCode: selectedParlor.agentCode,
+      agentName: selectedParlor.agentName,
+      collectionDate: selectedDate,
       cashAmount: parseFloat(data.cashAmount) || 0,
       couponAmount: parseFloat(data.couponAmount) || 0,
       ccAmount: parseFloat(data.ccAmount) || 0,
       notes: data.notes,
-      date: selectedDate,
-    });
-    setIsSaving(false);
-    setSaved(true);
-    toast.success(`Saved draft for ${selectedParlor.parlorName} on ${selectedDate}`);
+      status: 'entered',
+    };
+
+    try {
+      let res;
+      if (dbId) {
+        res = await fetch(`${API_BASE}/collections/${dbId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch(`${API_BASE}/collections`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
+      const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error || 'Failed to save');
+        setIsSaving(false);
+        return;
+      }
+      setDbId(result.id);
+      setExistingCollection(result);
+      setIsSaving(false);
+      setSaved(true);
+      onSaved();
+      toast.success(`Saved draft for ${selectedParlor.parlorName} on ${selectedDate}`);
+    } catch {
+      setIsSaving(false);
+      toast.error('Network error while saving');
+    }
   };
 
   const handleSubmitEntry = async () => {
-    if (!selectedParlor) return;
+    if (!selectedParlor || !dbId) return;
     setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 800));
-    onSubmitted(selectedParlor.id, selectedDate);
-    setIsSubmitting(false);
-    toast.success(`Submitted to supervisor: ${selectedParlor.parlorName} for ${selectedDate}`);
-    onClose();
+    try {
+      const res = await fetch(`${API_BASE}/collections/${dbId}/submit`, {
+        method: 'POST',
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error || 'Failed to submit');
+        setIsSubmitting(false);
+        return;
+      }
+      setExistingCollection(result);
+      setIsSubmitting(false);
+      toast.success(`Submitted to supervisor: ${selectedParlor.parlorName} for ${selectedDate}`);
+      onSaved();
+      onClose();
+    } catch {
+      setIsSubmitting(false);
+      toast.error('Network error while submitting');
+    }
   };
 
-  const isReadOnly = selectedParlor?.status === 'submitted' || selectedParlor?.status === 'acknowledged';
-  const canSubmit = saved || selectedParlor?.status === 'entered';
+  const isReadOnly =
+    existingCollection?.status === 'submitted' || existingCollection?.status === 'acknowledged';
+  const canSubmit = saved || existingCollection?.status === 'entered';
 
   return (
     // Backdrop
@@ -278,18 +381,26 @@ export default function NewEntryModal({ onClose, onSaved, onSubmitted, parlors, 
             </div>
           </div>
 
-          {/* Entry form — shown once a parlor is selected */}
-          {selectedParlor && (
+          {/* Loading state */}
+          {selectedParlor && checking && (
+            <div className="rounded-xl border border-border bg-muted/30 px-6 py-6 flex flex-col items-center gap-2 text-center">
+              <Loader2 size={20} className="text-muted-foreground animate-spin" />
+              <p className="text-sm text-muted-foreground">Checking for existing collection...</p>
+            </div>
+          )}
+
+          {/* Entry form — shown once a parlor is selected and checked */}
+          {selectedParlor && !checking && (
             <>
-              {/* Read-only banner */}
+              {/* Read-only banner for existing submitted data */}
               {isReadOnly && (
                 <div className={`rounded-lg border px-4 py-3 flex items-center gap-2 text-sm ${
-                  selectedParlor.status === 'acknowledged'
+                  existingCollection?.status === 'acknowledged'
                     ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
                     : 'bg-purple-50 border-purple-200 text-purple-700'
                 }`}>
                   <CheckCircle size={14} className="shrink-0" />
-                  {selectedParlor.status === 'acknowledged'
+                  {existingCollection?.status === 'acknowledged'
                     ? 'This collection has been acknowledged. No edits allowed.'
                     : 'This collection is submitted and awaiting supervisor acknowledgment.'}
                 </div>

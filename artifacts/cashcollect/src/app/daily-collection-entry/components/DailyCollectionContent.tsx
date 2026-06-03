@@ -215,23 +215,9 @@ export default function DailyCollectionContent() {
           parlors={parlors}
           defaultDate={selectedDate}
           onClose={() => setNewEntryOpen(false)}
-          onSaved={(id, data) => {
-            setParlors((prev) =>
-              prev.map((p) =>
-                p.id === id ? { ...p, ...data, status: 'entered' as CollectionStatus } : p
-              )
-            );
-            toast.success(`Saved draft for ${data.date}`);
-          }}
-          onSubmitted={(id, date) => {
-            setParlors((prev) =>
-              prev.map((p) =>
-                p.id === id
-                  ? { ...p, status: 'submitted' as CollectionStatus, submittedAt: `${date} 12:28` }
-                  : p
-              )
-            );
-            toast.success(`Submitted for ${date}`);
+          onSaved={() => {
+            // Refresh the parlor list to reflect saved/submitted status
+            handleRefresh();
           }}
         />
       )}
