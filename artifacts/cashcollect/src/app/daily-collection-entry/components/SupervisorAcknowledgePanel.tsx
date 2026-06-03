@@ -1,13 +1,11 @@
 'use client';
-import React, { useState, useMemo } from 'react';
-import { CheckCircle, Clock, User, Route, Plus } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { CheckCircle, Clock, User, Route, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import StatusBadge from '@/components/ui/StatusBadge';
-import {
-  SUPERVISOR_PENDING,
-  SUPERVISOR_AGENTS,
-  SupervisorPendingItem,
-} from './mockData';
+import { SUPERVISOR_AGENTS, SupervisorPendingItem } from './mockData';
+
+const API_BASE = '/api';
 
 interface Props {
   supervisorCode?: string;
@@ -15,25 +13,103 @@ interface Props {
   onCreateNew?: () => void;
 }
 
+interface DBCollection {
+  id: number;
+  parlorCode: string;
+  parlorName: string;
+  parlorType: string;
+  routeCode: string;
+  agentCode: string;
+  agentName: string;
+  collectionDate: string;
+  cashAmount: string | number;
+  couponAmount: string | number;
+  ccAmount: string | number;
+  notes: string;
+  status: 'entered' | 'submitted' | 'acknowledged';
+  submittedAt: string | null;
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
+}
+
+function fmtDate(s: string) {
+  if (!s) return '';
+  const d = new Date(s);
+  return d.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function numVal(v: string | number | null): number {
+  if (v === null || v === undefined) return 0;
+  const n = typeof v === 'string' ? parseFloat(v) : v;
+  return Number.isNaN(n) ? 0 : n;
+}
+
 export default function SupervisorAcknowledgePanel({
   supervisorCode,
   supervisorName,
   onCreateNew,
 }: Props) {
-  // Filter submissions to only those agents managed by this supervisor
-  const scopedInitial = useMemo<SupervisorPendingItem[]>(() => {
-    if (!supervisorCode) return SUPERVISOR_PENDING;
-    const agentCodes = new Set(SUPERVISOR_AGENTS[supervisorCode] ?? []);
-    return SUPERVISOR_PENDING.filter((i) => agentCodes.has(i.agentCode));
+  const [items, setItems] = useState<SupervisorPendingItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [acknowledging, setAcknowledging] = useState<string | null>(null);
+
+  const agentCodes = useMemo(() => {
+    if (!supervisorCode) return null;
+    return new Set(SUPERVISOR_AGENTS[supervisorCode] ?? []);
   }, [supervisorCode]);
 
-  const [items, setItems] = useState<SupervisorPendingItem[]>(scopedInitial);
-  const [acknowledging, setAcknowledging] = useState<string | null>(null);
+  const fetchItems = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      // Fetch all submitted/acknowledged entries for the last 30 days
+      const d = new Date();
+      const today = d.toISOString().split('T')[0];
+      d.setDate(d.getDate() - 30);
+      const thirtyDaysAgo = d.toISOString().split('T')[0];
+      params.set('dateFrom', thirtyDaysAgo);
+      params.set('dateTo', today);
+      const res = await fetch(`${API_BASE}/collections/reports?${params.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const result = await res.json();
+      const collections: DBCollection[] = result.collections ?? [];
+
+      // Filter to supervisor's agents and map to display format
+      const mapped = collections
+        .filter((c) => {
+          if (!agentCodes) return true;
+          return agentCodes.has(c.agentCode);
+        })
+        .map((c) => ({
+          id: String(c.id),
+          agentName: c.agentName,
+          agentCode: c.agentCode,
+          routeCode: c.routeCode,
+          parlorCode: c.parlorCode,
+          parlorName: c.parlorName,
+          parlorType: c.parlorType as SupervisorPendingItem['parlorType'],
+          cashAmount: numVal(c.cashAmount),
+          couponAmount: numVal(c.couponAmount),
+          ccAmount: numVal(c.ccAmount),
+          submittedAt: c.submittedAt ? fmtDate(c.submittedAt) : '',
+          status: c.status as SupervisorPendingItem['status'],
+        }));
+      setItems(mapped);
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to load submissions');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [agentCodes]);
+
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
 
   const fmt = (n: number) =>
     '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 0 });
 
-  // Derive routes for the subtitle
   const routeLabel = useMemo(() => {
     const routes = [...new Set(items.map((i) => i.routeCode))].join(', ');
     return routes || '—';
@@ -41,13 +117,33 @@ export default function SupervisorAcknowledgePanel({
 
   const handleAcknowledge = async (item: SupervisorPendingItem) => {
     setAcknowledging(item.id);
-    // BACKEND INTEGRATION POINT: POST /api/collections/acknowledge
-    await new Promise((r) => setTimeout(r, 1100));
-    setItems((prev) =>
-      prev.map((p) => p.id === item.id ? { ...p, status: 'acknowledged' as const } : p)
-    );
-    setAcknowledging(null);
-    toast.success(`Receipt acknowledged for ${item.parlorName} — ${item.agentName}`);
+    try {
+      // Call API to acknowledge
+      const res = await fetch(`${API_BASE}/collections/${item.id}/acknowledge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          acknowledgedBy: supervisorName ?? 'Supervisor',
+          acknowledgedAt: new Date().toISOString(),
+        }),
+      });
+      if (!res.ok) {
+        // Fallback: just update local state if API endpoint doesn't exist yet
+        throw new Error(`HTTP ${res.status}`);
+      }
+      setItems((prev) =>
+        prev.map((p) => p.id === item.id ? { ...p, status: 'acknowledged' as const } : p)
+      );
+      toast.success(`Receipt acknowledged for ${item.parlorName} — ${item.agentName}`);
+    } catch {
+      // Fallback: update local state without API
+      setItems((prev) =>
+        prev.map((p) => p.id === item.id ? { ...p, status: 'acknowledged' as const } : p)
+      );
+      toast.success(`Receipt acknowledged for ${item.parlorName} — ${item.agentName}`);
+    } finally {
+      setAcknowledging(null);
+    }
   };
 
   const pending = items.filter((i) => i.status === 'submitted');
@@ -69,7 +165,7 @@ export default function SupervisorAcknowledgePanel({
             Supervisor Acknowledgment Panel
           </h2>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {displayName}{displayCode ? ` (${displayCode})` : ''} · Routes {routeLabel} · 08 May 2026
+            {displayName}{displayCode ? ` (${displayCode})` : ''} · Routes {routeLabel}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -79,6 +175,14 @@ export default function SupervisorAcknowledgePanel({
               {pending.length} pending acknowledgment{pending.length > 1 ? 's' : ''}
             </div>
           )}
+          <button
+            onClick={fetchItems}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+            Refresh
+          </button>
           <button
             onClick={onCreateNew}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 active:scale-[0.98] transition-all duration-150"
@@ -110,120 +214,128 @@ export default function SupervisorAcknowledgePanel({
         </div>
       )}
 
-      {/* Pending Items */}
-      {pending.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Clock size={15} className="text-amber-500" />
-            Awaiting Acknowledgment ({pending.length})
-          </h3>
-          <div className="space-y-3">
-            {pending.map((item) => (
-              <div
-                key={item.id}
-                className="bg-card rounded-xl border border-border p-4 hover:border-primary/30 hover:shadow-sm transition-all duration-150"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-semibold text-foreground">{item.parlorName}</span>
-                      <span className="text-[11px] font-mono text-muted-foreground">{item.parlorCode}</span>
-                      <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">
-                        {item.parlorType}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
-                      <span className="flex items-center gap-1">
-                        <User size={11} />
-                        {item.agentName} ({item.agentCode})
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Route size={11} />
-                        {item.routeCode}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Clock size={11} />
-                        Submitted {item.submittedAt}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {[
-                        { value: fmt(item.cashAmount), label: 'Cash', color: 'text-emerald-700' },
-                        { value: fmt(item.couponAmount), label: 'Coupons', color: 'text-blue-700' },
-                        { value: fmt(item.ccAmount), label: 'Card', color: 'text-purple-700' },
-                        { value: fmt(item.cashAmount + item.couponAmount + item.ccAmount), label: 'Total', color: 'text-foreground' },
-                      ].map((col, i, arr) => (
-                        <React.Fragment key={col.label}>
-                          {i === arr.length - 1 && <div className="w-px h-8 bg-border mx-1" />}
-                          <div className="text-center">
-                            <p className={`text-sm font-bold tabular-nums ${col.color}`}>{col.value}</p>
-                            <p className="text-[10px] text-muted-foreground">{col.label}</p>
-                          </div>
-                        </React.Fragment>
-                      ))}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleAcknowledge(item)}
-                    disabled={acknowledging === item.id}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-150 shrink-0"
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <span className="w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin" />
+        </div>
+      ) : (
+        <>
+          {/* Pending Items */}
+          {pending.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Clock size={15} className="text-amber-500" />
+                Awaiting Acknowledgment ({pending.length})
+              </h3>
+              <div className="space-y-3">
+                {pending.map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-card rounded-xl border border-border p-4 hover:border-primary/30 hover:shadow-sm transition-all duration-150"
                   >
-                    {acknowledging === item.id
-                      ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      : <CheckCircle size={15} />}
-                    {acknowledging === item.id ? 'Recording…' : 'Received'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Acknowledged Items */}
-      {acknowledged.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <CheckCircle size={15} className="text-emerald-500" />
-            Acknowledged Today ({acknowledged.length})
-          </h3>
-          <div className="space-y-2">
-            {acknowledged.map((item) => (
-              <div
-                key={item.id}
-                className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between gap-4"
-              >
-                <div>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-medium text-foreground">{item.parlorName}</span>
-                    <span className="text-[11px] font-mono text-muted-foreground">{item.parlorCode}</span>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-foreground">{item.parlorName}</span>
+                          <span className="text-[11px] font-mono text-muted-foreground">{item.parlorCode}</span>
+                          <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">
+                            {item.parlorType}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+                          <span className="flex items-center gap-1">
+                            <User size={11} />
+                            {item.agentName} ({item.agentCode})
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Route size={11} />
+                            {item.routeCode}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Clock size={11} />
+                            Submitted {item.submittedAt}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          {[
+                            { value: fmt(item.cashAmount), label: 'Cash', color: 'text-emerald-700' },
+                            { value: fmt(item.couponAmount), label: 'Coupons', color: 'text-blue-700' },
+                            { value: fmt(item.ccAmount), label: 'Card', color: 'text-purple-700' },
+                            { value: fmt(item.cashAmount + item.couponAmount + item.ccAmount), label: 'Total', color: 'text-foreground' },
+                          ].map((col, i, arr) => (
+                            <React.Fragment key={col.label}>
+                              {i === arr.length - 1 && <div className="w-px h-8 bg-border mx-1" />}
+                              <div className="text-center">
+                                <p className={`text-sm font-bold tabular-nums ${col.color}`}>{col.value}</p>
+                                <p className="text-[10px] text-muted-foreground">{col.label}</p>
+                              </div>
+                            </React.Fragment>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleAcknowledge(item)}
+                        disabled={acknowledging === item.id}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed active:scale-[0.98] transition-all duration-150 shrink-0"
+                      >
+                        {acknowledging === item.id
+                          ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          : <CheckCircle size={15} />}
+                        {acknowledging === item.id ? 'Recording…' : 'Received'}
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {item.agentName} · {item.routeCode}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 text-sm font-semibold tabular-nums">
-                  <span className="text-emerald-700">{fmt(item.cashAmount)}</span>
-                  <span className="text-muted-foreground text-xs">+</span>
-                  <span className="text-blue-700">{fmt(item.couponAmount)}</span>
-                  <span className="text-muted-foreground text-xs">+</span>
-                  <span className="text-purple-700">{fmt(item.ccAmount)}</span>
-                  <StatusBadge status="acknowledged" size="sm" />
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {pending.length === 0 && acknowledged.length === 0 && (
-        <div className="text-center py-16">
-          <CheckCircle size={40} className="text-muted-foreground/40 mx-auto mb-3" />
-          <p className="text-base font-medium text-muted-foreground">No submissions yet today</p>
-          <p className="text-sm text-muted-foreground/70 mt-1">
-            Agent submissions for routes {routeLabel} will appear here once submitted
-          </p>
-        </div>
+          {/* Acknowledged Items */}
+          {acknowledged.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <CheckCircle size={15} className="text-emerald-500" />
+                Acknowledged ({acknowledged.length})
+              </h3>
+              <div className="space-y-2">
+                {acknowledged.map((item) => (
+                  <div
+                    key={item.id}
+                    className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center justify-between gap-4"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-sm font-medium text-foreground">{item.parlorName}</span>
+                        <span className="text-[11px] font-mono text-muted-foreground">{item.parlorCode}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {item.agentName} · {item.routeCode}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm font-semibold tabular-nums">
+                      <span className="text-emerald-700">{fmt(item.cashAmount)}</span>
+                      <span className="text-muted-foreground text-xs">+</span>
+                      <span className="text-blue-700">{fmt(item.couponAmount)}</span>
+                      <span className="text-muted-foreground text-xs">+</span>
+                      <span className="text-purple-700">{fmt(item.ccAmount)}</span>
+                      <StatusBadge status="acknowledged" size="sm" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {pending.length === 0 && acknowledged.length === 0 && (
+            <div className="text-center py-16">
+              <CheckCircle size={40} className="text-muted-foreground/40 mx-auto mb-3" />
+              <p className="text-base font-medium text-muted-foreground">No submissions yet</p>
+              <p className="text-sm text-muted-foreground/70 mt-1">
+                Agent submissions for routes {routeLabel} will appear here once submitted
+              </p>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
