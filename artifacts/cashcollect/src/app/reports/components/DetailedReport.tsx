@@ -56,7 +56,7 @@ export default function DetailedReport({ data, isLoading }: Props) {
   const [perPage, setPerPage] = useState(10);
 
   const rows: Row[] = useMemo(() => {
-    return data.map((c) => {
+    return (data ?? []).map((c) => {
       const sup = getAgentSupervisor(c.agentCode);
       return {
         id: String(c.id),

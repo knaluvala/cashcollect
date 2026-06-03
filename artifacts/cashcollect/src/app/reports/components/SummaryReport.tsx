@@ -47,7 +47,7 @@ export default function SummaryReport({ data, isLoading }: Props) {
 
   const rows: SummaryRow[] = useMemo(() => {
     const groups = new Map<string, SummaryRow>();
-    for (const c of data) {
+    for (const c of (data ?? [])) {
       const sup = getAgentSupervisor(c.agentCode);
       const existing = groups.get(c.agentCode);
       if (existing) {
