@@ -74,6 +74,7 @@ export default function SettingsContent() {
     if (passwords.newPass !== passwords.confirm) return toast.error('Passwords do not match');
     toast.success('Password changed successfully');
     setPasswords({ current: '', newPass: '', confirm: '' });
+    return;
   }
 
   function saveAppearance() {

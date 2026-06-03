@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lte } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   collectionsTable,
@@ -106,6 +106,64 @@ router.put("/collections/:id", async (req, res) => {
     .returning();
 
   res.json(updated[0]);
+});
+
+// GET /api/collections/list — all collections for a date (+ optional agent)
+router.get("/collections/list", async (req, res) => {
+  const date = req.query.date as string;
+  const agentCode = req.query.agentCode as string | undefined;
+
+  if (!date) {
+    res.status(400).json({ error: "date is required" });
+    return;
+  }
+
+  const conditions = [eq(collectionsTable.collectionDate, date)];
+  if (agentCode) {
+    conditions.push(eq(collectionsTable.agentCode, agentCode));
+  }
+
+  const rows = await db
+    .select()
+    .from(collectionsTable)
+    .where(and(...conditions));
+
+  res.json({ collections: rows });
+});
+
+// GET /api/collections/reports — collections within a date range
+router.get("/collections/reports", async (req, res) => {
+  const dateFrom = req.query.dateFrom as string;
+  const dateTo = req.query.dateTo as string;
+  const agentCode = req.query.agentCode as string | undefined;
+  const parlorCode = req.query.parlorCode as string | undefined;
+  const status = req.query.status as string | undefined;
+
+  if (!dateFrom || !dateTo) {
+    res.status(400).json({ error: "dateFrom and dateTo are required" });
+    return;
+  }
+
+  const conditions = [
+    gte(collectionsTable.collectionDate, dateFrom),
+    lte(collectionsTable.collectionDate, dateTo),
+  ];
+  if (agentCode) {
+    conditions.push(eq(collectionsTable.agentCode, agentCode));
+  }
+  if (parlorCode) {
+    conditions.push(eq(collectionsTable.parlorCode, parlorCode));
+  }
+  if (status) {
+    conditions.push(eq(collectionsTable.status, status));
+  }
+
+  const rows = await db
+    .select()
+    .from(collectionsTable)
+    .where(and(...conditions));
+
+  res.json({ collections: rows });
 });
 
 // POST /api/collections/:id/submit — submit to supervisor

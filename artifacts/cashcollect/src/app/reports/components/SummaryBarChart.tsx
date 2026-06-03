@@ -10,10 +10,8 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { SummaryReportRow } from './reportsMockData';
-
 interface Props {
-  data: SummaryReportRow[];
+  data: { agentName: string; totalCash: number; totalCoupon: number; totalCC: number }[];
 }
 
 interface CustomTooltipProps {

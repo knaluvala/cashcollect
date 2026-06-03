@@ -85,6 +85,7 @@ export default function RouteMasterContent() {
     setNewRouteOpen(false);
     setNewRoute({ routeCode: '', description: '', assignedAgent: '', agentCode: '', supervisorName: '', supervisorCode: '' });
     toast.success(`Route ${created.routeCode} created`);
+    return;
   }
 
   function downloadTemplate() {

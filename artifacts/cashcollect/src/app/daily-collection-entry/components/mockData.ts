@@ -105,6 +105,20 @@ export function getScopedParlors(
   return ALL_AGENT_PARLORS;
 }
 
+// ── Agent → Supervisor mapping ─────────────────────────────────────────────
+export const AGENT_SUPERVISOR_MAP: Record<string, { code: string; name: string }> = {
+  'AGT-042': { code: 'SUP-012', name: 'Meena Sharma' },
+  'AGT-038': { code: 'SUP-012', name: 'Meena Sharma' },
+  'AGT-029': { code: 'SUP-012', name: 'Meena Sharma' },
+  'AGT-051': { code: 'SUP-012', name: 'Meena Sharma' },
+  'AGT-063': { code: 'SUP-017', name: 'Deepa Rao' },
+  'AGT-071': { code: 'SUP-017', name: 'Deepa Rao' },
+};
+
+export function getAgentSupervisor(agentCode: string) {
+  return AGENT_SUPERVISOR_MAP[agentCode] ?? { code: 'SUP-012', name: 'Meena Sharma' };
+}
+
 // ── Legacy alias (kept for existing imports) ──────────────────────────────
 export const MOCK_PARLORS: ParlorEntry[] = AGENT_PARLORS['AGT-042'];
 
