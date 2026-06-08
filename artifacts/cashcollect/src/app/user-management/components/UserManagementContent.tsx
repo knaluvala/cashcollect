@@ -20,7 +20,7 @@ import {
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import * as XLSX from 'xlsx';
+import * as XLSX from '@e965/xlsx';
 
 type UserRole = 'agent' | 'supervisor';
 type UserStatus = 'active' | 'inactive';

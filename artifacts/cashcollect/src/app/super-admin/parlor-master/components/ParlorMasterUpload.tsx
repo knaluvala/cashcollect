@@ -98,7 +98,7 @@ export default function ParlorMasterUpload() {
     setFileName(file.name);
 
     try {
-      const XLSX = await import('xlsx');
+      const XLSX = await import('@e965/xlsx');
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: 'array' });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -165,7 +165,7 @@ export default function ParlorMasterUpload() {
   };
 
   const handleDownloadSample = () => {
-    import('xlsx').then(XLSX => {
+    import('@e965/xlsx').then(XLSX => {
       const ws = XLSX.utils.aoa_to_sheet(SAMPLE_DATA);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Parlor Master');

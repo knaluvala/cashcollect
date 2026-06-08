@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import * as XLSX from 'xlsx';
+import * as XLSX from '@e965/xlsx';
 import { toast } from 'sonner';
 import {
   Map, Plus, Trash2, Download, Upload, X, Search,
