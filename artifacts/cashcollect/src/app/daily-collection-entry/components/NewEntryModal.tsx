@@ -13,6 +13,7 @@ import {
   CheckCircle,
   CalendarDays,
   Loader2,
+  Database,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ParlorEntry, ParlorType } from './mockData';
@@ -77,6 +78,8 @@ export default function NewEntryModal({ onClose, onSaved, parlors, defaultDate }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [dbId, setDbId] = useState<number | null>(null);
+  const [externalData, setExternalData] = useState<{ cashAmount: number; couponAmount: number; ccAmount: number } | null>(null);
+  const [isLoadingExternal, setIsLoadingExternal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -124,10 +127,13 @@ export default function NewEntryModal({ onClose, onSaved, parlors, defaultDate }
     }
   }, [dropdownOpen]);
 
-  // Check for existing collection when date or parlor changes
+  // Check for existing collection + external system data when date or parlor changes
   useEffect(() => {
     if (!selectedParlor) return;
     setChecking(true);
+    setIsLoadingExternal(true);
+
+    // Fetch existing collection from DB
     fetch(`${API_BASE}/collections?date=${selectedDate}&parlorCode=${selectedParlor.parlorCode}`)
       .then((r) => r.json())
       .then((data) => {
@@ -152,6 +158,19 @@ export default function NewEntryModal({ onClose, onSaved, parlors, defaultDate }
         setDbId(null);
       })
       .finally(() => setChecking(false));
+
+    // Fetch external system data
+    fetch(`${API_BASE}/external/parlor-summary/${selectedParlor.parlorCode}/${selectedDate}`)
+      .then((r) => r.json())
+      .then((data) => {
+        setExternalData({
+          cashAmount: data.cashAmount ?? 0,
+          couponAmount: data.couponAmount ?? 0,
+          ccAmount: data.ccAmount ?? 0,
+        });
+      })
+      .catch(() => setExternalData(null))
+      .finally(() => setIsLoadingExternal(false));
   }, [selectedParlor, selectedDate, reset]);
 
   function selectParlor(parlor: ParlorEntry) {
@@ -413,80 +432,128 @@ export default function NewEntryModal({ onClose, onSaved, parlors, defaultDate }
                     <IndianRupee size={12} />
                     Collection Amounts
                   </h3>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     {/* Cash */}
-                    <div>
-                      <label className="block text-xs font-medium text-foreground mb-1">
-                        Cash (₹)
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          disabled={isReadOnly}
-                          placeholder="0.00"
-                          className={`
-                            w-full h-9 pl-5 pr-2 rounded-md border text-sm tabular-nums bg-card
-                            focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
-                            disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
-                            ${errors.cashAmount ? 'border-red-400' : 'border-input'}
-                          `}
-                          {...register('cashAmount', { required: !isReadOnly ? 'Required' : false, min: { value: 0, message: 'Must be ≥ 0' } })}
-                        />
+                    <div className="space-y-2">
+                      {/* External System Value */}
+                      <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">External System</span>
+                          <Database size={10} className="text-slate-400" />
+                        </div>
+                        {isLoadingExternal ? (
+                          <div className="h-5 bg-slate-200 rounded animate-pulse" />
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-700">{fmt(externalData?.cashAmount ?? 0)}</span>
+                            <span className="text-[9px] text-slate-400">POS/ERP</span>
+                          </div>
+                        )}
                       </div>
-                      {errors.cashAmount && <p className="mt-0.5 text-[11px] text-red-500">{errors.cashAmount.message}</p>}
+                      {/* Agent Input */}
+                      <div>
+                        <label className="block text-xs font-medium text-foreground mb-1">Cash (₹)</label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            disabled={isReadOnly}
+                            placeholder="0.00"
+                            className={`
+                              w-full h-9 pl-5 pr-2 rounded-md border text-sm tabular-nums bg-card
+                              focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
+                              disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
+                              ${errors.cashAmount ? 'border-red-400' : 'border-input'}
+                            `}
+                            {...register('cashAmount', { required: !isReadOnly ? 'Required' : false, min: { value: 0, message: 'Must be ≥ 0' } })}
+                          />
+                        </div>
+                        {errors.cashAmount && <p className="mt-0.5 text-[11px] text-red-500">{errors.cashAmount.message}</p>}
+                      </div>
                     </div>
 
                     {/* Coupons */}
-                    <div>
-                      <label className="block text-xs font-medium text-foreground mb-1">
-                        Coupons (₹)
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          disabled={isReadOnly}
-                          placeholder="0.00"
-                          className={`
-                            w-full h-9 pl-5 pr-2 rounded-md border text-sm tabular-nums bg-card
-                            focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
-                            disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
-                            ${errors.couponAmount ? 'border-red-400' : 'border-input'}
-                          `}
-                          {...register('couponAmount', { required: !isReadOnly ? 'Required' : false, min: { value: 0, message: 'Must be ≥ 0' } })}
-                        />
+                    <div className="space-y-2">
+                      {/* External System Value */}
+                      <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">External System</span>
+                          <Database size={10} className="text-slate-400" />
+                        </div>
+                        {isLoadingExternal ? (
+                          <div className="h-5 bg-slate-200 rounded animate-pulse" />
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-700">{fmt(externalData?.couponAmount ?? 0)}</span>
+                            <span className="text-[9px] text-slate-400">POS/ERP</span>
+                          </div>
+                        )}
                       </div>
-                      {errors.couponAmount && <p className="mt-0.5 text-[11px] text-red-500">{errors.couponAmount.message}</p>}
+                      {/* Agent Input */}
+                      <div>
+                        <label className="block text-xs font-medium text-foreground mb-1">Coupons (₹)</label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            disabled={isReadOnly}
+                            placeholder="0.00"
+                            className={`
+                              w-full h-9 pl-5 pr-2 rounded-md border text-sm tabular-nums bg-card
+                              focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
+                              disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
+                              ${errors.couponAmount ? 'border-red-400' : 'border-input'}
+                            `}
+                            {...register('couponAmount', { required: !isReadOnly ? 'Required' : false, min: { value: 0, message: 'Must be ≥ 0' } })}
+                          />
+                        </div>
+                        {errors.couponAmount && <p className="mt-0.5 text-[11px] text-red-500">{errors.couponAmount.message}</p>}
+                      </div>
                     </div>
 
                     {/* Credit Card */}
-                    <div>
-                      <label className="block text-xs font-medium text-foreground mb-1">
-                        Credit Card (₹)
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          disabled={isReadOnly}
-                          placeholder="0.00"
-                          className={`
-                            w-full h-9 pl-5 pr-2 rounded-md border text-sm tabular-nums bg-card
-                            focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
-                            disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
-                            ${errors.ccAmount ? 'border-red-400' : 'border-input'}
-                          `}
-                          {...register('ccAmount', { required: !isReadOnly ? 'Required' : false, min: { value: 0, message: 'Must be ≥ 0' } })}
-                        />
+                    <div className="space-y-2">
+                      {/* External System Value */}
+                      <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">External System</span>
+                          <Database size={10} className="text-slate-400" />
+                        </div>
+                        {isLoadingExternal ? (
+                          <div className="h-5 bg-slate-200 rounded animate-pulse" />
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-slate-700">{fmt(externalData?.ccAmount ?? 0)}</span>
+                            <span className="text-[9px] text-slate-400">POS/ERP</span>
+                          </div>
+                        )}
                       </div>
-                      {errors.ccAmount && <p className="mt-0.5 text-[11px] text-red-500">{errors.ccAmount.message}</p>}
+                      {/* Agent Input */}
+                      <div>
+                        <label className="block text-xs font-medium text-foreground mb-1">Credit Card (₹)</label>
+                        <div className="relative">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            disabled={isReadOnly}
+                            placeholder="0.00"
+                            className={`
+                              w-full h-9 pl-5 pr-2 rounded-md border text-sm tabular-nums bg-card
+                              focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
+                              disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
+                              ${errors.ccAmount ? 'border-red-400' : 'border-input'}
+                            `}
+                            {...register('ccAmount', { required: !isReadOnly ? 'Required' : false, min: { value: 0, message: 'Must be ≥ 0' } })}
+                          />
+                        </div>
+                        {errors.ccAmount && <p className="mt-0.5 text-[11px] text-red-500">{errors.ccAmount.message}</p>}
+                      </div>
                     </div>
                   </div>
 
