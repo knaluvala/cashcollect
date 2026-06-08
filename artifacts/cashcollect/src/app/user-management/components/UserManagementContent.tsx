@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Plus,
   Upload,
@@ -18,15 +18,18 @@ import {
   ChevronUp,
   ChevronDown,
   Users,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import * as XLSX from '@e965/xlsx';
+
+const API_BASE = '/api';
 
 type UserRole = 'agent' | 'supervisor';
 type UserStatus = 'active' | 'inactive';
 
 interface AppUser {
-  id: string;
+  id: number;
   name: string;
   email: string;
   role: UserRole;
@@ -35,15 +38,6 @@ interface AppUser {
   status: UserStatus;
   createdAt: string;
 }
-
-const MOCK_USERS: AppUser[] = [
-  { id: 'u1', name: 'Rajan Kumar', email: 'rajan.kumar@cashcollect.in', role: 'agent', routeCode: 'RT-04', agentCode: 'AGT-042', status: 'active', createdAt: '01 Jan 2026' },
-  { id: 'u2', name: 'Priya Nair', email: 'priya.nair@cashcollect.in', role: 'agent', routeCode: 'RT-05', agentCode: 'AGT-017', status: 'active', createdAt: '15 Jan 2026' },
-  { id: 'u3', name: 'Arjun Mehta', email: 'arjun.mehta@cashcollect.in', role: 'agent', routeCode: 'RT-06', agentCode: 'AGT-033', status: 'inactive', createdAt: '20 Feb 2026' },
-  { id: 'u4', name: 'Meena Sharma', email: 'meena.sharma@cashcollect.in', role: 'supervisor', routeCode: 'RT-04 & RT-05', agentCode: 'SUP-012', status: 'active', createdAt: '01 Jan 2026' },
-  { id: 'u5', name: 'Vikram Patel', email: 'vikram.patel@cashcollect.in', role: 'supervisor', routeCode: 'RT-06 & RT-07', agentCode: 'SUP-008', status: 'active', createdAt: '10 Mar 2026' },
-  { id: 'u6', name: 'Deepa Rao', email: 'deepa.rao@cashcollect.in', role: 'agent', routeCode: 'RT-07', agentCode: 'AGT-055', status: 'active', createdAt: '05 Apr 2026' },
-];
 
 interface NewUserForm {
   name: string;
@@ -57,8 +51,14 @@ const EMPTY_FORM: NewUserForm = { name: '', email: '', role: 'agent', routeCode:
 
 type SortKey = 'name' | 'role' | 'routeCode' | 'status' | 'createdAt';
 
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
 export default function UserManagementContent() {
-  const [users, setUsers] = useState<AppUser[]>(MOCK_USERS);
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState<'all' | UserRole>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | UserStatus>('all');
@@ -73,6 +73,29 @@ export default function UserManagementContent() {
 
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Fetch users on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/users?search=${encodeURIComponent(search)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setUsers(data.users ?? []);
+      } catch {
+        if (!cancelled) {
+          toast.error('Failed to load users from server');
+          setUsers([]);
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [search]);
 
   const filtered = users
     .filter((u) => {
@@ -126,72 +149,143 @@ export default function UserManagementContent() {
   async function handleSave() {
     if (!validate()) return;
     setIsSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
 
     if (editingUser) {
-      setUsers((prev) =>
-        prev.map((u) =>
-          u.id === editingUser.id ? { ...u, ...form } : u
-        )
-      );
-      toast.success(`Updated ${form.name}`);
+      try {
+        const res = await fetch(`${API_BASE}/users/${editingUser.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(form),
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          toast.error(result.error?.[0]?.message ?? result.error ?? 'Update failed');
+          setIsSaving(false);
+          return;
+        }
+        setUsers((prev) => prev.map((u) => (u.id === editingUser.id ? { ...u, ...form, updatedAt: result.updatedAt } : u)));
+        toast.success(`Updated ${form.name}`);
+      } catch {
+        toast.error('Network error: could not update user');
+        setIsSaving(false);
+        return;
+      }
     } else {
-      const newUser: AppUser = {
-        id: `u${Date.now()}`,
-        ...form,
-        status: 'active',
-        createdAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      };
-      setUsers((prev) => [newUser, ...prev]);
-      toast.success(`Created user ${form.name}`);
+      try {
+        const res = await fetch(`${API_BASE}/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...form, status: 'active' }),
+        });
+        const result = await res.json();
+        if (!res.ok) {
+          toast.error(result.error?.[0]?.message ?? result.error ?? 'Create failed');
+          setIsSaving(false);
+          return;
+        }
+        const newUser: AppUser = {
+          id: result.id,
+          ...form,
+          status: 'active',
+          createdAt: result.createdAt,
+        };
+        setUsers((prev) => [newUser, ...prev]);
+        toast.success(`Created user ${form.name}`);
+      } catch {
+        toast.error('Network error: could not create user');
+        setIsSaving(false);
+        return;
+      }
     }
 
     setIsSaving(false);
     setModalOpen(false);
   }
 
-  function handleDelete(u: AppUser) {
+  async function handleDelete(u: AppUser) {
     setMenuOpenId(null);
-    setUsers((prev) => prev.filter((x) => x.id !== u.id));
-    toast.success(`Deleted ${u.name}`);
+    try {
+      const res = await fetch(`${API_BASE}/users/${u.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error ?? 'Delete failed');
+        return;
+      }
+      setUsers((prev) => prev.filter((x) => x.id !== u.id));
+      toast.success(`Deleted ${u.name}`);
+    } catch {
+      toast.error('Network error: could not delete user');
+    }
   }
 
-  function toggleStatus(u: AppUser) {
+  async function toggleStatus(u: AppUser) {
     setMenuOpenId(null);
-    setUsers((prev) =>
-      prev.map((x) =>
-        x.id === u.id ? { ...x, status: x.status === 'active' ? 'inactive' : 'active' } : x
-      )
-    );
-    toast.success(`${u.name} marked as ${u.status === 'active' ? 'inactive' : 'active'}`);
+    const newStatus = u.status === 'active' ? 'inactive' : 'active';
+    try {
+      const res = await fetch(`${API_BASE}/users/${u.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        toast.error(result.error?.[0]?.message ?? result.error ?? 'Update failed');
+        return;
+      }
+      setUsers((prev) => prev.map((x) => (x.id === u.id ? { ...x, status: newStatus } : x)));
+      toast.success(`${u.name} marked as ${newStatus}`);
+    } catch {
+      toast.error('Network error: could not update status');
+    }
   }
 
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const data = new Uint8Array(ev.target?.result as ArrayBuffer);
         const wb = XLSX.read(data, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
-        const imported: AppUser[] = rows.map((row, i) => ({
-          id: `import-${Date.now()}-${i}`,
+        const imported: Omit<AppUser, 'id' | 'createdAt'>[] = rows.map((row) => ({
           name: row['Name'] || row['name'] || '',
           email: row['Email'] || row['email'] || '',
           role: ((row['Role'] || row['role'] || 'agent').toLowerCase() as UserRole),
           routeCode: row['Route Code'] || row['routeCode'] || row['route'] || '',
           agentCode: row['User Code'] || row['agentCode'] || row['code'] || '',
           status: 'active' as UserStatus,
-          createdAt: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-        })).filter((u) => u.name && u.email);
+        })).filter((u) => u.name && u.email && u.agentCode);
+
         if (imported.length === 0) {
           toast.error('No valid rows found. Check columns: Name, Email, Role, Route Code, User Code');
-        } else {
-          setUsers((prev) => [...imported, ...prev]);
-          toast.success(`Imported ${imported.length} user${imported.length > 1 ? 's' : ''}`);
+          return;
         }
+
+        let created = 0;
+        let failed = 0;
+        for (const u of imported) {
+          try {
+            const res = await fetch(`${API_BASE}/users`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(u),
+            });
+            if (res.ok) {
+              const result = await res.json();
+              setUsers((prev) => [{ ...u, id: result.id, createdAt: result.createdAt } as AppUser, ...prev]);
+              created++;
+            } else {
+              failed++;
+            }
+          } catch {
+            failed++;
+          }
+        }
+
+        if (created > 0) toast.success(`Imported ${created} user${created > 1 ? 's' : ''}`);
+        if (failed > 0) toast.error(`${failed} row${failed > 1 ? 's' : ''} failed (duplicate email/code?)`);
       } catch {
         toast.error('Failed to read file. Use .xlsx or .csv format.');
       }
@@ -336,7 +430,12 @@ export default function UserManagementContent() {
 
       {/* Table */}
       <div className="flex-1 overflow-y-auto scrollbar-thin">
-        {filtered.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64 gap-2 text-muted-foreground">
+            <Loader2 size={18} className="animate-spin" />
+            <span className="text-sm">Loading users…</span>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 gap-3">
             <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
               <Users size={20} className="text-muted-foreground" />
@@ -418,7 +517,7 @@ export default function UserManagementContent() {
                     </span>
                   </td>
                   {/* Created */}
-                  <td className="px-4 py-3 text-muted-foreground text-xs">{u.createdAt}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">{formatDate(u.createdAt)}</td>
                   {/* Actions */}
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
@@ -536,14 +635,14 @@ export default function UserManagementContent() {
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    placeholder="name@cashcollect.in"
+                    placeholder="e.g. rajan@cashcollect.in"
                     className={`w-full h-9 pl-7 pr-3 rounded-md border text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-150 ${formErrors.email ? 'border-red-400' : 'border-input'}`}
                   />
                 </div>
                 {formErrors.email && <p className="mt-0.5 text-[11px] text-red-500">{formErrors.email}</p>}
               </div>
 
-              {/* Route + Code */}
+              {/* Route Code + User Code */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-foreground mb-1">Route Code <span className="text-red-500">*</span></label>
