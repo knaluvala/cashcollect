@@ -1,7 +1,7 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Store, IndianRupee, FileText, Send, Save, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Store, IndianRupee, FileText, Send, Save, CheckCircle, Clock, AlertCircle, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import StatusBadge from '@/components/ui/StatusBadge';
 import { ParlorEntry, ParlorType } from './mockData';
@@ -11,6 +11,14 @@ interface CollectionFormValues {
   couponAmount: string;
   ccAmount: string;
   notes: string;
+}
+
+interface ExternalSummary {
+  cashAmount: number;
+  couponAmount: number;
+  ccAmount: number;
+  source: string;
+  fetchedAt: string;
 }
 
 interface Props {
@@ -40,6 +48,8 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [dbId, setDbId] = useState<number | null>(null);
+  const [externalData, setExternalData] = useState<ExternalSummary | null>(null);
+  const [isLoadingExternal, setIsLoadingExternal] = useState(false);
 
   const {
     register,
@@ -66,11 +76,14 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
     });
   }, [parlor.id, reset]);
 
-  // Check for existing DB record on mount/parlor/date change
+  // Fetch existing DB record + external system data on mount/parlor/date change
   useEffect(() => {
+    let cancelled = false;
+    // Fetch existing DB record
     fetch(`${API_BASE}/collections?date=${date}&parlorCode=${parlor.parlorCode}`)
       .then((r) => r.json())
       .then((data) => {
+        if (cancelled) return;
         const coll = data.collection;
         if (coll) {
           setDbId(coll.id);
@@ -85,6 +98,23 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
         }
       })
       .catch(() => setDbId(null));
+
+    // Fetch external system data
+    setIsLoadingExternal(true);
+    fetch(`${API_BASE}/external/parlor-summary/${parlor.parlorCode}/${date}`)
+      .then((r) => r.json())
+      .then((data: ExternalSummary) => {
+        if (cancelled) return;
+        setExternalData(data);
+      })
+      .catch(() => {
+        if (!cancelled) setExternalData(null);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingExternal(false);
+      });
+
+    return () => { cancelled = true; };
   }, [parlor.parlorCode, date, reset]);
 
   const cashVal = parseFloat(watch('cashAmount') || '0') || 0;
@@ -106,7 +136,7 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
       couponAmount: parseFloat(data.couponAmount) || 0,
       ccAmount: parseFloat(data.ccAmount) || 0,
       notes: data.notes,
-      status: 'entered',
+      status: 'entered' as const,
     };
 
     try {
@@ -174,6 +204,62 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
 
   const fmt = (n: number) => '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
+  const AmountField = ({
+    id, label, helper, valueKey, externalValue, isLoading,
+    error, registerOptions,
+  }: {
+    id: string; label: string; helper: string; valueKey: 'cashAmount' | 'couponAmount' | 'ccAmount';
+    externalValue: number; isLoading: boolean;
+    error?: { message?: string };
+    registerOptions: any;
+  }) => (
+    <div className="space-y-3">
+      {/* External System Value */}
+      <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">External System</span>
+          <Database size={12} className="text-slate-400" />
+        </div>
+        {isLoading ? (
+          <div className="h-6 bg-slate-200 rounded animate-pulse" />
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-slate-700">{fmt(externalValue)}</span>
+            <span className="text-[10px] text-slate-400">POS/ERP</span>
+          </div>
+        )}
+      </div>
+
+      {/* Agent Input */}
+      <div>
+        <label htmlFor={id} className="block text-sm font-medium text-foreground mb-1">
+          {label} (₹)
+        </label>
+        <p className="text-xs text-muted-foreground mb-1.5">{helper}</p>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₹</span>
+          <input
+            id={id}
+            type="number"
+            step="0.01"
+            min="0"
+            disabled={isReadOnly}
+            placeholder="0.00"
+            className={`
+              w-full h-10 pl-6 pr-3 rounded-md border text-sm tabular-nums bg-card
+              focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
+              disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
+              transition-all duration-150
+              ${error ? 'border-red-400' : 'border-input'}
+            `}
+            {...register(valueKey, registerOptions)}
+          />
+        </div>
+        {error && <p className="mt-1 text-xs text-red-500">{error.message}</p>}
+      </div>
+    </div>
+  );
+
   return (
     <div className="max-w-2xl mx-auto p-6">
       {/* Parlor Header */}
@@ -236,104 +322,51 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
             Collection Amounts
           </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Cash */}
-            <div>
-              <label htmlFor={`cash-${parlor.id}`} className="block text-sm font-medium text-foreground mb-1.5">
-                Cash Amount (₹)
-              </label>
-              <p className="text-xs text-muted-foreground mb-1.5">Physical currency collected</p>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₹</span>
-                <input
-                  id={`cash-${parlor.id}`}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  disabled={isReadOnly}
-                  placeholder="0.00"
-                  className={`
-                    w-full h-10 pl-6 pr-3 rounded-md border text-sm tabular-nums bg-card
-                    focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
-                    disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
-                    transition-all duration-150
-                    ${errors.cashAmount ? 'border-red-400' : 'border-input'}
-                  `}
-                  {...register('cashAmount', {
-                    required: !isReadOnly ? 'Cash amount is required' : false,
-                    min: { value: 0, message: 'Amount cannot be negative' },
-                  })}
-                />
-              </div>
-              {errors.cashAmount && <p className="mt-1 text-xs text-red-500">{errors.cashAmount.message}</p>}
-            </div>
-
-            {/* Coupons */}
-            <div>
-              <label htmlFor={`coupon-${parlor.id}`} className="block text-sm font-medium text-foreground mb-1.5">
-                Coupon Amount (₹)
-              </label>
-              <p className="text-xs text-muted-foreground mb-1.5">Physical coupons redeemed</p>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₹</span>
-                <input
-                  id={`coupon-${parlor.id}`}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  disabled={isReadOnly}
-                  placeholder="0.00"
-                  className={`
-                    w-full h-10 pl-6 pr-3 rounded-md border text-sm tabular-nums bg-card
-                    focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
-                    disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
-                    transition-all duration-150
-                    ${errors.couponAmount ? 'border-red-400' : 'border-input'}
-                  `}
-                  {...register('couponAmount', {
-                    required: !isReadOnly ? 'Coupon amount is required' : false,
-                    min: { value: 0, message: 'Amount cannot be negative' },
-                  })}
-                />
-              </div>
-              {errors.couponAmount && <p className="mt-1 text-xs text-red-500">{errors.couponAmount.message}</p>}
-            </div>
-
-            {/* Credit Card */}
-            <div>
-              <label htmlFor={`cc-${parlor.id}`} className="block text-sm font-medium text-foreground mb-1.5">
-                Credit Card Total (₹)
-              </label>
-              <p className="text-xs text-muted-foreground mb-1.5">POS / card transaction total</p>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₹</span>
-                <input
-                  id={`cc-${parlor.id}`}
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  disabled={isReadOnly}
-                  placeholder="0.00"
-                  className={`
-                    w-full h-10 pl-6 pr-3 rounded-md border text-sm tabular-nums bg-card
-                    focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
-                    disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
-                    transition-all duration-150
-                    ${errors.ccAmount ? 'border-red-400' : 'border-input'}
-                  `}
-                  {...register('ccAmount', {
-                    required: !isReadOnly ? 'Credit card amount is required' : false,
-                    min: { value: 0, message: 'Amount cannot be negative' },
-                  })}
-                />
-              </div>
-              {errors.ccAmount && <p className="mt-1 text-xs text-red-500">{errors.ccAmount.message}</p>}
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+            <AmountField
+              id={`cash-${parlor.id}`}
+              label="Cash Amount"
+              helper="Physical currency collected"
+              valueKey="cashAmount"
+              externalValue={externalData?.cashAmount ?? 0}
+              isLoading={isLoadingExternal}
+              error={errors.cashAmount}
+              registerOptions={{
+                required: !isReadOnly ? 'Cash amount is required' : false,
+                min: { value: 0, message: 'Amount cannot be negative' },
+              }}
+            />
+            <AmountField
+              id={`coupon-${parlor.id}`}
+              label="Coupon Amount"
+              helper="Physical coupons redeemed"
+              valueKey="couponAmount"
+              externalValue={externalData?.couponAmount ?? 0}
+              isLoading={isLoadingExternal}
+              error={errors.couponAmount}
+              registerOptions={{
+                required: !isReadOnly ? 'Coupon amount is required' : false,
+                min: { value: 0, message: 'Amount cannot be negative' },
+              }}
+            />
+            <AmountField
+              id={`cc-${parlor.id}`}
+              label="Credit Card Total"
+              helper="POS / card transaction total"
+              valueKey="ccAmount"
+              externalValue={externalData?.ccAmount ?? 0}
+              isLoading={isLoadingExternal}
+              error={errors.ccAmount}
+              registerOptions={{
+                required: !isReadOnly ? 'Credit card amount is required' : false,
+                min: { value: 0, message: 'Amount cannot be negative' },
+              }}
+            />
           </div>
 
           {/* Total */}
           {(cashVal > 0 || couponVal > 0 || ccVal > 0) && (
-            <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+            <div className="mt-5 pt-4 border-t border-border flex items-center justify-between">
               <span className="text-sm font-medium text-muted-foreground">Total Collection</span>
               <span className="text-xl font-bold text-foreground tabular-nums">{fmt(total)}</span>
             </div>

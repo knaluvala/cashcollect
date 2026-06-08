@@ -202,4 +202,51 @@ router.post("/collections/:id/submit", async (req, res) => {
   res.json(updated[0]);
 });
 
+// GET /api/external/parlor-summary/:parlorCode/:date
+// Simulates fetching from an external ERP/POS system
+type ExternalSummary = {
+  cashAmount: number;
+  couponAmount: number;
+  ccAmount: number;
+  source: string;
+  fetchedAt: string;
+};
+
+function hashCode(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+function deterministicAmount(parlorCode: string, date: string, seed: number): number {
+  const base = hashCode(parlorCode + date + String(seed));
+  // Generate realistic amounts between 500 and 25000
+  return Math.round((base % 24500) + 500);
+}
+
+router.get("/external/parlor-summary/:parlorCode/:date", async (req, res) => {
+  const parlorCode = req.params.parlorCode as string;
+  const date = req.params.date as string;
+
+  if (!parlorCode || !date) {
+    res.status(400).json({ error: "parlorCode and date are required" });
+    return;
+  }
+
+  // Simulate external API latency
+  await new Promise((r) => setTimeout(r, 120));
+
+  const summary: ExternalSummary = {
+    cashAmount: deterministicAmount(parlorCode, date, 1),
+    couponAmount: deterministicAmount(parlorCode, date, 2),
+    ccAmount: deterministicAmount(parlorCode, date, 3),
+    source: "External ERP System (POS/CRM)",
+    fetchedAt: new Date().toISOString(),
+  };
+
+  res.json(summary);
+});
+
 export default router;
