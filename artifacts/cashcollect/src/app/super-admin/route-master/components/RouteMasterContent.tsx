@@ -324,9 +324,9 @@ export default function RouteMasterContent() {
             )}
             {filteredRoutes.map((route) => (
               <li key={route.id}>
-                <button
+                <div
                   onClick={() => setSelectedRouteId(route.id)}
-                  className={`w-full text-left px-4 py-3 transition-colors border-b border-border/60 last:border-0 ${
+                  className={`w-full text-left px-4 py-3 transition-colors border-b border-border/60 last:border-0 cursor-pointer ${
                     selectedRouteId === route.id
                       ? 'bg-primary/10 border-l-2 border-l-primary'
                       : 'hover:bg-muted/40 border-l-2 border-l-transparent'
@@ -355,7 +355,7 @@ export default function RouteMasterContent() {
                   >
                     Delete route
                   </button>
-                </button>
+                </div>
               </li>
             ))}
             {!loading && filteredRoutes.length === 0 && (
@@ -511,30 +511,60 @@ export default function RouteMasterContent() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto scrollbar-thin">
-              {availableParlors.length === 0 ? (
+              {parlors.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-2">
                   <p className="text-sm text-muted-foreground">
-                    {parlorSearch ? 'No parlors match your search' : 'All parlors are already assigned to this route'}
+                    No parlors found in Parlor Master.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Add parlors in the Parlor Master first.
                   </p>
                 </div>
               ) : (
                 <ul className="divide-y divide-border">
-                  {availableParlors.map((p) => (
-                    <li key={p.code}>
-                      <button
-                        onClick={() => { addParlorToRoute(p); setAddParlorOpen(false); setParlorSearch(''); }}
-                        className="w-full text-left flex items-center justify-between px-5 py-3 hover:bg-muted/40 transition-colors"
-                      >
-                        <div>
-                          <span className="font-mono text-xs font-semibold text-muted-foreground mr-2">{p.code}</span>
-                          <span className="text-sm text-foreground">{p.name}</span>
-                        </div>
-                        <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${TYPE_COLORS[p.type]}`}>
-                          {p.type}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
+                  {parlors
+                    .filter(
+                      (p) =>
+                        parlorSearch === '' ||
+                        p.code.toLowerCase().includes(parlorSearch.toLowerCase()) ||
+                        p.name.toLowerCase().includes(parlorSearch.toLowerCase())
+                    )
+                    .map((p) => {
+                      const alreadyAssigned = assignedParlorCodes.has(p.code);
+                      return (
+                        <li key={p.code}>
+                          <button
+                            disabled={alreadyAssigned}
+                            onClick={() => {
+                              if (alreadyAssigned) return;
+                              addParlorToRoute(p);
+                              setAddParlorOpen(false);
+                              setParlorSearch('');
+                            }}
+                            className={`w-full text-left flex items-center justify-between px-5 py-3 transition-colors ${
+                              alreadyAssigned
+                                ? 'bg-muted/30 cursor-not-allowed opacity-60'
+                                : 'hover:bg-muted/40'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-semibold text-muted-foreground">{p.code}</span>
+                              <span className={`text-sm ${alreadyAssigned ? 'text-muted-foreground' : 'text-foreground'}`}>
+                                {p.name}
+                              </span>
+                              {alreadyAssigned && (
+                                <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
+                                  Already assigned
+                                </span>
+                              )}
+                            </div>
+                            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${TYPE_COLORS[p.type]}`}>
+                              {p.type}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
                 </ul>
               )}
             </div>
