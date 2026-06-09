@@ -1,6 +1,9 @@
 'use client';
-import React, { useState, useRef, useCallback } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertCircle, Download, Trash2, ChevronUp, ChevronDown, Search } from 'lucide-react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Upload, FileSpreadsheet, CheckCircle2, XCircle, AlertCircle, Download, Trash2, ChevronUp, ChevronDown, Search, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
+
+const API_BASE = '/api';
 
 interface ParlorRow {
   parlorCode: string;
@@ -11,9 +14,12 @@ interface ParlorRow {
 }
 
 interface SavedParlor {
+  id: number;
   parlorCode: string;
   parlorName: string;
   parlorType: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const VALID_TYPES = ['Mall', 'Standalone', 'Event', 'Kiosk', 'Cart'];
@@ -23,17 +29,6 @@ const SAMPLE_DATA = [
   ['PRL-001', 'Andheri West Scoop', 'Mall'],
   ['PRL-002', 'Bandra Standalone', 'Standalone'],
   ['PRL-003', 'Juhu Beach Event', 'Event'],
-];
-
-const INITIAL_PARLORS: SavedParlor[] = [
-  { parlorCode: 'PRL-001', parlorName: 'Andheri West Scoop', parlorType: 'Mall' },
-  { parlorCode: 'PRL-002', parlorName: 'Bandra Standalone', parlorType: 'Standalone' },
-  { parlorCode: 'PRL-003', parlorName: 'Juhu Beach Event', parlorType: 'Event' },
-  { parlorCode: 'PRL-004', parlorName: 'Powai Kiosk', parlorType: 'Kiosk' },
-  { parlorCode: 'PRL-005', parlorName: 'Dadar Cart', parlorType: 'Cart' },
-  { parlorCode: 'PRL-006', parlorName: 'Malad Mall Outlet', parlorType: 'Mall' },
-  { parlorCode: 'PRL-007', parlorName: 'Thane Standalone', parlorType: 'Standalone' },
-  { parlorCode: 'PRL-008', parlorName: 'Navi Mumbai Event', parlorType: 'Event' },
 ];
 
 function validateRow(row: Record<string, string>, index: number): ParlorRow {
@@ -52,7 +47,7 @@ function validateRow(row: Record<string, string>, index: number): ParlorRow {
   return {
     parlorCode,
     parlorName,
-    parlorType,
+    parlorType: VALID_TYPES.find(t => t.toLowerCase() === parlorType.toLowerCase()) || parlorType,
     status: errors.length === 0 ? 'valid' : 'error',
     errors,
   };
@@ -81,11 +76,28 @@ export default function ParlorMasterUpload() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'valid' | 'error'>('all');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Existing parlors state
-  const [existingParlors, setExistingParlors] = useState<SavedParlor[]>(INITIAL_PARLORS);
+  const [existingParlors, setExistingParlors] = useState<SavedParlor[]>([]);
   const [existingSearch, setExistingSearch] = useState('');
   const [existingSortKey, setExistingSortKey] = useState<ExistingSortKey>('parlorCode');
   const [existingSortDir, setExistingSortDir] = useState<SortDir>('asc');
+  const [loadingExisting, setLoadingExisting] = useState(false);
+
+  const fetchExistingParlors = useCallback(async () => {
+    setLoadingExisting(true);
+    try {
+      const res = await fetch(`${API_BASE}/parlors?search=${encodeURIComponent(existingSearch)}`);
+      const data = await res.json();
+      setExistingParlors(data.parlors || []);
+    } catch {
+      toast.error('Failed to load parlors');
+    } finally {
+      setLoadingExisting(false);
+    }
+  }, [existingSearch]);
+
+  useEffect(() => {
+    fetchExistingParlors();
+  }, [fetchExistingParlors]);
 
   const parseFile = useCallback(async (file: File) => {
     if (!file.name.match(/\.(xlsx|xls|csv)$/i)) {
@@ -96,7 +108,6 @@ export default function ParlorMasterUpload() {
     setUploadState('parsing');
     setErrorMsg('');
     setFileName(file.name);
-
     try {
       const XLSX = await import('@e965/xlsx');
       const buffer = await file.arrayBuffer();
@@ -147,21 +158,44 @@ export default function ParlorMasterUpload() {
     const validRows = rows.filter(r => r.status === 'valid');
     if (validRows.length === 0) return;
     setUploadState('uploading');
-    await new Promise(res => setTimeout(res, 1500));
 
-    // Merge valid rows into existing parlors (upsert by parlorCode)
-    setExistingParlors(prev => {
-      const updated = [...prev];
-      validRows.forEach(r => {
-        const idx = updated.findIndex(p => p.parlorCode === r.parlorCode);
-        const entry: SavedParlor = { parlorCode: r.parlorCode, parlorName: r.parlorName, parlorType: r.parlorType };
-        if (idx >= 0) updated[idx] = entry;
-        else updated.push(entry);
-      });
-      return updated;
-    });
+    let saved = 0;
+    let failed = 0;
+    for (const r of validRows) {
+      try {
+        const res = await fetch(`${API_BASE}/parlors`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ parlorCode: r.parlorCode, parlorName: r.parlorName, parlorType: r.parlorType }),
+        });
+        if (res.ok) saved++;
+        else failed++;
+      } catch {
+        failed++;
+      }
+    }
 
+    await fetchExistingParlors();
     setUploadState('success');
+    if (failed > 0) {
+      toast.warning(`${saved} saved, ${failed} failed (duplicates or errors)`);
+    } else {
+      toast.success(`${saved} parlor records saved successfully`);
+    }
+  };
+
+  const handleDelete = async (id: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/parlors/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Parlor deleted');
+        await fetchExistingParlors();
+      } else {
+        toast.error('Failed to delete parlor');
+      }
+    } catch {
+      toast.error('Failed to delete parlor');
+    }
   };
 
   const handleDownloadSample = () => {
@@ -195,10 +229,6 @@ export default function ParlorMasterUpload() {
     });
 
   const filteredExisting = existingParlors
-    .filter(p => {
-      const q = existingSearch.toLowerCase();
-      return !q || p.parlorCode.toLowerCase().includes(q) || p.parlorName.toLowerCase().includes(q) || p.parlorType.toLowerCase().includes(q);
-    })
     .sort((a, b) => {
       const av = a[existingSortKey] ?? '';
       const bv = b[existingSortKey] ?? '';
@@ -496,7 +526,6 @@ export default function ParlorMasterUpload() {
               <h2 className="text-base font-semibold text-foreground">Existing Parlors</h2>
               <p className="text-xs text-muted-foreground mt-0.5">{existingParlors.length} parlor{existingParlors.length !== 1 ? 's' : ''} on record</p>
             </div>
-            {/* Search */}
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               <input
@@ -519,34 +548,56 @@ export default function ParlorMasterUpload() {
                       { key: 'parlorCode' as ExistingSortKey, label: 'Parlor Code' },
                       { key: 'parlorName' as ExistingSortKey, label: 'Parlor Name' },
                       { key: 'parlorType' as ExistingSortKey, label: 'Parlor Type' },
+                      { key: 'createdAt' as ExistingSortKey, label: 'Created' },
                     ]).map(col => (
                       <th
                         key={col.key}
-                        onClick={() => handleExistingSort(col.key)}
+                        onClick={() => handleExistingSort(col.key as ExistingSortKey)}
                         className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer select-none hover:text-foreground transition-colors"
                       >
                         {col.label}
-                        <ExistingSortIcon col={col.key} />
+                        <ExistingSortIcon col={col.key as ExistingSortKey} />
                       </th>
                     ))}
+                    <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {filteredExisting.map((parlor, i) => (
-                    <tr key={parlor.parlorCode} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
-                      <td className="px-4 py-3 font-mono text-xs font-medium text-foreground">{parlor.parlorCode}</td>
-                      <td className="px-4 py-3 text-foreground">{parlor.parlorName}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${TYPE_COLORS[parlor.parlorType] || 'bg-muted text-foreground border-border'}`}>
-                          {parlor.parlorType}
-                        </span>
+                  {loadingExisting ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-10 text-center">
+                        <Loader2 size={20} className="animate-spin mx-auto text-muted-foreground" />
                       </td>
                     </tr>
-                  ))}
-                  {filteredExisting.length === 0 && (
+                  ) : (
+                    filteredExisting.map((parlor, i) => (
+                      <tr key={parlor.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{i + 1}</td>
+                        <td className="px-4 py-3 font-mono text-xs font-medium text-foreground">{parlor.parlorCode}</td>
+                        <td className="px-4 py-3 text-foreground">{parlor.parlorName}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${TYPE_COLORS[parlor.parlorType] || 'bg-muted text-foreground border-border'}`}>
+                            {parlor.parlorType}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {parlor.createdAt ? new Date(parlor.createdAt).toLocaleDateString() : '—'}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => handleDelete(parlor.id)}
+                            className="text-red-600 hover:text-red-800 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                  {!loadingExisting && filteredExisting.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                      <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
                         {existingSearch ? 'No parlors match your search.' : 'No parlors on record yet.'}
                       </td>
                     </tr>

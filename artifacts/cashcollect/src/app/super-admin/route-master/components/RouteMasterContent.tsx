@@ -1,34 +1,95 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import * as XLSX from '@e965/xlsx';
 import { toast } from 'sonner';
 import {
   Map, Plus, Trash2, Download, Upload, X, Search,
-  ChevronRight, Store, Users, Shield
+  ChevronRight, Store, Users, Shield, Loader2
 } from 'lucide-react';
-import { INITIAL_ROUTES, ALL_PARLORS, Route, Parlor } from '../routeMockData';
+
+const API_BASE = '/api';
+
+interface Parlor {
+  code: string;
+  name: string;
+  type: 'Mall' | 'Standalone' | 'Event' | 'Kiosk' | 'Cart';
+}
+
+interface RouteApi {
+  id: number;
+  routeCode: string;
+  description: string;
+  assignedAgent: string;
+  agentCode: string;
+  supervisorName: string;
+  supervisorCode: string;
+  parlors: { code: string }[];
+}
 
 const TYPE_COLORS: Record<string, string> = {
   Mall: 'bg-blue-100 text-blue-700',
   Standalone: 'bg-slate-100 text-slate-600',
   Event: 'bg-orange-100 text-orange-700',
   Kiosk: 'bg-purple-100 text-purple-700',
+  Cart: 'bg-pink-100 text-pink-700',
 };
 
 export default function RouteMasterContent() {
-  const [routes, setRoutes] = useState<Route[]>(INITIAL_ROUTES);
-  const [selectedRouteId, setSelectedRouteId] = useState<string>(INITIAL_ROUTES[0].id);
+  const [routes, setRoutes] = useState<RouteApi[]>([]);
+  const [parlors, setParlors] = useState<Parlor[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
   const [addParlorOpen, setAddParlorOpen] = useState(false);
   const [newRouteOpen, setNewRouteOpen] = useState(false);
   const [parlorSearch, setParlorSearch] = useState('');
   const [routeSearch, setRouteSearch] = useState('');
   const [newRoute, setNewRoute] = useState({ routeCode: '', description: '', assignedAgent: '', agentCode: '', supervisorName: '', supervisorCode: '' });
+  const [loading, setLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const fetchRoutes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/routes?search=${encodeURIComponent(routeSearch)}`);
+      const data = await res.json();
+      const routeList = data.routes || [];
+      setRoutes(routeList);
+      if (routeList.length > 0 && !selectedRouteId) {
+        setSelectedRouteId(routeList[0].id);
+      }
+    } catch {
+      toast.error('Failed to load routes');
+    } finally {
+      setLoading(false);
+    }
+  }, [routeSearch, selectedRouteId]);
+
+  const fetchParlors = useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/parlors`);
+      const data = await res.json();
+      const parlorList = (data.parlors || []).map((p: any) => ({
+        code: p.parlorCode,
+        name: p.parlorName,
+        type: p.parlorType as Parlor['type'],
+      }));
+      setParlors(parlorList);
+    } catch {
+      // Silently ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRoutes();
+  }, [fetchRoutes]);
+
+  useEffect(() => {
+    fetchParlors();
+  }, [fetchParlors]);
 
   const selectedRoute = routes.find((r) => r.id === selectedRouteId) ?? routes[0];
 
-  const assignedParlorCodes = new Set(selectedRoute.parlors.map((p) => p.code));
+  const assignedParlorCodes = new Set(selectedRoute?.parlors.map((p) => p.code) ?? []);
 
-  const availableParlors = ALL_PARLORS.filter(
+  const availableParlors = parlors.filter(
     (p) => !assignedParlorCodes.has(p.code) &&
       (parlorSearch === '' ||
         p.code.toLowerCase().includes(parlorSearch.toLowerCase()) ||
@@ -42,50 +103,86 @@ export default function RouteMasterContent() {
       r.description.toLowerCase().includes(routeSearch.toLowerCase())
   );
 
-  function addParlorToRoute(parlor: Parlor) {
-    setRoutes((prev) =>
-      prev.map((r) =>
-        r.id === selectedRouteId
-          ? { ...r, parlors: [...r.parlors, parlor] }
-          : r
-      )
-    );
-    toast.success(`${parlor.code} added to ${selectedRoute.routeCode}`);
-  }
-
-  function removeParlorFromRoute(parlorCode: string) {
-    const parlor = selectedRoute.parlors.find((p) => p.code === parlorCode);
-    setRoutes((prev) =>
-      prev.map((r) =>
-        r.id === selectedRouteId
-          ? { ...r, parlors: r.parlors.filter((p) => p.code !== parlorCode) }
-          : r
-      )
-    );
-    toast.success(`${parlorCode} removed from ${selectedRoute.routeCode}`);
-  }
-
-  function handleCreateRoute() {
-    if (!newRoute.routeCode.trim()) return toast.error('Route code is required');
-    if (routes.some((r) => r.routeCode === newRoute.routeCode.trim().toUpperCase())) {
-      return toast.error('Route code already exists');
+  async function addParlorToRoute(parlor: Parlor) {
+    if (!selectedRoute) return;
+    try {
+      const res = await fetch(`${API_BASE}/routes/${selectedRoute.id}/parlors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parlorCode: parlor.code }),
+      });
+      if (res.ok) {
+        toast.success(`${parlor.code} added to ${selectedRoute.routeCode}`);
+        await fetchRoutes();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to add parlor');
+      }
+    } catch {
+      toast.error('Failed to add parlor');
     }
-    const created: Route = {
-      id: `rt-${Date.now()}`,
-      routeCode: newRoute.routeCode.trim().toUpperCase(),
-      description: newRoute.description.trim() || '—',
-      assignedAgent: newRoute.assignedAgent.trim() || '—',
-      agentCode: newRoute.agentCode.trim() || '—',
-      supervisorName: newRoute.supervisorName.trim() || '—',
-      supervisorCode: newRoute.supervisorCode.trim() || '—',
-      parlors: [],
-    };
-    setRoutes((prev) => [...prev, created]);
-    setSelectedRouteId(created.id);
-    setNewRouteOpen(false);
-    setNewRoute({ routeCode: '', description: '', assignedAgent: '', agentCode: '', supervisorName: '', supervisorCode: '' });
-    toast.success(`Route ${created.routeCode} created`);
-    return;
+  }
+
+  async function removeParlorFromRoute(parlorCode: string) {
+    if (!selectedRoute) return;
+    try {
+      const res = await fetch(`${API_BASE}/routes/${selectedRoute.id}/parlors/${parlorCode}`, {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        toast.success(`${parlorCode} removed from ${selectedRoute.routeCode}`);
+        await fetchRoutes();
+      } else {
+        toast.error('Failed to remove parlor');
+      }
+    } catch {
+      toast.error('Failed to remove parlor');
+    }
+  }
+
+  async function handleCreateRoute() {
+    if (!newRoute.routeCode.trim()) return toast.error('Route code is required');
+    try {
+      const res = await fetch(`${API_BASE}/routes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          routeCode: newRoute.routeCode.trim().toUpperCase(),
+          description: newRoute.description.trim() || '—',
+          assignedAgent: newRoute.assignedAgent.trim() || '—',
+          agentCode: newRoute.agentCode.trim() || '—',
+          supervisorName: newRoute.supervisorName.trim() || '—',
+          supervisorCode: newRoute.supervisorCode.trim() || '—',
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        toast.success(`Route ${created.routeCode} created`);
+        setSelectedRouteId(created.id);
+        setNewRouteOpen(false);
+        setNewRoute({ routeCode: '', description: '', assignedAgent: '', agentCode: '', supervisorName: '', supervisorCode: '' });
+        await fetchRoutes();
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to create route');
+      }
+    } catch {
+      toast.error('Failed to create route');
+    }
+  }
+
+  async function handleDeleteRoute(id: number) {
+    try {
+      const res = await fetch(`${API_BASE}/routes/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        toast.success('Route deleted');
+        await fetchRoutes();
+      } else {
+        toast.error('Failed to delete route');
+      }
+    } catch {
+      toast.error('Failed to delete route');
+    }
   }
 
   function downloadTemplate() {
@@ -101,38 +198,44 @@ export default function RouteMasterContent() {
     toast.success('Template downloaded');
   }
 
-  function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const wb = XLSX.read(ev.target?.result, { type: 'binary' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: '' });
-        let added = 0;
-        rows.forEach((row) => {
+        for (const row of rows) {
           const rc = String(row['Route Code'] || '').trim().toUpperCase();
           const pc = String(row['Parlor Code'] || '').trim().toUpperCase();
-          const pn = String(row['Parlor Name'] || '').trim();
-          const pt = String(row['Type'] || 'Standalone').trim() as Parlor['type'];
-          if (!rc || !pc) return;
-          setRoutes((prev) => {
-            let route = prev.find((r) => r.routeCode === rc);
-            if (!route) {
-              const newR: Route = { id: `rt-${Date.now()}-${rc}`, routeCode: rc, description: '—', assignedAgent: '—', agentCode: '—', supervisorName: '—', supervisorCode: '—', parlors: [] };
-              prev = [...prev, newR];
-              route = newR;
-            }
-            const already = prev.find((r) => r.routeCode === rc)!.parlors.some((p) => p.code === pc);
-            if (!already) {
-              added++;
-              return prev.map((r) => r.routeCode === rc ? { ...r, parlors: [...r.parlors, { code: pc, name: pn || pc, type: pt }] } : r);
-            }
-            return prev;
+          if (!rc || !pc) continue;
+          // Ensure route exists
+          const routesRes = await fetch(`${API_BASE}/routes`);
+          const routesData = await routesRes.json();
+          const route = (routesData.routes || []).find((r: any) => r.routeCode === rc);
+          let routeId: number;
+          if (!route) {
+            const createRes = await fetch(`${API_BASE}/routes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ routeCode: rc, description: '—', assignedAgent: '—', agentCode: '—', supervisorName: '—', supervisorCode: '—' }),
+            });
+            const created = await createRes.json();
+            routeId = created.id;
+          } else {
+            routeId = route.id;
+          }
+          // Add parlor to route
+          await fetch(`${API_BASE}/routes/${routeId}/parlors`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ parlorCode: pc }),
           });
-        });
+        }
         toast.success(`Upload complete — ${rows.length} rows processed`);
+        await fetchRoutes();
       } catch {
         toast.error('Failed to read file — check the format');
       }
@@ -182,8 +285,8 @@ export default function RouteMasterContent() {
         {[
           { label: 'Total Routes', value: routes.length, icon: Map, color: 'text-primary', bg: 'bg-primary/5' },
           { label: 'Total Parlors', value: routes.reduce((s, r) => s + r.parlors.length, 0), icon: Store, color: 'text-accent', bg: 'bg-accent/5' },
-          { label: 'Avg Parlors / Route', value: (routes.reduce((s, r) => s + r.parlors.length, 0) / routes.length).toFixed(1), icon: null, color: 'text-foreground', bg: 'bg-muted/30' },
-          { label: 'Unassigned Parlors', value: ALL_PARLORS.filter(p => !routes.some(r => r.parlors.some(rp => rp.code === p.code))).length, icon: null, color: 'text-amber-600', bg: 'bg-amber-50' },
+          { label: 'Avg Parlors / Route', value: routes.length ? (routes.reduce((s, r) => s + r.parlors.length, 0) / routes.length).toFixed(1) : '0', icon: null, color: 'text-foreground', bg: 'bg-muted/30' },
+          { label: 'Unassigned Parlors', value: parlors.filter(p => !routes.some(r => r.parlors.some(rp => rp.code === p.code))).length, icon: null, color: 'text-amber-600', bg: 'bg-amber-50' },
         ].map((s) => {
           const Icon = s.icon;
           return (
@@ -214,6 +317,11 @@ export default function RouteMasterContent() {
             </div>
           </div>
           <ul className="flex-1 overflow-y-auto scrollbar-thin py-1">
+            {loading && (
+              <li className="flex items-center justify-center py-8">
+                <Loader2 size={18} className="animate-spin text-muted-foreground" />
+              </li>
+            )}
             {filteredRoutes.map((route) => (
               <li key={route.id}>
                 <button
@@ -241,9 +349,20 @@ export default function RouteMasterContent() {
                     {' · '}
                     <span>{route.supervisorName}</span>
                   </p>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeleteRoute(route.id); }}
+                    className="mt-1 text-[11px] text-red-500 hover:text-red-700 transition-colors"
+                  >
+                    Delete route
+                  </button>
                 </button>
               </li>
             ))}
+            {!loading && filteredRoutes.length === 0 && (
+              <li className="px-4 py-8 text-center text-sm text-muted-foreground">
+                {routeSearch ? 'No routes match' : 'No routes yet'}
+              </li>
+            )}
           </ul>
         </aside>
 
@@ -309,31 +428,34 @@ export default function RouteMasterContent() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {selectedRoute.parlors.map((parlor, idx) => (
-                        <tr key={parlor.code} className="hover:bg-muted/30 transition-colors group">
-                          <td className="px-5 py-3 text-xs text-muted-foreground tabular-nums">{idx + 1}</td>
-                          <td className="px-5 py-3">
-                            <span className="font-mono text-xs font-semibold text-foreground bg-muted px-2 py-0.5 rounded">
-                              {parlor.code}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3 text-sm text-foreground">{parlor.name}</td>
-                          <td className="px-5 py-3">
-                            <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${TYPE_COLORS[parlor.type]}`}>
-                              {parlor.type}
-                            </span>
-                          </td>
-                          <td className="px-5 py-3">
-                            <button
-                              onClick={() => removeParlorFromRoute(parlor.code)}
-                              className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
-                            >
-                              <Trash2 size={11} />
-                              Remove
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {selectedRoute.parlors.map((parlor, idx) => {
+                        const parlorInfo = parlors.find(p => p.code === parlor.code);
+                        return (
+                          <tr key={parlor.code} className="hover:bg-muted/30 transition-colors group">
+                            <td className="px-5 py-3 text-xs text-muted-foreground tabular-nums">{idx + 1}</td>
+                            <td className="px-5 py-3">
+                              <span className="font-mono text-xs font-semibold text-foreground bg-muted px-2 py-0.5 rounded">
+                                {parlor.code}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3 text-sm text-foreground">{parlorInfo?.name || parlor.code}</td>
+                            <td className="px-5 py-3">
+                              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${TYPE_COLORS[parlorInfo?.type || 'Standalone']}`}>
+                                {parlorInfo?.type || 'Standalone'}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3">
+                              <button
+                                onClick={() => removeParlorFromRoute(parlor.code)}
+                                className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
+                              >
+                                <Trash2 size={11} />
+                                Remove
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 )}
@@ -349,6 +471,17 @@ export default function RouteMasterContent() {
               )}
             </>
           )}
+          {!selectedRoute && !loading && (
+            <div className="flex flex-col items-center justify-center h-full gap-3">
+              <p className="text-sm text-muted-foreground">No route selected</p>
+              <button
+                onClick={() => setNewRouteOpen(true)}
+                className="text-sm text-primary hover:underline"
+              >
+                Create a new route
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -358,7 +491,7 @@ export default function RouteMasterContent() {
           <div className="bg-card rounded-xl shadow-xl w-full max-w-md border border-border flex flex-col max-h-[70vh]">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
               <div>
-                <h2 className="text-base font-semibold text-foreground">Add Parlor to {selectedRoute.routeCode}</h2>
+                <h2 className="text-base font-semibold text-foreground">Add Parlor to {selectedRoute?.routeCode}</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">Select a parlor to assign to this route</p>
               </div>
               <button onClick={() => setAddParlorOpen(false)} className="text-muted-foreground hover:text-foreground transition-colors">
