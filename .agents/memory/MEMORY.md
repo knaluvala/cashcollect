@@ -1,0 +1,1 @@
+- [Settings dynamic profile loading](settings-dynamic-profile.md) — Settings page fetches user profile via `GET /api/users/me?email=`, updates `lastLogin` on each fetch, and renders role-specific cards (agent/supervisor/superadmin). AuthContext includes `id` for DB lookups.

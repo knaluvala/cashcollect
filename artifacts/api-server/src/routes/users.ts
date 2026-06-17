@@ -34,6 +34,33 @@ router.get("/users", async (req, res) => {
   res.json({ users: rows });
 });
 
+// GET /api/users/me — get current user by email
+router.get("/users/me", async (req, res) => {
+  const email = req.query.email as string | undefined;
+  if (!email) {
+    res.status(400).json({ error: "Email query parameter is required" });
+    return;
+  }
+
+  const rows = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.email, email));
+
+  if (rows.length === 0) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  // Update lastLogin on fetch
+  await db
+    .update(usersTable)
+    .set({ lastLogin: new Date().toISOString() })
+    .where(eq(usersTable.id, rows[0].id));
+
+  res.json({ user: rows[0] });
+});
+
 // POST /api/users — create a new user
 router.post("/users", async (req, res) => {
   const body = req.body;

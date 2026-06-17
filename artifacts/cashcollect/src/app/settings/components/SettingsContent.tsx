@@ -1,8 +1,26 @@
-import React, { useState } from 'react';
-import { User, Bell, Shield, Palette, Globe, Save, Eye, EyeOff } from 'lucide-react';
+'use client';
+import React, { useState, useEffect } from 'react';
+import { User, Bell, Shield, Palette, Save, Eye, EyeOff, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 
 type SettingsTab = 'profile' | 'notifications' | 'security' | 'appearance';
+
+interface DbUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  routeCode: string;
+  agentCode: string;
+  status: string;
+  mobile: string;
+  department: string;
+  profilePhoto: string;
+  lastLogin: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const TABS: { key: SettingsTab; label: string; icon: React.ElementType }[] = [
   { key: 'profile', label: 'Profile', icon: User },
@@ -46,10 +64,45 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   );
 }
 
+function RoleBadge({ role }: { role: string }) {
+  const colors: Record<string, string> = {
+    agent: 'bg-blue-50 text-blue-700 border-blue-200',
+    supervisor: 'bg-amber-50 text-amber-700 border-amber-200',
+    superadmin: 'bg-purple-50 text-purple-700 border-purple-200',
+  };
+  const labels: Record<string, string> = {
+    agent: 'Collection Agent',
+    supervisor: 'Supervisor',
+    superadmin: 'Super Admin',
+  };
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${colors[role] || colors.agent}`}>
+      {labels[role] || role}
+    </span>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return status === 'active' ? (
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200">
+      Active
+    </span>
+  ) : (
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium text-red-700 bg-red-50 border border-red-200">
+      Inactive
+    </span>
+  );
+}
+
 export default function SettingsContent() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<SettingsTab>('profile');
 
-  const [profile, setProfile] = useState({ name: 'Rajan Kumar', email: 'rajan.kumar@cashcollect.in', phone: '+91 98765 43210', routeCode: 'RT-04', agentCode: 'AGT-042' });
+  const [dbUser, setDbUser] = useState<DbUser | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [profile, setProfile] = useState({ name: '', email: '', phone: '' });
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [passwords, setPasswords] = useState({ current: '', newPass: '', confirm: '' });
@@ -64,6 +117,35 @@ export default function SettingsContent() {
 
   const [appearance, setAppearance] = useState({ language: 'en', dateFormat: 'DD/MM/YYYY', currency: 'INR' });
 
+  async function fetchUser() {
+    if (!user?.email) {
+      setError('No authenticated user found. Please log in again.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/users/me?email=${encodeURIComponent(user.email)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to load user profile');
+        return;
+      }
+      const u = data.user as DbUser;
+      setDbUser(u);
+      setProfile({ name: u.name, email: u.email, phone: u.mobile || '' });
+    } catch (e) {
+      setError('Network error. Please check your connection.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    fetchUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email]);
+
   function saveProfile() {
     toast.success('Profile updated successfully');
   }
@@ -74,11 +156,61 @@ export default function SettingsContent() {
     if (passwords.newPass !== passwords.confirm) return toast.error('Passwords do not match');
     toast.success('Password changed successfully');
     setPasswords({ current: '', newPass: '', confirm: '' });
-    return;
   }
 
   function saveAppearance() {
     toast.success('Preferences saved');
+  }
+
+  const role = user?.role ?? 'agent';
+
+  // Loading state
+  if (loading && !dbUser) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Settings</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Manage your account and preferences</p>
+          </div>
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+            <Loader2 size={28} className="animate-spin" />
+            <p className="text-sm">Loading your profile...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && !dbUser) {
+    return (
+      <div className="flex flex-col h-full">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">Settings</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Manage your account and preferences</p>
+          </div>
+        </div>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="flex flex-col items-center gap-3 max-w-sm text-center">
+            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+              <AlertCircle size={24} className="text-red-500" />
+            </div>
+            <p className="text-sm text-red-600 font-medium">{error}</p>
+            <button
+              onClick={fetchUser}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              <RefreshCw size={14} />
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -116,6 +248,23 @@ export default function SettingsContent() {
           {/* Profile */}
           {tab === 'profile' && (
             <>
+              {/* Identity Banner */}
+              <SectionCard title="Account Identity" description="Your role and current status in the system">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-lg">
+                    {dbUser?.name?.charAt(0).toUpperCase() ?? user?.name?.charAt(0).toUpperCase() ?? '?'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm font-semibold text-foreground">{dbUser?.name ?? user?.name}</h4>
+                      <RoleBadge role={role} />
+                      <StatusBadge status={dbUser?.status ?? 'active'} />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{dbUser?.email ?? user?.email}</p>
+                  </div>
+                </div>
+              </SectionCard>
+
               <SectionCard title="Personal Information" description="Update your name and contact details">
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Full Name">
@@ -128,8 +277,8 @@ export default function SettingsContent() {
                   <Field label="Email Address">
                     <input
                       value={profile.email}
-                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                      className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      readOnly
+                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
                     />
                   </Field>
                   <Field label="Phone Number">
@@ -139,16 +288,80 @@ export default function SettingsContent() {
                       className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                   </Field>
+                  <Field label="Department">
+                    <input
+                      value={dbUser?.department || 'Operations'}
+                      readOnly
+                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                    />
+                  </Field>
                 </div>
               </SectionCard>
 
-              <SectionCard title="Route & Agent Details" description="Read-only — managed by your administrator">
+              {/* Role-specific cards */}
+              {role === 'agent' && (
+                <SectionCard title="Route & Agent Details" description="Read-only — managed by your administrator">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Route Code">
+                      <input value={dbUser?.routeCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                    </Field>
+                    <Field label="Agent Code">
+                      <input value={dbUser?.agentCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                    </Field>
+                    <Field label="Supervisor">
+                      <input value={user?.supervisorCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                    </Field>
+                  </div>
+                </SectionCard>
+              )}
+
+              {role === 'supervisor' && (
+                <SectionCard title="Supervisor Details" description="Read-only — managed by your administrator">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Supervisor Code">
+                      <input value={dbUser?.agentCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                    </Field>
+                    <Field label="Assigned Routes">
+                      <input value={dbUser?.routeCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                    </Field>
+                  </div>
+                </SectionCard>
+              )}
+
+              {role === 'superadmin' && (
+                <SectionCard title="Admin Details" description="Read-only — system administrator privileges">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Field label="Admin Code">
+                      <input value={dbUser?.agentCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                    </Field>
+                    <Field label="Access Scope">
+                      <input value={dbUser?.routeCode || 'ALL'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                    </Field>
+                    <Field label="Department">
+                      <input value={dbUser?.department || 'IT Administration'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                    </Field>
+                  </div>
+                </SectionCard>
+              )}
+
+              <SectionCard title="Account Metadata" description="Account creation and activity timestamps">
                 <div className="grid grid-cols-2 gap-4">
-                  <Field label="Route Code">
-                    <input value={profile.routeCode} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                  <Field label="Account Created">
+                    <input
+                      value={dbUser?.createdAt ? new Date(dbUser.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
+                      readOnly
+                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                    />
                   </Field>
-                  <Field label="Agent Code">
-                    <input value={profile.agentCode} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                  <Field label="Last Login">
+                    <input
+                      value={dbUser?.lastLogin ? new Date(dbUser.lastLogin).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
+                      readOnly
+                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                    />
+                  </Field>
+                  <Field label="User ID">
+                    <input value={dbUser?.id ?? user?.id ?? 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
                   </Field>
                 </div>
               </SectionCard>

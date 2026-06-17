@@ -56,10 +56,10 @@ const DEMO_NAMES: Record<string, string> = {
   'admin@cashcollect.in': 'Super Admin',
 };
 
-const DEMO_CODES: Record<string, { agentCode?: string; supervisorCode?: string }> = {
-  'rajan.kumar@cashcollect.in': { agentCode: 'AGT-042', supervisorCode: 'SUP-012' },
-  'meena.sharma@cashcollect.in': { supervisorCode: 'SUP-012' },
-  'admin@cashcollect.in': {},
+const DEMO_CODES: Record<string, { id: number; agentCode?: string; supervisorCode?: string }> = {
+  'rajan.kumar@cashcollect.in': { id: 2, agentCode: 'AGT-042', supervisorCode: 'SUP-012' },
+  'meena.sharma@cashcollect.in': { id: 3, supervisorCode: 'SUP-012' },
+  'admin@cashcollect.in': { id: 6 },
 };
 
 export default function LoginForm() {
