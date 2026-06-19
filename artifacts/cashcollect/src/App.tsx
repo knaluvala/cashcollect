@@ -12,6 +12,7 @@ import NotificationsPage from "@/app/notifications/page";
 import SettingsPage from "@/app/settings/page";
 import NotFound from "@/app/not-found";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import DevAssistantPage from "@/pages/DevAssistant";
 
 const queryClient = new QueryClient();
 
@@ -23,17 +24,26 @@ function LoginRoute() {
 }
 
 /** Any authenticated user — redirects to login if not signed in */
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedRoute({
+  component: Component,
+}: {
+  component: React.ComponentType;
+}) {
   const { user } = useAuth();
   if (!user) return <Redirect to="/" />;
   return <Component />;
 }
 
 /** Super-admin only — redirects to login or daily-collection for lesser roles */
-function SuperAdminRoute({ component: Component }: { component: React.ComponentType }) {
+function SuperAdminRoute({
+  component: Component,
+}: {
+  component: React.ComponentType;
+}) {
   const { user } = useAuth();
   if (!user) return <Redirect to="/" />;
-  if (user.role !== 'superadmin') return <Redirect to="/daily-collection-entry" />;
+  if (user.role !== "superadmin")
+    return <Redirect to="/daily-collection-entry" />;
   return <Component />;
 }
 
@@ -63,6 +73,9 @@ function Router() {
       </Route>
       <Route path="/super-admin/route-master">
         {() => <SuperAdminRoute component={RouteMasterPage} />}
+      </Route>
+      <Route path="/dev-assistant">
+        {() => <SuperAdminRoute component={DevAssistantPage} />}
       </Route>
       <Route path="/user-management">
         {() => <SuperAdminRoute component={UserManagementPage} />}
