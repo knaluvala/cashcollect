@@ -29,7 +29,7 @@ function requireAdmin(req: any, res: any, next: any) {
   next();
 }
 
-router.use(requireAdmin);
+router.use("/dev-agent", requireAdmin);
 
 router.get("/dev-agent/files", async (req, res) => {
   try {

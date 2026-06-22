@@ -256,11 +256,11 @@ export default function SettingsContent() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="text-sm font-semibold text-foreground">{dbUser?.name ?? user?.name}</h4>
-                      <RoleBadge role={role} />
+                      <h4 className="text-sm font-semibold text-foreground">{user?.name ?? 'User'}</h4>
+                      <RoleBadge role={user?.role ?? role} />
                       <StatusBadge status={dbUser?.status ?? 'active'} />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{dbUser?.email ?? user?.email}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{user?.email ?? 'N/A'}</p>
                   </div>
                 </div>
               </SectionCard>
@@ -306,9 +306,9 @@ export default function SettingsContent() {
                       <input value={dbUser?.routeCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
                     </Field>
                     <Field label="Agent Code">
-                      <input value={dbUser?.agentCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                      <input value={user?.agentCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
                     </Field>
-                    <Field label="Supervisor">
+                    <Field label="Supervisor Code">
                       <input value={user?.supervisorCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
                     </Field>
                   </div>
@@ -319,7 +319,7 @@ export default function SettingsContent() {
                 <SectionCard title="Supervisor Details" description="Read-only — managed by your administrator">
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Supervisor Code">
-                      <input value={dbUser?.agentCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                      <input value={user?.agentCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
                     </Field>
                     <Field label="Assigned Routes">
                       <input value={dbUser?.routeCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
@@ -332,7 +332,7 @@ export default function SettingsContent() {
                 <SectionCard title="Admin Details" description="Read-only — system administrator privileges">
                   <div className="grid grid-cols-2 gap-4">
                     <Field label="Admin Code">
-                      <input value={dbUser?.agentCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
+                      <input value={user?.agentCode || 'N/A'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />
                     </Field>
                     <Field label="Access Scope">
                       <input value={dbUser?.routeCode || 'ALL'} readOnly className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed" />

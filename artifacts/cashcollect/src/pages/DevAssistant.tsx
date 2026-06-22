@@ -107,6 +107,38 @@ export default function DevAssistant() {
     }
   };
 
+  const applyFileChange = async () => {
+    const path = prompt("Enter file path to update:");
+
+    if (!path) return;
+
+    const content = prompt("Paste full updated file content:");
+
+    if (content === null) return;
+
+    const confirmed = confirm(`Are you sure you want to overwrite:\n${path}`);
+
+    if (!confirmed) return;
+
+    const res = await fetch("/api/dev-agent/write-file", {
+      method: "POST",
+      headers: API_HEADERS,
+      body: JSON.stringify({
+        path,
+        content,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      addLog(`File write failed: ${data.error}`);
+      return;
+    }
+
+    addLog(`File updated: ${path}`);
+  };
+
   return (
     <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
       <h1>AI Dev Assistant</h1>
@@ -150,6 +182,14 @@ export default function DevAssistant() {
         >
           {loading ? "Working..." : "Analyze"}
         </button>
+
+        <button
+          onClick={applyFileChange}
+          style={{ marginTop: 12, marginLeft: 8 }}
+        >
+          Apply File Change
+        </button>
+      
       </section>
 
       <section style={{ marginBottom: 24 }}>
@@ -185,7 +225,7 @@ export default function DevAssistant() {
             padding: 16,
             minHeight: 250,
             overflow: "auto",
-          }}
+          }}  
         >
           {reply}
         </pre>
