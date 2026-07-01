@@ -1,0 +1,38 @@
+name: AI Dev Task
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Describe the code change required"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  ai-dev-task:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run Codex
+        uses: openai/codex-action@main
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt: |
+            You are working on the CashCollect repository.
+            Make the requested change safely.
+
+            Requirements:
+            - Modify only necessary files.
+            - Do not delete unrelated code.
+            - Run typecheck/build if possible.
+            - Create clear, minimal changes.
+
+            User task:
+            ${{ inputs.task }}
