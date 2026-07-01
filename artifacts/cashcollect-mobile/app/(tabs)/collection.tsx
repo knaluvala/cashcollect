@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+//import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +7,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  RefreshControl,
 } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -13,16 +15,20 @@ import { Feather, MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
+import { syncOfflineCollections } from "@/lib/offlineSync";
+import { hasPermission } from "@/lib/permissions";
 import {
-  MOCK_PARLORS,
-  SUPERVISOR_PENDING,
   ParlorEntry,
   SupervisorPendingItem,
   CollectionStatus,
   formatINR,
-} from "@/data/mockData";
+} from "@/lib/collectionTypes";
 
-const STATUS_CONFIG: Record<CollectionStatus, { label: string; bg: string; text: string }> = {
+const STATUS_CONFIG: Record<
+  CollectionStatus,
+  { label: string; bg: string; text: string }
+> = {
   pending: { label: "Pending", bg: "#fef9c3", text: "#854d0e" },
   entered: { label: "Entered", bg: "#dbeafe", text: "#1d4ed8" },
   submitted: { label: "Submitted", bg: "#ede9fe", text: "#6d28d9" },
@@ -36,16 +42,43 @@ const PARLOR_TYPE_CONFIG: Record<string, { bg: string; text: string }> = {
   Kiosk: { bg: "#ede9fe", text: "#6d28d9" },
 };
 
+function todayStr() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function numVal(v: string | number | null | undefined): number {
+  if (v === null || v === undefined) return 0;
+  const n = typeof v === "string" ? parseFloat(v) : v;
+  return Number.isNaN(n) ? 0 : n;
+}
+
+function fmtDateTime(s: string | null | undefined) {
+  if (!s) return "";
+  const d = new Date(s);
+  return d.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function CollectionScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   const [viewMode, setViewMode] = useState<"agent" | "supervisor">(
-    user?.role === "supervisor" ? "supervisor" : "agent"
+    user?.role === "supervisor" ? "supervisor" : "agent",
   );
-  const [parlors, setParlors] = useState<ParlorEntry[]>(MOCK_PARLORS);
-  const [supervisorItems, setSupervisorItems] = useState<SupervisorPendingItem[]>(SUPERVISOR_PENDING);
+  const [parlors, setParlors] = useState<ParlorEntry[]>([]);
+  const [supervisorItems, setSupervisorItems] = useState<
+    SupervisorPendingItem[]
+  >([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
@@ -60,20 +93,151 @@ export default function CollectionScreen() {
   const totalCoupon = parlors.reduce((s, p) => s + (p.couponAmount ?? 0), 0);
   const totalCC = parlors.reduce((s, p) => s + (p.ccAmount ?? 0), 0);
 
-  const pendingAckCount = supervisorItems.filter((i) => i.status === "submitted").length;
+  const pendingAckCount = supervisorItems.filter(
+    (i) => i.status === "submitted",
+  ).length;
+
+  const loadCollections = useCallback(async () => {
+    if (!user) return;
+
+    if (!isRefreshing) {
+      setIsLoading(true);
+    }
+
+    try {
+      setLoadError("");
+      const date = todayStr();
+
+      if (viewMode === "supervisor" && user.supervisorCode) {
+        const res = await apiFetch(
+          `/api/collections/supervisor?date=${date}&supervisorCode=${user.supervisorCode}`,
+        );
+
+        const result = await res.json();
+
+        if (!res.ok) {
+          throw new Error(
+            result.error ?? "Failed to load supervisor collections",
+          );
+        }
+
+        const mapped: SupervisorPendingItem[] = (result.collections ?? []).map(
+          (c: any) => ({
+            id: String(c.id),
+            agentName: c.agentName,
+            agentCode: c.agentCode,
+            routeCode: c.routeCode,
+            parlorCode: c.parlorCode,
+            parlorName: c.parlorName,
+            parlorType: c.parlorType,
+            cashAmount: numVal(c.cashAmount),
+            couponAmount: numVal(c.couponAmount),
+            ccAmount: numVal(c.ccAmount),
+            submittedAt: fmtDateTime(c.submittedAt),
+            status: c.status,
+          }),
+        );
+
+        setSupervisorItems(mapped);
+        return;
+      }
+
+      if (user.agentCode) {
+        const res = await apiFetch(
+          `/api/collections/list?date=${date}&agentCode=${user.agentCode}`,
+        );
+
+        const result = await res.json();
+
+        if (!res.ok) {
+          throw new Error(result.error ?? "Failed to load collections");
+        }
+
+        const mapped: ParlorEntry[] = (result.collections ?? []).map(
+          (c: any) => ({
+            id: String(c.id),
+            parlorCode: c.parlorCode,
+            parlorName: c.parlorName,
+            parlorType: c.parlorType,
+            status: c.status,
+            cashAmount: numVal(c.cashAmount),
+            couponAmount: numVal(c.couponAmount),
+            ccAmount: numVal(c.ccAmount),
+            notes: c.notes ?? "",
+            submittedAt: fmtDateTime(c.submittedAt),
+            acknowledgedAt: fmtDateTime(c.acknowledgedAt),
+            acknowledgedBy: c.acknowledgedBy,
+          }),
+        );
+
+        setParlors(mapped);
+      }
+    } catch (error) {
+      console.error(error);
+      setLoadError(
+        error instanceof Error ? error.message : "Failed to load collections",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, viewMode, isRefreshing]);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+
+    try {
+      await syncOfflineCollections();
+      await loadCollections();
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [loadCollections]);
+
+  useEffect(() => {
+    async function syncAndLoad() {
+      await syncOfflineCollections();
+      await loadCollections();
+    }
+
+    syncAndLoad();
+  }, [loadCollections]);
 
   function handleParlorPress(parlor: ParlorEntry) {
     Haptics.selectionAsync();
     router.push({ pathname: "/entry/[id]", params: { id: parlor.id } });
   }
 
-  function handleAcknowledge(itemId: string) {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setSupervisorItems((prev) =>
-      prev.map((item) =>
-        item.id === itemId ? { ...item, status: "acknowledged" as const } : item
-      )
-    );
+  async function handleAcknowledge(itemId: string) {
+    if (!hasPermission(user?.role, "collection:acknowledge")) {
+      return;
+    }
+
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      const res = await apiFetch(`/api/collections/${itemId}/acknowledge`, {
+        method: "POST",
+        body: JSON.stringify({
+          acknowledgedBy: user?.name ?? "Supervisor",
+        }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        throw new Error(result.error ?? "Failed to acknowledge");
+      }
+
+      setSupervisorItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId
+            ? { ...item, status: "acknowledged" as const }
+            : item,
+        ),
+      );
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   const s = makeStyles(colors, topPad, insets.bottom);
@@ -81,9 +245,15 @@ export default function CollectionScreen() {
   return (
     <View style={s.container}>
       {/* FAB — New Entry (agent view) or Create New Entry (supervisor view) */}
-      {user?.role !== "superadmin" && (
+      {hasPermission(user?.role, "collection:create") && (
         <TouchableOpacity
-          style={[fabStyle.fab, { backgroundColor: viewMode === "supervisor" ? colors.primary : colors.accent }]}
+          style={[
+            fabStyle.fab,
+            {
+              backgroundColor:
+                viewMode === "supervisor" ? colors.primary : colors.accent,
+            },
+          ]}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             router.push("/new-entry");
@@ -105,7 +275,9 @@ export default function CollectionScreen() {
               </Text>
             )}
             {user?.role === "supervisor" && (
-              <Text style={s.headerSub}>{user.name} · {user.code}</Text>
+              <Text style={s.headerSub}>
+                {user.name} · {user.code}
+              </Text>
             )}
           </View>
           {(user?.role === "supervisor" || user?.role === "agent") && (
@@ -114,12 +286,20 @@ export default function CollectionScreen() {
                 style={[s.toggleBtn, viewMode === "agent" && s.toggleBtnActive]}
                 onPress={() => setViewMode("agent")}
               >
-                <Text style={[s.toggleText, viewMode === "agent" && s.toggleTextActive]}>
+                <Text
+                  style={[
+                    s.toggleText,
+                    viewMode === "agent" && s.toggleTextActive,
+                  ]}
+                >
                   Agent
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[s.toggleBtn, viewMode === "supervisor" && s.toggleBtnActive]}
+                style={[
+                  s.toggleBtn,
+                  viewMode === "supervisor" && s.toggleBtnActive,
+                ]}
                 onPress={() => setViewMode("supervisor")}
               >
                 {pendingAckCount > 0 && viewMode !== "supervisor" && (
@@ -127,7 +307,12 @@ export default function CollectionScreen() {
                     <Text style={s.badgeText}>{pendingAckCount}</Text>
                   </View>
                 )}
-                <Text style={[s.toggleText, viewMode === "supervisor" && s.toggleTextActive]}>
+                <Text
+                  style={[
+                    s.toggleText,
+                    viewMode === "supervisor" && s.toggleTextActive,
+                  ]}
+                >
                   Supervisor
                 </Text>
               </TouchableOpacity>
@@ -143,22 +328,30 @@ export default function CollectionScreen() {
             </View>
             <View style={s.statDivider} />
             <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#854d0e" }]}>{statusCounts.pending}</Text>
+              <Text style={[s.statNum, { color: "#854d0e" }]}>
+                {statusCounts.pending}
+              </Text>
               <Text style={s.statLabel}>Pending</Text>
             </View>
             <View style={s.statDivider} />
             <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#1d4ed8" }]}>{statusCounts.entered}</Text>
+              <Text style={[s.statNum, { color: "#1d4ed8" }]}>
+                {statusCounts.entered}
+              </Text>
               <Text style={s.statLabel}>Entered</Text>
             </View>
             <View style={s.statDivider} />
             <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#6d28d9" }]}>{statusCounts.submitted}</Text>
+              <Text style={[s.statNum, { color: "#6d28d9" }]}>
+                {statusCounts.submitted}
+              </Text>
               <Text style={s.statLabel}>Submitted</Text>
             </View>
             <View style={s.statDivider} />
             <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#065f46" }]}>{statusCounts.acknowledged}</Text>
+              <Text style={[s.statNum, { color: "#065f46" }]}>
+                {statusCounts.acknowledged}
+              </Text>
               <Text style={s.statLabel}>Ack'd</Text>
             </View>
           </View>
@@ -166,23 +359,59 @@ export default function CollectionScreen() {
 
         {viewMode === "agent" && (
           <View style={s.totalsBar}>
-            <TotalChip label="Cash" amount={totalCash} color="#065f46" colors={colors} />
-            <TotalChip label="Coupons" amount={totalCoupon} color="#1d4ed8" colors={colors} />
-            <TotalChip label="Card" amount={totalCC} color="#6d28d9" colors={colors} />
+            <TotalChip
+              label="Cash"
+              amount={totalCash}
+              color="#065f46"
+              colors={colors}
+            />
+            <TotalChip
+              label="Coupons"
+              amount={totalCoupon}
+              color="#1d4ed8"
+              colors={colors}
+            />
+            <TotalChip
+              label="Card"
+              amount={totalCC}
+              color="#6d28d9"
+              colors={colors}
+            />
           </View>
         )}
       </View>
 
-      {viewMode === "agent" ? (
+      {isLoading ? (
+        <View style={s.emptyState}>
+          <Text style={s.emptyTitle}>Loading collections...</Text>
+        </View>
+      ) : loadError ? (
+        <View style={s.emptyState}>
+          <Text style={s.emptyTitle}>Unable to load collections</Text>
+          <Text style={s.emptyText}>{loadError}</Text>
+        </View>
+      ) : viewMode === "agent" ? (
         <FlatList
           data={parlors}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <ParlorItem parlor={item} onPress={handleParlorPress} colors={colors} />
+            <ParlorItem
+              parlor={item}
+              onPress={handleParlorPress}
+              colors={colors}
+            />
           )}
           contentContainerStyle={s.listContent}
           scrollEnabled={parlors.length > 0}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         />
       ) : (
         <FlatList
@@ -191,8 +420,16 @@ export default function CollectionScreen() {
           renderItem={({ item }) => (
             <SupervisorItem
               item={item}
-              onAcknowledge={handleAcknowledge}
+              onAcknowledge={
+                hasPermission(user?.role, "collection:acknowledge")
+                  ? handleAcknowledge
+                  : () => {}
+              }
               colors={colors}
+              canAcknowledge={hasPermission(
+                user?.role,
+                "collection:acknowledge",
+              )}
             />
           )}
           contentContainerStyle={s.listContent}
@@ -202,7 +439,8 @@ export default function CollectionScreen() {
                 Pending Acknowledgments
               </Text>
               <Text style={s.supervisorHeaderSub}>
-                {supervisorItems.filter((i) => i.status === "submitted").length} awaiting review
+                {supervisorItems.filter((i) => i.status === "submitted").length}{" "}
+                awaiting review
               </Text>
             </View>
           }
@@ -210,23 +448,56 @@ export default function CollectionScreen() {
             <View style={s.emptyState}>
               <Feather name="check-circle" size={40} color={colors.border} />
               <Text style={s.emptyTitle}>All caught up!</Text>
-              <Text style={s.emptySub}>No pending submissions to acknowledge</Text>
+              <Text style={s.emptySub}>
+                No pending submissions to acknowledge
+              </Text>
             </View>
           }
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
         />
       )}
     </View>
   );
 }
 
-function TotalChip({ label, amount, color, colors }: { label: string; amount: number; color: string; colors: any }) {
+function TotalChip({
+  label,
+  amount,
+  color,
+  colors,
+}: {
+  label: string;
+  amount: number;
+  color: string;
+  colors: any;
+}) {
   return (
     <View style={{ alignItems: "center", flex: 1 }}>
-      <Text style={{ fontSize: 13, fontWeight: "700" as const, color, fontFamily: "DMSans_700Bold" }}>
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: "700" as const,
+          color,
+          fontFamily: "DMSans_700Bold",
+        }}
+      >
         {formatINR(amount)}
       </Text>
-      <Text style={{ fontSize: 11, color: colors.mutedForeground, fontFamily: "DMSans_400Regular" }}>
+      <Text
+        style={{
+          fontSize: 11,
+          color: colors.mutedForeground,
+          fontFamily: "DMSans_400Regular",
+        }}
+      >
         {label}
       </Text>
     </View>
@@ -243,12 +514,21 @@ function ParlorItem({
   colors: any;
 }) {
   const statusCfg = STATUS_CONFIG[parlor.status];
-  const typeCfg = PARLOR_TYPE_CONFIG[parlor.parlorType] ?? { bg: "#f1f5f9", text: "#475569" };
-  const total = (parlor.cashAmount ?? 0) + (parlor.couponAmount ?? 0) + (parlor.ccAmount ?? 0);
+  const typeCfg = PARLOR_TYPE_CONFIG[parlor.parlorType] ?? {
+    bg: "#f1f5f9",
+    text: "#475569",
+  };
+  const total =
+    (parlor.cashAmount ?? 0) +
+    (parlor.couponAmount ?? 0) +
+    (parlor.ccAmount ?? 0);
 
   return (
     <TouchableOpacity
-      style={[styles.parlorCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+      style={[
+        styles.parlorCard,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
       onPress={() => onPress(parlor)}
       activeOpacity={0.7}
     >
@@ -261,7 +541,9 @@ function ParlorItem({
             {parlor.parlorName}
           </Text>
           <View style={styles.parlorMeta}>
-            <Text style={[styles.parlorCode, { color: colors.mutedForeground }]}>
+            <Text
+              style={[styles.parlorCode, { color: colors.mutedForeground }]}
+            >
               {parlor.parlorCode}
             </Text>
             <View style={[styles.typeBadge, { backgroundColor: typeCfg.bg }]}>
@@ -280,9 +562,21 @@ function ParlorItem({
 
       {parlor.cashAmount !== null && (
         <View style={[styles.parlorAmounts, { borderTopColor: colors.border }]}>
-          <AmountChip label="₹" value={formatINR(parlor.cashAmount ?? 0)} color="#065f46" />
-          <AmountChip label="+" value={formatINR(parlor.couponAmount ?? 0)} color="#1d4ed8" />
-          <AmountChip label="+" value={formatINR(parlor.ccAmount ?? 0)} color="#6d28d9" />
+          <AmountChip
+            label="₹"
+            value={formatINR(parlor.cashAmount ?? 0)}
+            color="#065f46"
+          />
+          <AmountChip
+            label="+"
+            value={formatINR(parlor.couponAmount ?? 0)}
+            color="#1d4ed8"
+          />
+          <AmountChip
+            label="+"
+            value={formatINR(parlor.ccAmount ?? 0)}
+            color="#6d28d9"
+          />
           <View style={{ flex: 1 }} />
           <Text style={[styles.totalAmount, { color: colors.primary }]}>
             {formatINR(total)}
@@ -299,9 +593,24 @@ function ParlorItem({
   );
 }
 
-function AmountChip({ label, value, color }: { label: string; value: string; color: string }) {
+function AmountChip({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color: string;
+}) {
   return (
-    <Text style={{ fontSize: 13, color, fontWeight: "600" as const, fontFamily: "DMSans_600SemiBold" }}>
+    <Text
+      style={{
+        fontSize: 13,
+        color,
+        fontWeight: "600" as const,
+        fontFamily: "DMSans_600SemiBold",
+      }}
+    >
       {label} {value}
     </Text>
   );
@@ -311,17 +620,27 @@ function SupervisorItem({
   item,
   onAcknowledge,
   colors,
+  canAcknowledge,
 }: {
   item: SupervisorPendingItem;
   onAcknowledge: (id: string) => void;
   colors: any;
+  canAcknowledge: boolean;
 }) {
   const isAcknowledged = item.status === "acknowledged";
   return (
-    <View style={[styles.supCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+    <View
+      style={[
+        styles.supCard,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+    >
       <View style={styles.supCardTop}>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.supParlorName, { color: colors.foreground }]} numberOfLines={1}>
+          <Text
+            style={[styles.supParlorName, { color: colors.foreground }]}
+            numberOfLines={1}
+          >
             {item.parlorName}
           </Text>
           <Text style={[styles.supMeta, { color: colors.mutedForeground }]}>
@@ -334,9 +653,11 @@ function SupervisorItem({
         {isAcknowledged ? (
           <View style={[styles.ackBadge, { backgroundColor: "#d1fae5" }]}>
             <Feather name="check" size={14} color="#065f46" />
-            <Text style={[styles.ackBadgeText, { color: "#065f46" }]}>Done</Text>
+            <Text style={[styles.ackBadgeText, { color: "#065f46" }]}>
+              Done
+            </Text>
           </View>
-        ) : (
+        ) : canAcknowledge ? (
           <TouchableOpacity
             style={[styles.ackBtn, { backgroundColor: colors.primary }]}
             onPress={() => onAcknowledge(item.id)}
@@ -344,12 +665,24 @@ function SupervisorItem({
           >
             <Text style={styles.ackBtnText}>Acknowledge</Text>
           </TouchableOpacity>
-        )}
+        ) : null}
       </View>
       <View style={[styles.supAmounts, { borderTopColor: colors.border }]}>
-        <SupAmount label="Cash" value={formatINR(item.cashAmount)} color="#065f46" />
-        <SupAmount label="Coupons" value={formatINR(item.couponAmount)} color="#1d4ed8" />
-        <SupAmount label="Card" value={formatINR(item.ccAmount)} color="#6d28d9" />
+        <SupAmount
+          label="Cash"
+          value={formatINR(item.cashAmount)}
+          color="#065f46"
+        />
+        <SupAmount
+          label="Coupons"
+          value={formatINR(item.couponAmount)}
+          color="#1d4ed8"
+        />
+        <SupAmount
+          label="Card"
+          value={formatINR(item.ccAmount)}
+          color="#6d28d9"
+        />
         <SupAmount
           label="Total"
           value={formatINR(item.cashAmount + item.couponAmount + item.ccAmount)}
@@ -361,18 +694,47 @@ function SupervisorItem({
   );
 }
 
-function SupAmount({ label, value, color, bold }: { label: string; value: string; color: string; bold?: boolean }) {
+function SupAmount({
+  label,
+  value,
+  color,
+  bold,
+}: {
+  label: string;
+  value: string;
+  color: string;
+  bold?: boolean;
+}) {
   return (
     <View style={{ alignItems: "center", flex: 1 }}>
-      <Text style={{ fontSize: 13, fontWeight: bold ? "700" : "600" as const, color, fontFamily: bold ? "DMSans_700Bold" : "DMSans_600SemiBold" }}>
+      <Text
+        style={{
+          fontSize: 13,
+          fontWeight: bold ? "700" : ("600" as const),
+          color,
+          fontFamily: bold ? "DMSans_700Bold" : "DMSans_600SemiBold",
+        }}
+      >
         {value}
       </Text>
-      <Text style={{ fontSize: 11, color: "#64748b", fontFamily: "DMSans_400Regular" }}>{label}</Text>
+      <Text
+        style={{
+          fontSize: 11,
+          color: "#64748b",
+          fontFamily: "DMSans_400Regular",
+        }}
+      >
+        {label}
+      </Text>
     </View>
   );
 }
 
-function makeStyles(colors: ReturnType<typeof useColors>, topPad: number, bottomPad: number) {
+function makeStyles(
+  colors: ReturnType<typeof useColors>,
+  topPad: number,
+  bottomPad: number,
+) {
   return StyleSheet.create({
     container: {
       flex: 1,
@@ -516,6 +878,12 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number, bottom
       fontWeight: "600" as const,
       color: colors.mutedForeground,
       fontFamily: "DMSans_600SemiBold",
+    },
+    emptyText: {
+      fontFamily: "DMSans_400Regular",
+      fontSize: 13,
+      marginTop: 6,
+      textAlign: "center",
     },
     emptySub: {
       fontSize: 13,

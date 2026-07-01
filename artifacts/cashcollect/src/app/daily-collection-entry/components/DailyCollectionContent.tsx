@@ -1,40 +1,47 @@
-'use client';
-import React, { useState, useMemo, useEffect } from 'react';
-import { Calendar, RefreshCw, Users, CheckSquare, AlertCircle, Plus } from 'lucide-react';
-import { toast } from 'sonner';
-import ParlorList from './ParlorList';
-import CollectionEntryForm from './CollectionEntryForm';
-import SupervisorAcknowledgePanel from './SupervisorAcknowledgePanel';
-import NewEntryModal from './NewEntryModal';
+"use client";
+import React, { useState, useMemo, useEffect } from "react";
 import {
-  getScopedParlors,
-  SUPERVISOR_AGENTS,
-  ParlorEntry,
-  CollectionStatus,
-  getAgentSupervisor,
-} from './mockData';
-import { useAuth } from '@/context/AuthContext';
+  Calendar,
+  RefreshCw,
+  Users,
+  CheckSquare,
+  AlertCircle,
+  Plus,
+} from "lucide-react";
+import { toast } from "sonner";
+import ParlorList from "./ParlorList";
+import CollectionEntryForm from "./CollectionEntryForm";
+import SupervisorAcknowledgePanel from "./SupervisorAcknowledgePanel";
+import NewEntryModal from "./NewEntryModal";
+import { ParlorEntry, CollectionStatus } from "./types";
+import { useAuth } from "@/context/AuthContext";
 
-const API_BASE = '/api';
+const API_BASE = "/api";
 
 function todayStr() {
-  return new Date().toISOString().split('T')[0];
+  return new Date().toISOString().split("T")[0];
 }
 
 function fmtDBDate(s: string) {
   // "2026-06-03 04:01:26.314281" → "03/06/2026 04:01"
-  if (!s) return '';
+  if (!s) return "";
   const d = new Date(s);
-  return d.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function numVal(v: string | number | null) {
   if (v === null || v === undefined) return null;
-  const n = typeof v === 'string' ? parseFloat(v) : v;
+  const n = typeof v === "string" ? parseFloat(v) : v;
   return Number.isNaN(n) ? null : n;
 }
 
-type ViewMode = 'agent' | 'supervisor';
+type ViewMode = "agent" | "supervisor";
 
 interface DBCollection {
   id: number;
@@ -58,37 +65,96 @@ interface DBCollection {
 export default function DailyCollectionContent() {
   const { user } = useAuth();
 
-  const role = user?.role ?? 'agent';
+  const role = user?.role ?? "agent";
   const agentCode = user?.agentCode;
-  const supervisorCode = user?.supervisorCode;
+  //  const supervisorCode = user?.supervisorCode;
+  const supervisorCode =
+    role === "supervisor" ? user?.agentCode : user?.supervisorCode;
 
   const [viewMode, setViewMode] = useState<ViewMode>(
-    role === 'supervisor' ? 'supervisor' : 'agent'
+    role === "supervisor" ? "supervisor" : "agent",
   );
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [newEntryOpen, setNewEntryOpen] = useState(false);
 
   // Base parlors (static from mockData)
-  const baseParlors = useMemo(
-    () => getScopedParlors(role, agentCode, supervisorCode),
-    [role, agentCode, supervisorCode]
-  );
+  const [baseParlors, setBaseParlors] = useState<ParlorEntry[]>([]);
+
+  useEffect(() => {
+    async function loadAssignedParlors() {
+      try {
+        const res = await fetch(`${API_BASE}/routes`);
+        const data = await res.json();
+
+        const routes = data.routes ?? [];
+
+        const scopedRoutes = routes.filter((r: any) => {
+          if (role === "agent") return r.agentCode === agentCode;
+          if (role === "supervisor") return r.supervisorCode === supervisorCode;
+          return true;
+        });
+
+        const parlorRes = await fetch(`${API_BASE}/parlors`);
+        const parlorData = await parlorRes.json();
+        const allParlors = parlorData.parlors ?? [];
+
+        const mapped: ParlorEntry[] = scopedRoutes.flatMap((route: any) =>
+          route.parlors.map((rp: any) => {
+            const master = allParlors.find(
+              (p: any) => p.parlorCode === rp.code,
+            );
+
+            return {
+              id: `${route.routeCode}-${rp.code}`,
+              parlorCode: rp.code,
+              parlorName: master?.parlorName ?? rp.code,
+              parlorType: master?.parlorType ?? "Standalone",
+              routeCode: route.routeCode,
+              agentCode: route.agentCode,
+              agentName: route.assignedAgent,
+              supervisorCode: route.supervisorCode,
+              supervisorName: route.supervisorName,
+              status: "pending",
+              cashAmount: null,
+              couponAmount: null,
+              ccAmount: null,
+              notes: "",
+              submittedAt: null,
+              acknowledgedAt: null,
+              acknowledgedBy: null,
+            };
+          }),
+        );
+
+        setBaseParlors(mapped);
+      } catch (e) {
+        console.error(e);
+        toast.error("Failed to load assigned parlors");
+        setBaseParlors([]);
+      }
+    }
+
+    loadAssignedParlors();
+  }, [role, agentCode, supervisorCode]);
 
   // Show only parlors with DB entries for the selected date
   const [parlors, setParlors] = useState<ParlorEntry[]>([]);
-  const [activeParlorId, setActiveParlorId] = useState<string>('');
-  const selectedParlor = parlors.find((p) => p.id === activeParlorId) ?? parlors[0];
+  const [activeParlorId, setActiveParlorId] = useState<string>("");
+  const selectedParlor =
+    parlors.find((p) => p.id === activeParlorId) ?? parlors[0];
 
   const refreshData = async () => {
     setIsRefreshing(true);
     try {
       const params = new URLSearchParams();
-      params.set('date', selectedDate);
-      if (role === 'agent' && agentCode) {
-        params.set('agentCode', agentCode);
+      params.set("date", selectedDate);
+      if (role === "agent" && agentCode) {
+        params.set("agentCode", agentCode);
       }
-      const res = await fetch(`${API_BASE}/collections/list?${params.toString()}`);
+      const res = await fetch(
+        `${API_BASE}/collections/list?${params.toString()}`,
+      );
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -110,14 +176,18 @@ export default function DailyCollectionContent() {
             ccAmount: numVal(c.ccAmount),
             notes: c.notes,
             submittedAt: c.submittedAt ? fmtDBDate(c.submittedAt) : null,
-            acknowledgedAt: c.acknowledgedAt ? fmtDBDate(c.acknowledgedAt) : null,
+            acknowledgedAt: c.acknowledgedAt
+              ? fmtDBDate(c.acknowledgedAt)
+              : null,
             acknowledgedBy: c.acknowledgedBy,
           };
         });
       setParlors(merged);
-      toast.success(`Refreshed ${collections.length} collections for ${selectedDate}`);
+      toast.success(
+        `Refreshed ${collections.length} collections for ${selectedDate}`,
+      );
     } catch (e) {
-      toast.error('Failed to refresh data');
+      toast.error("Failed to refresh data");
       console.error(e);
     } finally {
       setIsRefreshing(false);
@@ -126,9 +196,11 @@ export default function DailyCollectionContent() {
 
   // Auto-refresh on date change
   useEffect(() => {
-    refreshData();
+    if (baseParlors.length > 0) {
+      refreshData();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate]);
+  }, [selectedDate, baseParlors.length]);
 
   // Reset active parlor when parlors change
   useEffect(() => {
@@ -139,42 +211,45 @@ export default function DailyCollectionContent() {
 
   // ── Header subtitle ────────────────────────────────────────────
   const headerSubtitle = useMemo(() => {
-    if (!user) return '';
-    if (role === 'agent' && agentCode) {
-      const route = parlors[0]?.routeCode ?? '';
+    if (!user) return "";
+    if (role === "agent" && agentCode) {
+      const route = parlors[0]?.routeCode ?? "";
       return `Route ${route} · Agent: ${user.name} (${agentCode})`;
     }
-    if (role === 'supervisor' && supervisorCode) {
-      const agentCodes = SUPERVISOR_AGENTS[supervisorCode] ?? [];
-      const routes = [...new Set(
-        agentCodes.flatMap((ac) => {
-          const p = getScopedParlors('agent', ac, undefined);
-          return p.map((x) => x.routeCode);
-        })
-      )].join(', ');
-      return `Supervisor: ${user.name} (${supervisorCode}) · Routes ${routes}`;
+    if (role === "supervisor" && supervisorCode) {
+      const routes = [...new Set(baseParlors.map((p) => p.routeCode))].join(
+        ", ",
+      );
+      return `Supervisor: ${user.name} (${supervisorCode}) · Routes ${routes || "—"}`;
     }
     return `All Routes · Super Admin View`;
-  }, [user, role, agentCode, supervisorCode, parlors]);
+  }, [user, role, agentCode, supervisorCode, parlors, baseParlors]);
 
   // ── Stats ────────────────────────────────────────────
   const stats = {
     total: parlors.length,
-    pending: parlors.filter((p) => p.status === 'pending').length,
-    entered: parlors.filter((p) => p.status === 'entered').length,
-    submitted: parlors.filter((p) => p.status === 'submitted').length,
-    acknowledged: parlors.filter((p) => p.status === 'acknowledged').length,
+    pending: parlors.filter((p) => p.status === "pending").length,
+    entered: parlors.filter((p) => p.status === "entered").length,
+    submitted: parlors.filter((p) => p.status === "submitted").length,
+    acknowledged: parlors.filter((p) => p.status === "acknowledged").length,
   };
 
   // ── Handlers ────────────────────────────────────────────
   const handleSaveEntry = (
     id: string,
-    data: { cashAmount: number; couponAmount: number; ccAmount: number; notes: string }
+    data: {
+      cashAmount: number;
+      couponAmount: number;
+      ccAmount: number;
+      notes: string;
+    },
   ) => {
     setParlors((prev) =>
       prev.map((p) =>
-        p.id === id ? { ...p, ...data, status: 'entered' as CollectionStatus } : p
-      )
+        p.id === id
+          ? { ...p, ...data, status: "entered" as CollectionStatus }
+          : p,
+      ),
     );
   };
 
@@ -182,9 +257,13 @@ export default function DailyCollectionContent() {
     setParlors((prev) =>
       prev.map((p) =>
         p.id === id
-          ? { ...p, status: 'submitted' as CollectionStatus, submittedAt: fmtDBDate(new Date().toISOString()) }
-          : p
-      )
+          ? {
+              ...p,
+              status: "submitted" as CollectionStatus,
+              submittedAt: fmtDBDate(new Date().toISOString()),
+            }
+          : p,
+      ),
     );
   };
 
@@ -193,36 +272,45 @@ export default function DailyCollectionContent() {
   };
 
   const canSeeAgentView = true;
-  const canSeeSupervisorView = role !== 'agent';
+  const canSeeSupervisorView = role !== "agent";
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Daily Collection Entry</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{headerSubtitle}</p>
+          <h1 className="text-xl font-semibold text-foreground">
+            Daily Collection Entry
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {headerSubtitle}
+          </p>
         </div>
 
         <div className="flex items-center gap-3">
           {/* View Mode Toggle */}
           {canSeeAgentView && canSeeSupervisorView && (
             <div className="flex rounded-lg border border-border bg-muted p-0.5 gap-0.5">
-              {(['agent', 'supervisor'] as ViewMode[]).map((mode) => (
+              {(["agent", "supervisor"] as ViewMode[]).map((mode) => (
                 <button
                   key={`view-${mode}`}
                   onClick={() => setViewMode(mode)}
                   className={`
                     flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium
                     transition-all duration-150
-                    ${viewMode === mode
-                      ? 'bg-card text-foreground shadow-sm border border-border'
-                      : 'text-muted-foreground hover:text-foreground'
+                    ${
+                      viewMode === mode
+                        ? "bg-card text-foreground shadow-sm border border-border"
+                        : "text-muted-foreground hover:text-foreground"
                     }
                   `}
                 >
-                  {mode === 'agent' ? <CheckSquare size={13} /> : <Users size={13} />}
-                  {mode === 'agent' ? 'Agent View' : 'Supervisor View'}
+                  {mode === "agent" ? (
+                    <CheckSquare size={13} />
+                  ) : (
+                    <Users size={13} />
+                  )}
+                  {mode === "agent" ? "Agent View" : "Supervisor View"}
                 </button>
               ))}
             </div>
@@ -244,12 +332,15 @@ export default function DailyCollectionContent() {
             disabled={isRefreshing}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 disabled:opacity-50"
           >
-            <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+            <RefreshCw
+              size={14}
+              className={isRefreshing ? "animate-spin" : ""}
+            />
             Refresh
           </button>
 
           {/* New Entry */}
-          {viewMode === 'agent' && (
+          {viewMode === "agent" && (
             <button
               onClick={() => setNewEntryOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 active:scale-[0.98] transition-all duration-150"
@@ -262,7 +353,7 @@ export default function DailyCollectionContent() {
       </div>
 
       {/* Stats Bar */}
-      {viewMode === 'agent' && (
+      {viewMode === "agent" && (
         <div className="flex items-center gap-4 px-6 py-3 border-b border-border bg-muted/40 shrink-0">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span className="font-semibold text-foreground">{stats.total}</span>
@@ -271,7 +362,9 @@ export default function DailyCollectionContent() {
           <div className="w-px h-4 bg-border" />
           <div className="flex items-center gap-1.5 text-xs">
             <span className="w-2 h-2 rounded-full bg-amber-400" />
-            <span className="font-semibold text-amber-700">{stats.pending}</span>
+            <span className="font-semibold text-amber-700">
+              {stats.pending}
+            </span>
             <span className="text-muted-foreground">Pending</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs">
@@ -281,12 +374,16 @@ export default function DailyCollectionContent() {
           </div>
           <div className="flex items-center gap-1.5 text-xs">
             <span className="w-2 h-2 rounded-full bg-purple-400" />
-            <span className="font-semibold text-purple-700">{stats.submitted}</span>
+            <span className="font-semibold text-purple-700">
+              {stats.submitted}
+            </span>
             <span className="text-muted-foreground">Submitted</span>
           </div>
           <div className="flex items-center gap-1.5 text-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="font-semibold text-emerald-700">{stats.acknowledged}</span>
+            <span className="font-semibold text-emerald-700">
+              {stats.acknowledged}
+            </span>
             <span className="text-muted-foreground">Acknowledged</span>
           </div>
 
@@ -296,7 +393,8 @@ export default function DailyCollectionContent() {
               <div className="flex items-center gap-1.5 text-xs text-red-600">
                 <AlertCircle size={13} />
                 <span className="font-medium">
-                  {stats.pending} parlor{stats.pending > 1 ? 's' : ''} not yet collected
+                  {stats.pending} parlor{stats.pending > 1 ? "s" : ""} not yet
+                  collected
                 </span>
               </div>
             </>
@@ -317,7 +415,7 @@ export default function DailyCollectionContent() {
       )}
 
       {/* Main Content */}
-      {viewMode === 'agent' ? (
+      {viewMode === "agent" ? (
         <div className="flex flex-1 overflow-hidden">
           <ParlorList
             parlors={parlors}

@@ -14,8 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
-import { useAuth, UserRole } from "@/context/AuthContext";
-import { DEMO_ACCOUNTS } from "@/data/mockData";
+import { useAuth } from "@/context/AuthContext";
 
 type RoleTab = "agent" | "supervisor" | "superadmin";
 
@@ -31,30 +30,29 @@ export default function LoginScreen() {
   const { login } = useAuth();
 
   const [activeRole, setActiveRole] = useState<RoleTab>("agent");
-  const [email, setEmail] = useState("");
+  const [userCode, setUserCode] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
-  async function loginWithAccount(emailVal: string, passwordVal: string) {
-    const account = DEMO_ACCOUNTS.find(
-      (a) => a.email === emailVal && a.password === passwordVal
-    );
-    if (!account) {
-      Alert.alert("Invalid credentials", "Please check your email and password.");
+  async function loginWithAccount(userCodeVal: string, passwordVal: string) {
+    if (!userCodeVal.trim() || !passwordVal.trim()) {
+      Alert.alert("Missing details", "Please enter user code and password.");
       return;
     }
+
     setIsLoading(true);
+
     try {
-      await login({
-        role: account.role as UserRole,
-        name: account.name,
-        email: account.email,
-        code: account.code,
-        route: account.route,
-      });
+      const result = await login(userCodeVal.trim(), passwordVal);
+
+      if (!result.success) {
+        Alert.alert("Login failed", result.error ?? "Invalid credentials");
+        return;
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/(tabs)/collection");
     } finally {
@@ -63,17 +61,22 @@ export default function LoginScreen() {
   }
 
   function autofill(role: RoleTab) {
-    const account = DEMO_ACCOUNTS.find((a) => a.role === role);
-    if (account) {
-      setEmail(account.email);
-      setPassword(account.password);
-      setActiveRole(role);
-      loginWithAccount(account.email, account.password);
-    }
+    const demoByRole: Record<RoleTab, { code: string; password: string }> = {
+      agent: { code: "AGT-042", password: "Agent@2026" },
+      supervisor: { code: "SUP-012", password: "Super@2026" },
+      superadmin: { code: "ADM-001", password: "Admin@2026" },
+    };
+
+    const account = demoByRole[role];
+
+    setUserCode(account.code);
+    setPassword(account.password);
+    setActiveRole(role);
+    loginWithAccount(account.code, account.password);
   }
 
   async function handleLogin() {
-    loginWithAccount(email, password);
+    loginWithAccount(userCode, password);
   }
 
   const s = makeStyles(colors, topPad);
@@ -99,14 +102,17 @@ export default function LoginScreen() {
           {"\n"}Made Simple
         </Text>
         <Text style={s.brandDesc}>
-          Record daily collections from every parlor on your route — cash, coupons, and card transactions.
+          Record daily collections from every parlor on your route — cash,
+          coupons, and card transactions.
         </Text>
       </View>
 
       {/* Login card */}
       <View style={s.card}>
         <Text style={s.cardTitle}>Sign in</Text>
-        <Text style={s.cardSubtitle}>Select your role and enter your credentials</Text>
+        <Text style={s.cardSubtitle}>
+          Select your role and enter your credentials
+        </Text>
 
         {/* Role tabs */}
         <View style={s.roleTabs}>
@@ -114,9 +120,17 @@ export default function LoginScreen() {
             <TouchableOpacity
               key={role}
               style={[s.roleTab, activeRole === role && s.roleTabActive]}
-              onPress={() => { setActiveRole(role); Haptics.selectionAsync(); }}
+              onPress={() => {
+                setActiveRole(role);
+                Haptics.selectionAsync();
+              }}
             >
-              <Text style={[s.roleTabText, activeRole === role && s.roleTabTextActive]}>
+              <Text
+                style={[
+                  s.roleTabText,
+                  activeRole === role && s.roleTabTextActive,
+                ]}
+              >
                 {ROLE_LABELS[role]}
               </Text>
             </TouchableOpacity>
@@ -125,15 +139,15 @@ export default function LoginScreen() {
 
         {/* Email */}
         <View style={s.fieldGroup}>
-          <Text style={s.label}>Email address</Text>
+          <Text style={s.label}>User Code</Text>
           <TextInput
             style={s.input}
-            value={email}
-            onChangeText={setEmail}
-            placeholder="yourname@cashcollect.in"
+            value={userCode}
+            onChangeText={setUserCode}
+            placeholder="AGT-042 / SUP-012 / ADM-001"
             placeholderTextColor={colors.mutedForeground}
             autoCapitalize="none"
-            keyboardType="email-address"
+            keyboardType="default"
             autoCorrect={false}
           />
         </View>
@@ -181,16 +195,35 @@ export default function LoginScreen() {
         {/* Demo accounts */}
         <View style={s.demoSection}>
           <Text style={s.demoTitle}>DEMO ACCOUNTS — TAP TO AUTOFILL</Text>
-          {DEMO_ACCOUNTS.map((acc) => (
+          {[
+            {
+              role: "agent" as RoleTab,
+              label: "Agent",
+              code: "AGT-042",
+              password: "Agent@2026",
+            },
+            {
+              role: "supervisor" as RoleTab,
+              label: "Supervisor",
+              code: "SUP-012",
+              password: "Super@2026",
+            },
+            {
+              role: "superadmin" as RoleTab,
+              label: "Super Admin",
+              code: "ADM-001",
+              password: "Admin@2026",
+            },
+          ].map((acc) => (
             <TouchableOpacity
               key={acc.role}
               style={s.demoRow}
-              onPress={() => autofill(acc.role as RoleTab)}
+              onPress={() => autofill(acc.role)}
               activeOpacity={0.7}
             >
               <View style={s.demoLeft}>
                 <Text style={s.demoLabel}>{acc.label}</Text>
-                <Text style={s.demoEmail}>{acc.email}</Text>
+                <Text style={s.demoEmail}>{acc.code}</Text>
               </View>
               <View style={s.demoBadge}>
                 <Text style={s.demoBadgeText}>{acc.password}</Text>
@@ -200,7 +233,9 @@ export default function LoginScreen() {
         </View>
       </View>
 
-      <View style={{ height: Platform.OS === "web" ? 34 : insets.bottom + 16 }} />
+      <View
+        style={{ height: Platform.OS === "web" ? 34 : insets.bottom + 16 }}
+      />
     </ScrollView>
   );
 }

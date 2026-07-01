@@ -6,8 +6,14 @@ import {
   insertUserSchema,
   updateUserSchema,
 } from "@workspace/db/schema";
+import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
+
+function sanitizeUser(user: typeof usersTable.$inferSelect) {
+  const { passwordHash, ...safeUser } = user;
+  return safeUser;
+}
 
 // GET /api/users — list all users with optional search
 router.get("/users", async (req, res) => {
@@ -24,14 +30,15 @@ router.get("/users", async (req, res) => {
           like(usersTable.name, q),
           like(usersTable.email, q),
           like(usersTable.agentCode, q),
-          like(usersTable.routeCode, q)
-        )
+          like(usersTable.routeCode, q),
+        ),
       );
   } else {
     rows = await db.select().from(usersTable);
   }
 
-  res.json({ users: rows });
+  // res.json({ users: rows });
+  res.json({ users: rows.map(sanitizeUser) });
 });
 
 // GET /api/users/me — get current user by email
@@ -58,7 +65,8 @@ router.get("/users/me", async (req, res) => {
     .set({ lastLogin: new Date().toISOString() })
     .where(eq(usersTable.id, rows[0].id));
 
-  res.json({ user: rows[0] });
+  // res.json({ user: rows[0] });
+  res.json({ user: sanitizeUser(rows[0]) });
 });
 
 // POST /api/users — create a new user
@@ -92,12 +100,10 @@ router.post("/users", async (req, res) => {
     return;
   }
 
-  const inserted = await db
-    .insert(usersTable)
-    .values(data)
-    .returning();
+  const inserted = await db.insert(usersTable).values(data).returning();
 
-  res.status(201).json(inserted[0]);
+  // res.status(201).json(inserted[0]);
+  res.status(201).json(sanitizeUser(inserted[0]));
 });
 
 // PUT /api/users/:id — update existing user
@@ -115,10 +121,7 @@ router.put("/users/:id", async (req, res) => {
     return;
   }
 
-  const rows = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.id, id));
+  const rows = await db.select().from(usersTable).where(eq(usersTable.id, id));
 
   if (rows.length === 0) {
     res.status(404).json({ error: "User not found" });
@@ -131,7 +134,53 @@ router.put("/users/:id", async (req, res) => {
     .where(eq(usersTable.id, id))
     .returning();
 
-  res.json(updated[0]);
+  // res.json(updated[0]);
+  res.json(sanitizeUser(updated[0]));
+});
+
+// POST /api/users/:id/reset-password — super admin resets user password
+router.post("/users/:id/reset-password", async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+
+  if (Number.isNaN(id)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
+
+  const { newPassword } = req.body ?? {};
+
+  if (typeof newPassword !== "string") {
+    res.status(400).json({ error: "New password is required" });
+    return;
+  }
+
+  if (newPassword.length < 8) {
+    res.status(400).json({ error: "New password must be at least 8 characters" });
+    return;
+  }
+
+  const rows = await db.select().from(usersTable).where(eq(usersTable.id, id));
+
+  if (rows.length === 0) {
+    res.status(404).json({ error: "User not found" });
+    return;
+  }
+
+  const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+  const updated = await db
+    .update(usersTable)
+    .set({
+      passwordHash: newPasswordHash,
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(usersTable.id, id))
+    .returning();
+
+  res.json({
+    success: true,
+    user: sanitizeUser(updated[0]),
+  });
 });
 
 // DELETE /api/users/:id — delete a user
@@ -142,10 +191,7 @@ router.delete("/users/:id", async (req, res) => {
     return;
   }
 
-  const rows = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.id, id));
+  const rows = await db.select().from(usersTable).where(eq(usersTable.id, id));
 
   if (rows.length === 0) {
     res.status(404).json({ error: "User not found" });

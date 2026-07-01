@@ -14,6 +14,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
+import { hasPermission } from "@/lib/permissions";
 
 interface MenuRow {
   icon: keyof typeof Feather.glyphMap;
@@ -28,28 +29,20 @@ export default function MoreScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
+  // const { user } = useAuth();
   const topPad = Platform.OS === "web" ? 67 : insets.top;
 
   const roleLabel =
     user?.role === "agent"
       ? "Collection Agent"
       : user?.role === "supervisor"
-      ? "Supervisor"
-      : "Super Admin";
+        ? "Supervisor"
+        : "Super Admin";
 
   async function handleLogout() {
-    Alert.alert("Sign out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Sign out",
-        style: "destructive",
-        onPress: async () => {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          await logout();
-          router.replace("/login");
-        },
-      },
-    ]);
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    await logout();
+    router.replace("/login");
   }
 
   const menuSections: { title: string; items: MenuRow[] }[] = [
@@ -87,20 +80,37 @@ export default function MoreScreen() {
             Haptics.selectionAsync();
             router.push("/parlor-master");
           },
-          hidden: user?.role !== "superadmin",
+          hidden: !hasPermission(user?.role, "parlor-master:view"),
+        },
+        {
+          icon: "map",
+          label: "Route Master",
+          subtitle: "Manage routes and assigned parlors",
+          onPress: () => {
+            Haptics.selectionAsync();
+            router.push("/route-master");
+          },
+          hidden: !hasPermission(user?.role, "route-master:view"),
         },
         {
           icon: "users",
           label: "User Management",
           subtitle: "Manage agents and supervisors",
-          onPress: () => Alert.alert("Coming Soon", "User management will be available in a future update."),
-          hidden: user?.role === "agent",
+          onPress: () => {
+            Haptics.selectionAsync();
+            router.push({ pathname: "/user-management" } as any);
+          },
+          hidden: !hasPermission(user?.role, "user-management:view"),
         },
         {
           icon: "settings",
           label: "Settings",
           subtitle: "App preferences",
-          onPress: () => Alert.alert("Coming Soon", "Settings will be available in a future update."),
+          onPress: () =>
+            Alert.alert(
+              "Coming Soon",
+              "Settings will be available in a future update.",
+            ),
         },
       ],
     },
@@ -162,7 +172,12 @@ export default function MoreScreen() {
             <Text style={[s.sectionTitle, { color: colors.mutedForeground }]}>
               {section.title}
             </Text>
-            <View style={[s.sectionCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View
+              style={[
+                s.sectionCard,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
               {visibleItems.map((item, idx) => (
                 <TouchableOpacity
                   key={item.label}
@@ -180,7 +195,9 @@ export default function MoreScreen() {
                     style={[
                       s.menuIcon,
                       {
-                        backgroundColor: item.destructive ? "#fee2e2" : colors.muted,
+                        backgroundColor: item.destructive
+                          ? "#fee2e2"
+                          : colors.muted,
                       },
                     ]}
                   >
@@ -195,19 +212,27 @@ export default function MoreScreen() {
                       style={[
                         s.menuLabel,
                         {
-                          color: item.destructive ? "#ef4444" : colors.foreground,
+                          color: item.destructive
+                            ? "#ef4444"
+                            : colors.foreground,
                         },
                       ]}
                     >
                       {item.label}
                     </Text>
                     {item.subtitle && (
-                      <Text style={[s.menuSub, { color: colors.mutedForeground }]}>
+                      <Text
+                        style={[s.menuSub, { color: colors.mutedForeground }]}
+                      >
                         {item.subtitle}
                       </Text>
                     )}
                   </View>
-                  <Feather name="chevron-right" size={18} color={colors.border} />
+                  <Feather
+                    name="chevron-right"
+                    size={18}
+                    color={colors.border}
+                  />
                 </TouchableOpacity>
               ))}
             </View>
@@ -222,7 +247,11 @@ export default function MoreScreen() {
   );
 }
 
-function makeStyles(colors: ReturnType<typeof useColors>, topPad: number, bottomPad: number) {
+function makeStyles(
+  colors: ReturnType<typeof useColors>,
+  topPad: number,
+  bottomPad: number,
+) {
   return StyleSheet.create({
     container: {
       flex: 1,

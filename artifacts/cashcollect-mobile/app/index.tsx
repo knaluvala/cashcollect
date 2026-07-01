@@ -9,7 +9,14 @@ export default function Index() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: colors.background }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: colors.background,
+        }}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -19,5 +26,5 @@ export default function Index() {
     return <Redirect href="/login" />;
   }
 
-  return <Redirect href="/(tabs)/collection" />;
+  return <Redirect href={{ pathname: "/(tabs)/dashboard" } as any} />;
 }

@@ -1,8 +1,8 @@
-'use client';
-import React from 'react';
-import { MapPin, Store } from 'lucide-react';
-import StatusBadge from '@/components/ui/StatusBadge';
-import { ParlorEntry, ParlorType } from './mockData';
+"use client";
+import React from "react";
+import { MapPin, Store } from "lucide-react";
+import StatusBadge from "@/components/ui/StatusBadge";
+import { ParlorEntry, ParlorType } from "./types";
 
 interface ParlorListProps {
   parlors: ParlorEntry[];
@@ -11,10 +11,10 @@ interface ParlorListProps {
 }
 
 const PARLOR_TYPE_COLORS: Record<ParlorType, string> = {
-  Mall: 'bg-blue-100 text-blue-700',
-  Standalone: 'bg-slate-100 text-slate-600',
-  Event: 'bg-orange-100 text-orange-700',
-  Kiosk: 'bg-purple-100 text-purple-700',
+  Mall: "bg-blue-100 text-blue-700",
+  Standalone: "bg-slate-100 text-slate-600",
+  Event: "bg-orange-100 text-orange-700",
+  Kiosk: "bg-purple-100 text-purple-700",
 };
 
 export default function ParlorList({
@@ -27,7 +27,8 @@ export default function ParlorList({
   const totalCC = parlors.reduce((s, p) => s + (p.ccAmount ?? 0), 0);
 
   const fmt = (n: number) =>
-    '₹' + n.toLocaleString('en-IN', {
+    "₹" +
+    n.toLocaleString("en-IN", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     });
@@ -41,9 +42,13 @@ export default function ParlorList({
         </p>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: 'Cash', value: fmt(totalCash), color: 'text-emerald-700' },
-            { label: 'Coupons', value: fmt(totalCoupon), color: 'text-blue-700' },
-            { label: 'Card', value: fmt(totalCC), color: 'text-purple-700' },
+            { label: "Cash", value: fmt(totalCash), color: "text-emerald-700" },
+            {
+              label: "Coupons",
+              value: fmt(totalCoupon),
+              color: "text-blue-700",
+            },
+            { label: "Card", value: fmt(totalCC), color: "text-purple-700" },
           ].map((item) => (
             <div key={`summary-${item.label}`} className="text-center">
               <p className={`text-sm font-bold tabular-nums ${item.color}`}>
@@ -72,7 +77,8 @@ export default function ParlorList({
                   w-full text-left px-4 py-3 transition-all duration-150
                   ${
                     isSelected
-                      ? 'bg-primary/5 border-l-2 border-primary' :'hover:bg-muted/60 border-l-2 border-transparent'
+                      ? "bg-primary/5 border-l-2 border-primary"
+                      : "hover:bg-muted/60 border-l-2 border-transparent"
                   }
                 `}
               >
@@ -81,12 +87,12 @@ export default function ParlorList({
                     <Store
                       size={13}
                       className={`shrink-0 mt-0.5 ${
-                        isSelected ? 'text-primary' : 'text-muted-foreground'
+                        isSelected ? "text-primary" : "text-muted-foreground"
                       }`}
                     />
                     <span
                       className={`text-sm font-medium truncate ${
-                        isSelected ? 'text-primary' : 'text-foreground'
+                        isSelected ? "text-primary" : "text-foreground"
                       }`}
                     >
                       {parlor.parlorName}
@@ -111,15 +117,15 @@ export default function ParlorList({
                 {hasData && (
                   <div className="flex items-center gap-2 mt-1.5 ml-5">
                     <span className="text-[11px] text-emerald-700 font-semibold tabular-nums">
-                      ₹{(parlor.cashAmount ?? 0).toLocaleString('en-IN')}
+                      ₹{(parlor.cashAmount ?? 0).toLocaleString("en-IN")}
                     </span>
                     <span className="text-[10px] text-muted-foreground">+</span>
                     <span className="text-[11px] text-blue-700 font-semibold tabular-nums">
-                      ₹{(parlor.couponAmount ?? 0).toLocaleString('en-IN')}
+                      ₹{(parlor.couponAmount ?? 0).toLocaleString("en-IN")}
                     </span>
                     <span className="text-[10px] text-muted-foreground">+</span>
                     <span className="text-[11px] text-purple-700 font-semibold tabular-nums">
-                      ₹{(parlor.ccAmount ?? 0).toLocaleString('en-IN')}
+                      ₹{(parlor.ccAmount ?? 0).toLocaleString("en-IN")}
                     </span>
                   </div>
                 )}

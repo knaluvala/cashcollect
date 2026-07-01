@@ -16,9 +16,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
-import { MOCK_PARLORS, ParlorEntry, CollectionStatus, formatINR } from "@/data/mockData";
+import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/api";
+import { addOfflineCollection } from "@/lib/offlineQueue";
+import {
+  ParlorEntry,
+  CollectionStatus,
+  formatINR,
+} from "@/lib/collectionTypes";
 
-const STATUS_CONFIG: Record<CollectionStatus, { label: string; bg: string; text: string }> = {
+const STATUS_CONFIG: Record<
+  CollectionStatus,
+  { label: string; bg: string; text: string }
+> = {
   pending: { label: "Pending", bg: "#fef9c3", text: "#854d0e" },
   entered: { label: "Entered", bg: "#dbeafe", text: "#1d4ed8" },
   submitted: { label: "Submitted", bg: "#ede9fe", text: "#6d28d9" },
@@ -35,10 +45,18 @@ const PARLOR_TYPE_CONFIG: Record<string, { bg: string; text: string }> = {
 export default function NewEntryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const [parlors, setParlors] = useState<ParlorEntry[]>([]);
+  const [isLoadingParlors, setIsLoadingParlors] = useState(false);
 
   const [search, setSearch] = useState("");
   const [parlorPickerOpen, setParlorPickerOpen] = useState(false);
-  const [selectedParlor, setSelectedParlor] = useState<ParlorEntry | null>(null);
+  const [selectedParlor, setSelectedParlor] = useState<ParlorEntry | null>(
+    null,
+  );
+  const [collectionDate, setCollectionDate] = useState(
+    new Date().toISOString().split("T")[0],
+  );
   const [cash, setCash] = useState("");
   const [coupon, setCoupon] = useState("");
   const [cc, setCC] = useState("");
@@ -46,17 +64,62 @@ export default function NewEntryScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [savedCollectionId, setSavedCollectionId] = useState<number | null>(
+    null,
+  );
+
+  React.useEffect(() => {
+    async function loadParlors() {
+      setIsLoadingParlors(true);
+
+      try {
+        const res = await apiFetch("/api/parlors");
+        const result = await res.json();
+
+        if (!res.ok) {
+          throw new Error(result.error ?? "Failed to load parlors");
+        }
+
+        const mapped: ParlorEntry[] = (result.parlors ?? []).map((p: any) => ({
+          id: p.parlorCode,
+          parlorCode: p.parlorCode,
+          parlorName: p.parlorName,
+          parlorType: p.parlorType,
+          status: "pending",
+          cashAmount: null,
+          couponAmount: null,
+          ccAmount: null,
+          notes: "",
+          submittedAt: null,
+          acknowledgedAt: null,
+          acknowledgedBy: null,
+        }));
+
+        setParlors(mapped);
+      } catch (error) {
+        console.error(error);
+        Alert.alert(
+          "Load Failed",
+          error instanceof Error ? error.message : "Could not load parlors",
+        );
+      } finally {
+        setIsLoadingParlors(false);
+      }
+    }
+
+    loadParlors();
+  }, []);
 
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
   const filteredParlors = useMemo(() => {
     const q = search.toLowerCase();
-    if (!q) return MOCK_PARLORS;
-    return MOCK_PARLORS.filter(
+    if (!q) return parlors;
+    return parlors.filter(
       (p) =>
         p.parlorName.toLowerCase().includes(q) ||
         p.parlorCode.toLowerCase().includes(q) ||
-        p.parlorType.toLowerCase().includes(q)
+        p.parlorType.toLowerCase().includes(q),
     );
   }, [search]);
 
@@ -80,24 +143,247 @@ export default function NewEntryScreen() {
   const isReadOnly =
     selectedParlor?.status === "submitted" ||
     selectedParlor?.status === "acknowledged";
-  const canSubmit = saved || selectedParlor?.status === "entered";
+  const canSubmit = !isReadOnly;
+
+  async function findExistingCollectionId(parlorCode: string, date: string) {
+    const res = await apiFetch(
+      `/api/collections?date=${date}&parlorCode=${parlorCode}`,
+    );
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.error ?? "Failed to check existing collection");
+    }
+
+    return result.collection?.id ?? null;
+  }
 
   async function handleSaveDraft() {
-    if (!selectedParlor) return;
+    if (!selectedParlor || !user) return;
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsSaving(true);
-    await new Promise((r) => setTimeout(r, 500));
-    setIsSaving(false);
-    setSaved(true);
-    Alert.alert("Saved", `Draft saved for ${selectedParlor.parlorName}`);
+
+    const payload = {
+      parlorCode: selectedParlor.parlorCode,
+      parlorName: selectedParlor.parlorName,
+      parlorType: selectedParlor.parlorType,
+      routeCode: user.route,
+      agentCode: user.agentCode ?? user.code,
+      agentName: user.name,
+      collectionDate,
+      cashAmount: cashNum,
+      couponAmount: couponNum,
+      ccAmount: ccNum,
+      notes,
+      status: "entered",
+    };
+
+    try {
+      const res = await apiFetch("/api/collections", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 409) {
+          const existingId = await findExistingCollectionId(
+            selectedParlor.parlorCode,
+            collectionDate,
+          );
+
+          if (!existingId) {
+            throw new Error("Existing collection could not be found");
+          }
+
+          const updateRes = await apiFetch(`/api/collections/${existingId}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              cashAmount: cashNum,
+              couponAmount: couponNum,
+              ccAmount: ccNum,
+              notes,
+              status: "entered",
+            }),
+          });
+
+          const updateResult = await updateRes.json();
+
+          if (!updateRes.ok) {
+            throw new Error(
+              updateResult.error ?? "Failed to update existing draft",
+            );
+          }
+
+          setSavedCollectionId(existingId);
+          setSaved(true);
+
+          Alert.alert(
+            "Saved",
+            `Draft updated for ${selectedParlor.parlorName}`,
+          );
+          return;
+        }
+
+        throw new Error(result.error ?? "Failed to save draft");
+      }
+
+      setSavedCollectionId(result.id);
+      setSaved(true);
+      Alert.alert("Saved", `Draft saved for ${selectedParlor.parlorName}`);
+    } catch (error) {
+      console.error(error);
+
+      await addOfflineCollection({
+        action: "save-draft",
+        payload,
+      });
+
+      setSaved(true);
+
+      Alert.alert(
+        "Saved Offline",
+        "Network is unavailable. This draft has been saved on the device and will be synced later.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function submitCollectionNow() {
+    if (!selectedParlor || !user) return;
+
+    setIsSubmitting(true);
+
+    const payload = {
+      parlorCode: selectedParlor.parlorCode,
+      parlorName: selectedParlor.parlorName,
+      parlorType: selectedParlor.parlorType,
+      routeCode: user.route,
+      agentCode: user.agentCode ?? user.code,
+      agentName: user.name,
+      collectionDate,
+      cashAmount: cashNum,
+      couponAmount: couponNum,
+      ccAmount: ccNum,
+      notes,
+      status: "entered",
+    };
+
+    try {
+      let collectionId = savedCollectionId;
+
+      if (!collectionId) {
+        collectionId = await findExistingCollectionId(
+          selectedParlor.parlorCode,
+          collectionDate,
+        );
+      }
+
+      if (!collectionId) {
+        const saveRes = await apiFetch("/api/collections", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+
+        const saveResult = await saveRes.json();
+
+        if (!saveRes.ok) {
+          if (saveRes.status === 409) {
+            collectionId = await findExistingCollectionId(
+              selectedParlor.parlorCode,
+              collectionDate,
+            );
+          } else {
+            throw new Error(saveResult.error ?? "Failed to save collection");
+          }
+        } else {
+          collectionId = saveResult.id;
+        }
+      } else {
+        const updateRes = await apiFetch(`/api/collections/${collectionId}`, {
+          method: "PUT",
+          body: JSON.stringify({
+            cashAmount: cashNum,
+            couponAmount: couponNum,
+            ccAmount: ccNum,
+            notes,
+            status: "entered",
+          }),
+        });
+
+        const updateResult = await updateRes.json();
+
+        if (!updateRes.ok) {
+          throw new Error(updateResult.error ?? "Failed to update collection");
+        }
+      }
+
+      if (!collectionId) {
+        throw new Error("Collection id is missing");
+      }
+
+      setSavedCollectionId(collectionId);
+
+      const submitRes = await apiFetch(
+        `/api/collections/${collectionId}/submit`,
+        {
+          method: "POST",
+        },
+      );
+
+      const submitResult = await submitRes.json();
+
+      if (!submitRes.ok) {
+        throw new Error(submitResult.error ?? "Failed to submit collection");
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+      Alert.alert("Submitted", "Collection submitted to supervisor.", [
+        {
+          text: "OK",
+          onPress: () => router.back(),
+        },
+      ]);
+    } catch (error) {
+      console.error(error);
+
+      await addOfflineCollection({
+        action: "submit",
+        payload: {
+          ...payload,
+          status: "submitted",
+        },
+      });
+
+      Alert.alert(
+        "Queued for Sync",
+        error instanceof Error
+          ? error.message
+          : "Your submission has been queued and will sync later.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   async function handleSubmit() {
-    if (!selectedParlor) return;
+    if (!selectedParlor || !user) return;
+
     if (!cash && !coupon && !cc) {
       Alert.alert("Incomplete", "Please enter at least one amount.");
       return;
     }
+
+    if (Platform.OS === "web") {
+      await submitCollectionNow();
+      return;
+    }
+
     Alert.alert(
       "Submit to Supervisor",
       `Submit collection of ${formatINR(total)} for ${selectedParlor.parlorName}? This cannot be edited after submission.`,
@@ -105,15 +391,9 @@ export default function NewEntryScreen() {
         { text: "Cancel", style: "cancel" },
         {
           text: "Submit",
-          onPress: async () => {
-            setIsSubmitting(true);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            await new Promise((r) => setTimeout(r, 600));
-            setIsSubmitting(false);
-            router.back();
-          },
+          onPress: submitCollectionNow,
         },
-      ]
+      ],
     );
   }
 
@@ -126,38 +406,91 @@ export default function NewEntryScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <View
+          style={[
+            s.card,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
+          <View style={s.sectionHeader}>
+            <View style={s.sectionIconWrap}>
+              <Feather name="calendar" size={15} color={colors.primary} />
+            </View>
+            <Text style={[s.sectionTitle, { color: colors.foreground }]}>
+              Collection Date
+            </Text>
+            <Text style={s.required}>*</Text>
+          </View>
+
+          <TextInput
+            value={collectionDate}
+            onChangeText={setCollectionDate}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={colors.mutedForeground}
+            style={[
+              s.notesInput,
+              {
+                minHeight: 44,
+                borderColor: colors.border,
+                backgroundColor: colors.background,
+                color: colors.foreground,
+              },
+            ]}
+          />
+        </View>
+
         {/* Parlor selector */}
-        <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View
+          style={[
+            s.card,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+        >
           <View style={s.sectionHeader}>
             <View style={s.sectionIconWrap}>
               <Feather name="home" size={15} color={colors.primary} />
             </View>
-            <Text style={[s.sectionTitle, { color: colors.foreground }]}>Select Parlor</Text>
+            <Text style={[s.sectionTitle, { color: colors.foreground }]}>
+              Select Parlor
+            </Text>
             <Text style={s.required}>*</Text>
           </View>
 
           <TouchableOpacity
             style={[
               s.parlorSelector,
-              { borderColor: selectedParlor ? colors.primary : colors.border, backgroundColor: colors.background },
+              {
+                borderColor: selectedParlor ? colors.primary : colors.border,
+                backgroundColor: colors.background,
+              },
             ]}
-            onPress={() => { setParlorPickerOpen(true); Haptics.selectionAsync(); }}
+            onPress={() => {
+              setParlorPickerOpen(true);
+              Haptics.selectionAsync();
+            }}
             activeOpacity={0.7}
           >
             {selectedParlor ? (
               <View style={s.parlorSelectedContent}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.parlorSelectedName, { color: colors.foreground }]} numberOfLines={1}>
+                  <Text
+                    style={[s.parlorSelectedName, { color: colors.foreground }]}
+                    numberOfLines={1}
+                  >
                     {selectedParlor.parlorName}
                   </Text>
                   <View style={s.parlorSelectedMeta}>
-                    <Text style={[s.parlorCode, { color: colors.mutedForeground }]}>
+                    <Text
+                      style={[s.parlorCode, { color: colors.mutedForeground }]}
+                    >
                       {selectedParlor.parlorCode}
                     </Text>
                     {(() => {
                       const cfg = PARLOR_TYPE_CONFIG[selectedParlor.parlorType];
                       return (
-                        <View style={[s.typeBadge, { backgroundColor: cfg?.bg }]}>
+                        <View
+                          style={[s.typeBadge, { backgroundColor: cfg?.bg }]}
+                        >
                           <Text style={[s.typeBadgeText, { color: cfg?.text }]}>
                             {selectedParlor.parlorType}
                           </Text>
@@ -167,22 +500,45 @@ export default function NewEntryScreen() {
                     {(() => {
                       const cfg = STATUS_CONFIG[selectedParlor.status];
                       return (
-                        <View style={[s.statusBadge, { backgroundColor: cfg.bg }]}>
-                          <Text style={[s.statusBadgeText, { color: cfg.text }]}>{cfg.label}</Text>
+                        <View
+                          style={[s.statusBadge, { backgroundColor: cfg.bg }]}
+                        >
+                          <Text
+                            style={[s.statusBadgeText, { color: cfg.text }]}
+                          >
+                            {cfg.label}
+                          </Text>
                         </View>
                       );
                     })()}
                   </View>
                 </View>
-                <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
+                <Feather
+                  name="chevron-down"
+                  size={16}
+                  color={colors.mutedForeground}
+                />
               </View>
             ) : (
               <View style={s.parlorPlaceholderRow}>
-                <Feather name="search" size={15} color={colors.mutedForeground} />
-                <Text style={[s.parlorPlaceholder, { color: colors.mutedForeground }]}>
+                <Feather
+                  name="search"
+                  size={15}
+                  color={colors.mutedForeground}
+                />
+                <Text
+                  style={[
+                    s.parlorPlaceholder,
+                    { color: colors.mutedForeground },
+                  ]}
+                >
                   Search and select a parlor...
                 </Text>
-                <Feather name="chevron-down" size={15} color={colors.mutedForeground} />
+                <Feather
+                  name="chevron-down"
+                  size={15}
+                  color={colors.mutedForeground}
+                />
               </View>
             )}
           </TouchableOpacity>
@@ -197,20 +553,39 @@ export default function NewEntryScreen() {
                 style={[
                   s.lockBanner,
                   {
-                    backgroundColor: selectedParlor.status === "acknowledged" ? "#d1fae5" : "#ede9fe",
-                    borderColor: selectedParlor.status === "acknowledged" ? "#a7f3d0" : "#c4b5fd",
+                    backgroundColor:
+                      selectedParlor.status === "acknowledged"
+                        ? "#d1fae5"
+                        : "#ede9fe",
+                    borderColor:
+                      selectedParlor.status === "acknowledged"
+                        ? "#a7f3d0"
+                        : "#c4b5fd",
                   },
                 ]}
               >
                 <Feather
-                  name={selectedParlor.status === "acknowledged" ? "check-circle" : "lock"}
+                  name={
+                    selectedParlor.status === "acknowledged"
+                      ? "check-circle"
+                      : "lock"
+                  }
                   size={14}
-                  color={selectedParlor.status === "acknowledged" ? "#065f46" : "#6d28d9"}
+                  color={
+                    selectedParlor.status === "acknowledged"
+                      ? "#065f46"
+                      : "#6d28d9"
+                  }
                 />
                 <Text
                   style={[
                     s.lockText,
-                    { color: selectedParlor.status === "acknowledged" ? "#065f46" : "#6d28d9" },
+                    {
+                      color:
+                        selectedParlor.status === "acknowledged"
+                          ? "#065f46"
+                          : "#6d28d9",
+                    },
                   ]}
                 >
                   {selectedParlor.status === "acknowledged"
@@ -221,12 +596,23 @@ export default function NewEntryScreen() {
             )}
 
             {/* Amount inputs */}
-            <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View
+              style={[
+                s.card,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
               <View style={s.sectionHeader}>
                 <View style={s.sectionIconWrap}>
-                  <Feather name="dollar-sign" size={15} color={colors.primary} />
+                  <Feather
+                    name="dollar-sign"
+                    size={15}
+                    color={colors.primary}
+                  />
                 </View>
-                <Text style={[s.sectionTitle, { color: colors.foreground }]}>Collection Amounts</Text>
+                <Text style={[s.sectionTitle, { color: colors.foreground }]}>
+                  Collection Amounts
+                </Text>
               </View>
 
               <AmountRow
@@ -238,7 +624,9 @@ export default function NewEntryScreen() {
                 accentColor="#065f46"
                 colors={colors}
               />
-              <View style={[s.fieldDivider, { backgroundColor: colors.border }]} />
+              <View
+                style={[s.fieldDivider, { backgroundColor: colors.border }]}
+              />
               <AmountRow
                 label="Coupon Amount"
                 hint="Physical coupons redeemed"
@@ -248,7 +636,9 @@ export default function NewEntryScreen() {
                 accentColor="#1d4ed8"
                 colors={colors}
               />
-              <View style={[s.fieldDivider, { backgroundColor: colors.border }]} />
+              <View
+                style={[s.fieldDivider, { backgroundColor: colors.border }]}
+              />
               <AmountRow
                 label="Credit Card Total"
                 hint="POS / card transaction total"
@@ -261,27 +651,44 @@ export default function NewEntryScreen() {
 
               {total > 0 && (
                 <View style={[s.totalRow, { borderTopColor: colors.border }]}>
-                  <Text style={[s.totalLabel, { color: colors.mutedForeground }]}>Total Collection</Text>
-                  <Text style={[s.totalAmount, { color: colors.primary }]}>{formatINR(total)}</Text>
+                  <Text
+                    style={[s.totalLabel, { color: colors.mutedForeground }]}
+                  >
+                    Total Collection
+                  </Text>
+                  <Text style={[s.totalAmount, { color: colors.primary }]}>
+                    {formatINR(total)}
+                  </Text>
                 </View>
               )}
             </View>
 
             {/* Notes */}
-            <View style={[s.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View
+              style={[
+                s.card,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+            >
               <View style={s.sectionHeader}>
                 <View style={s.sectionIconWrap}>
                   <Feather name="file-text" size={15} color={colors.primary} />
                 </View>
-                <Text style={[s.sectionTitle, { color: colors.foreground }]}>Remarks</Text>
-                <Text style={[s.optional, { color: colors.mutedForeground }]}>Optional</Text>
+                <Text style={[s.sectionTitle, { color: colors.foreground }]}>
+                  Remarks
+                </Text>
+                <Text style={[s.optional, { color: colors.mutedForeground }]}>
+                  Optional
+                </Text>
               </View>
               <TextInput
                 style={[
                   s.notesInput,
                   {
                     borderColor: colors.border,
-                    backgroundColor: isReadOnly ? colors.muted : colors.background,
+                    backgroundColor: isReadOnly
+                      ? colors.muted
+                      : colors.background,
                     color: colors.foreground,
                   },
                 ]}
@@ -299,17 +706,38 @@ export default function NewEntryScreen() {
             {!isReadOnly && (
               <View style={s.actions}>
                 <TouchableOpacity
-                  style={[s.draftBtn, { borderColor: colors.border, backgroundColor: colors.card }]}
+                  style={[
+                    s.draftBtn,
+                    {
+                      borderColor: colors.border,
+                      backgroundColor: colors.card,
+                    },
+                  ]}
                   onPress={handleSaveDraft}
                   disabled={isSaving}
                   activeOpacity={0.7}
                 >
                   {isSaving ? (
-                    <Text style={[s.draftBtnText, { color: colors.mutedForeground }]}>Saving…</Text>
+                    <Text
+                      style={[
+                        s.draftBtnText,
+                        { color: colors.mutedForeground },
+                      ]}
+                    >
+                      Saving…
+                    </Text>
                   ) : (
                     <>
-                      <Feather name="save" size={15} color={colors.foreground} />
-                      <Text style={[s.draftBtnText, { color: colors.foreground }]}>Save Draft</Text>
+                      <Feather
+                        name="save"
+                        size={15}
+                        color={colors.foreground}
+                      />
+                      <Text
+                        style={[s.draftBtnText, { color: colors.foreground }]}
+                      >
+                        Save Draft
+                      </Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -326,7 +754,9 @@ export default function NewEntryScreen() {
                     ) : (
                       <>
                         <Feather name="send" size={15} color="#fff" />
-                        <Text style={s.submitBtnText}>Submit to Supervisor</Text>
+                        <Text style={s.submitBtnText}>
+                          Submit to Supervisor
+                        </Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -338,15 +768,23 @@ export default function NewEntryScreen() {
 
         {/* Empty prompt when no parlor selected */}
         {!selectedParlor && (
-          <View style={[s.emptyPrompt, { borderColor: colors.border, backgroundColor: colors.muted }]}>
-            <View style={[s.emptyIconWrap, { backgroundColor: colors.background }]}>
+          <View
+            style={[
+              s.emptyPrompt,
+              { borderColor: colors.border, backgroundColor: colors.muted },
+            ]}
+          >
+            <View
+              style={[s.emptyIconWrap, { backgroundColor: colors.background }]}
+            >
               <Feather name="home" size={22} color={colors.mutedForeground} />
             </View>
             <Text style={[s.emptyTitle, { color: colors.foreground }]}>
               Select a parlor to begin
             </Text>
             <Text style={[s.emptyDesc, { color: colors.mutedForeground }]}>
-              Tap the field above to search and choose a parlor from your assigned route
+              Tap the field above to search and choose a parlor from your
+              assigned route
             </Text>
           </View>
         )}
@@ -361,11 +799,18 @@ export default function NewEntryScreen() {
       >
         <View style={[s.pickerModal, { backgroundColor: colors.background }]}>
           {/* Modal header */}
-          <View style={[s.pickerHeader, { borderBottomColor: colors.border, paddingTop: insets.top + 16 }]}>
+          <View
+            style={[
+              s.pickerHeader,
+              { borderBottomColor: colors.border, paddingTop: insets.top + 16 },
+            ]}
+          >
             <View>
-              <Text style={[s.pickerTitle, { color: colors.foreground }]}>Select Parlor</Text>
+              <Text style={[s.pickerTitle, { color: colors.foreground }]}>
+                Select Parlor
+              </Text>
               <Text style={[s.pickerSub, { color: colors.mutedForeground }]}>
-                {MOCK_PARLORS.length} parlors on your route
+                {parlors.length} parlors available
               </Text>
             </View>
             <TouchableOpacity
@@ -377,7 +822,15 @@ export default function NewEntryScreen() {
           </View>
 
           {/* Search bar */}
-          <View style={[s.searchBar, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
+          <View
+            style={[
+              s.searchBar,
+              {
+                backgroundColor: colors.card,
+                borderBottomColor: colors.border,
+              },
+            ]}
+          >
             <View style={[s.searchInput, { backgroundColor: colors.muted }]}>
               <Feather name="search" size={15} color={colors.mutedForeground} />
               <TextInput
@@ -392,7 +845,11 @@ export default function NewEntryScreen() {
               />
               {search.length > 0 && (
                 <TouchableOpacity onPress={() => setSearch("")}>
-                  <Feather name="x-circle" size={15} color={colors.mutedForeground} />
+                  <Feather
+                    name="x-circle"
+                    size={15}
+                    color={colors.mutedForeground}
+                  />
                 </TouchableOpacity>
               )}
             </View>
@@ -412,7 +869,9 @@ export default function NewEntryScreen() {
                     s.parlorRow,
                     {
                       borderBottomColor: colors.border,
-                      backgroundColor: isSelected ? colors.primary + "0d" : colors.card,
+                      backgroundColor: isSelected
+                        ? colors.primary + "0d"
+                        : colors.card,
                     },
                   ]}
                   onPress={() => selectParlor(item)}
@@ -421,39 +880,71 @@ export default function NewEntryScreen() {
                   <View
                     style={[
                       s.parlorRowIcon,
-                      { backgroundColor: isSelected ? colors.primary + "20" : colors.muted },
+                      {
+                        backgroundColor: isSelected
+                          ? colors.primary + "20"
+                          : colors.muted,
+                      },
                     ]}
                   >
                     <Feather
                       name="home"
                       size={16}
-                      color={isSelected ? colors.primary : colors.mutedForeground}
+                      color={
+                        isSelected ? colors.primary : colors.mutedForeground
+                      }
                     />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
                       style={[
                         s.parlorRowName,
-                        { color: isSelected ? colors.primary : colors.foreground },
+                        {
+                          color: isSelected
+                            ? colors.primary
+                            : colors.foreground,
+                        },
                       ]}
                       numberOfLines={1}
                     >
                       {item.parlorName}
                     </Text>
                     <View style={s.parlorRowMeta}>
-                      <Text style={[s.parlorRowCode, { color: colors.mutedForeground }]}>
+                      <Text
+                        style={[
+                          s.parlorRowCode,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
                         {item.parlorCode}
                       </Text>
-                      <View style={[s.typeBadge, { backgroundColor: typeCfg?.bg }]}>
-                        <Text style={[s.typeBadgeText, { color: typeCfg?.text }]}>{item.parlorType}</Text>
+                      <View
+                        style={[s.typeBadge, { backgroundColor: typeCfg?.bg }]}
+                      >
+                        <Text
+                          style={[s.typeBadgeText, { color: typeCfg?.text }]}
+                        >
+                          {item.parlorType}
+                        </Text>
                       </View>
                     </View>
                   </View>
-                  <View style={[s.statusBadge, { backgroundColor: statusCfg.bg }]}>
-                    <Text style={[s.statusBadgeText, { color: statusCfg.text }]}>{statusCfg.label}</Text>
+                  <View
+                    style={[s.statusBadge, { backgroundColor: statusCfg.bg }]}
+                  >
+                    <Text
+                      style={[s.statusBadgeText, { color: statusCfg.text }]}
+                    >
+                      {statusCfg.label}
+                    </Text>
                   </View>
                   {isSelected && (
-                    <Feather name="check" size={16} color={colors.primary} style={{ marginLeft: 6 }} />
+                    <Feather
+                      name="check"
+                      size={16}
+                      color={colors.primary}
+                      style={{ marginLeft: 6 }}
+                    />
                   )}
                 </TouchableOpacity>
               );
@@ -461,7 +952,9 @@ export default function NewEntryScreen() {
             ListEmptyComponent={
               <View style={s.searchEmpty}>
                 <Feather name="search" size={28} color={colors.border} />
-                <Text style={[s.searchEmptyText, { color: colors.mutedForeground }]}>
+                <Text
+                  style={[s.searchEmptyText, { color: colors.mutedForeground }]}
+                >
                   No parlors match "{search}"
                 </Text>
               </View>
@@ -495,8 +988,12 @@ function AmountRow({
   return (
     <View style={amtStyles.row}>
       <View style={{ flex: 1, marginRight: 12 }}>
-        <Text style={[amtStyles.label, { color: colors.foreground }]}>{label}</Text>
-        <Text style={[amtStyles.hint, { color: colors.mutedForeground }]}>{hint}</Text>
+        <Text style={[amtStyles.label, { color: colors.foreground }]}>
+          {label}
+        </Text>
+        <Text style={[amtStyles.hint, { color: colors.mutedForeground }]}>
+          {hint}
+        </Text>
       </View>
       <View
         style={[
@@ -507,9 +1004,14 @@ function AmountRow({
           },
         ]}
       >
-        <Text style={[amtStyles.rupee, { color: colors.mutedForeground }]}>₹</Text>
+        <Text style={[amtStyles.rupee, { color: colors.mutedForeground }]}>
+          ₹
+        </Text>
         <TextInput
-          style={[amtStyles.input, { color: locked ? colors.mutedForeground : accentColor }]}
+          style={[
+            amtStyles.input,
+            { color: locked ? colors.mutedForeground : accentColor },
+          ]}
           value={value}
           onChangeText={onChange}
           keyboardType="numeric"
@@ -562,7 +1064,11 @@ const amtStyles = StyleSheet.create({
   },
 });
 
-function makeStyles(colors: ReturnType<typeof useColors>, topPad: number, bottomPad: number) {
+function makeStyles(
+  colors: ReturnType<typeof useColors>,
+  topPad: number,
+  bottomPad: number,
+) {
   return StyleSheet.create({
     container: {
       flex: 1,

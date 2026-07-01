@@ -1,71 +1,85 @@
-'use client';
-import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { useLocation } from 'wouter';
-import { Eye, EyeOff, Copy, Check, IceCream, TrendingUp, Shield } from 'lucide-react';
-import AppLogo from '@/components/ui/AppLogo';
-import Icon from '@/components/ui/AppIcon';
-import { useAuth } from '@/context/AuthContext';
+"use client";
+import React, { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useLocation } from "wouter";
+import {
+  Eye,
+  EyeOff,
+  Copy,
+  Check,
+  IceCream,
+  TrendingUp,
+  Shield,
+} from "lucide-react";
+import AppLogo from "@/components/ui/AppLogo";
+import Icon from "@/components/ui/AppIcon";
+import { useAuth } from "@/context/AuthContext";
 
-
-type Role = 'agent' | 'supervisor' | 'superadmin';
+type Role = "agent" | "supervisor" | "superadmin";
 
 interface LoginFormValues {
-  email: string;
+  userCode: string;
   password: string;
   remember: boolean;
 }
 
 interface DemoCredential {
   role: string;
-  email: string;
+  userCode: string;
   password: string;
   roleKey: Role;
 }
 
 const DEMO_CREDENTIALS: DemoCredential[] = [
   {
-    role: 'Collection Agent',
-    email: 'rajan.kumar@cashcollect.in',
-    password: 'Agent@2026',
-    roleKey: 'agent',
+    role: "Collection Agent",
+    userCode: "AGT-042",
+    password: "Agent@2026",
+    roleKey: "agent",
   },
   {
-    role: 'Supervisor',
-    email: 'meena.sharma@cashcollect.in',
-    password: 'Super@2026',
-    roleKey: 'supervisor',
+    role: "Supervisor",
+    userCode: "SUP-012",
+    password: "Super@2026",
+    roleKey: "supervisor",
   },
   {
-    role: 'Super Admin',
-    email: 'admin@cashcollect.in',
-    password: 'Admin@2026',
-    roleKey: 'superadmin',
+    role: "Super Admin",
+    userCode: "ADM-001",
+    password: "Admin@2026",
+    roleKey: "superadmin",
   },
 ];
 
 const ROLE_TABS: { key: Role; label: string; icon: React.ElementType }[] = [
-  { key: 'agent', label: 'Collection Agent', icon: IceCream },
-  { key: 'supervisor', label: 'Supervisor', icon: TrendingUp },
-  { key: 'superadmin', label: 'Super Admin', icon: Shield },
+  { key: "agent", label: "Collection Agent", icon: IceCream },
+  { key: "supervisor", label: "Supervisor", icon: TrendingUp },
+  { key: "superadmin", label: "Super Admin", icon: Shield },
 ];
 
 const DEMO_NAMES: Record<string, string> = {
-  'rajan.kumar@cashcollect.in': 'Rajan Kumar',
-  'meena.sharma@cashcollect.in': 'Meena Sharma',
-  'admin@cashcollect.in': 'Super Admin',
+  "rajan.kumar@cashcollect.in": "Rajan Kumar",
+  "meena.sharma@cashcollect.in": "Meena Sharma",
+  "admin@cashcollect.in": "Super Admin",
 };
 
-const DEMO_CODES: Record<string, { id: number; agentCode?: string; supervisorCode?: string }> = {
-  'rajan.kumar@cashcollect.in': { id: 2, agentCode: 'AGT-042', supervisorCode: 'SUP-012' },
-  'meena.sharma@cashcollect.in': { id: 3, supervisorCode: 'SUP-012' },
-  'admin@cashcollect.in': { id: 6 },
+const DEMO_CODES: Record<
+  string,
+  { id: number; agentCode?: string; supervisorCode?: string }
+> = {
+  "rajan.kumar@cashcollect.in": {
+    id: 2,
+    agentCode: "AGT-042",
+    supervisorCode: "SUP-012",
+  },
+  "meena.sharma@cashcollect.in": { id: 3, supervisorCode: "SUP-012" },
+  "admin@cashcollect.in": { id: 6 },
 };
 
 export default function LoginForm() {
   const [, setLocation] = useLocation();
   const { login: authLogin } = useAuth();
-  const [activeRole, setActiveRole] = useState<Role>('agent');
+  const [activeRole, setActiveRole] = useState<Role>("agent");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -77,7 +91,7 @@ export default function LoginForm() {
     setValue,
     formState: { errors },
   } = useForm<LoginFormValues>({
-    defaultValues: { email: '', password: '', remember: false },
+    defaultValues: { userCode: "", password: "", remember: false },
   });
 
   const handleCopy = async (text: string, field: string) => {
@@ -86,45 +100,44 @@ export default function LoginForm() {
     setTimeout(() => setCopiedField(null), 1500);
   };
 
-  const loginWithCredentials = async (email: string, password: string) => {
+  const loginWithCredentials = async (userCode: string, password: string) => {
     setIsLoading(true);
     setLoginError(null);
 
-    // BACKEND INTEGRATION POINT: POST /api/auth/login with { email, password, role: activeRole }
-    await new Promise((r) => setTimeout(r, 800));
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userCode, password }),
+      });
 
-    const match = DEMO_CREDENTIALS.find(
-      (c) => c.email === email && c.password === password
-    );
+      if (!response.ok) {
+        setLoginError("Invalid user code or password.");
+        setIsLoading(false);
+        return;
+      }
 
-    if (!match) {
-      setLoginError(
-        'Invalid credentials — use the demo accounts below to sign in.'
-      );
+      const result = await response.json();
+
+      authLogin(result.user, result.token);
       setIsLoading(false);
-      return;
+      setLocation("/daily-collection-entry");
+    } catch {
+      setLoginError("Cannot reach server. Please try again.");
+      setIsLoading(false);
     }
-
-    authLogin({
-      role: match.roleKey,
-      name: DEMO_NAMES[email] ?? match.role,
-      email,
-      ...(DEMO_CODES[email] ?? {}),
-    });
-    setIsLoading(false);
-    setLocation('/daily-collection-entry');
   };
 
   const handleAutofill = (cred: DemoCredential) => {
-    setValue('email', cred.email);
-    setValue('password', cred.password);
+    setValue("userCode", cred.userCode);
+    setValue("password", cred.password);
     setActiveRole(cred.roleKey);
     setLoginError(null);
-    loginWithCredentials(cred.email, cred.password);
+    loginWithCredentials(cred.userCode, cred.password);
   };
 
   const onSubmit = async (data: LoginFormValues) => {
-    loginWithCredentials(data.email, data.password);
+    loginWithCredentials(data.userCode, data.password);
   };
 
   return (
@@ -158,9 +171,9 @@ export default function LoginForm() {
 
         <div className="relative z-10 space-y-3">
           {[
-            { icon: '🏪', text: 'Track collections across 200+ parlors' },
-            { icon: '✅', text: 'Real-time supervisor acknowledgment' },
-            { icon: '📊', text: 'Instant collector-wise reports' },
+            { icon: "🏪", text: "Track collections across 200+ parlors" },
+            { icon: "✅", text: "Real-time supervisor acknowledgment" },
+            { icon: "📊", text: "Instant collector-wise reports" },
           ].map((item) => (
             <div
               key={`feature-${item.icon}`}
@@ -209,16 +222,19 @@ export default function LoginForm() {
                     transition-all duration-150
                     ${
                       activeRole === tab.key
-                        ? 'bg-card text-primary shadow-sm border border-border'
-                        : 'text-muted-foreground hover:text-foreground'
+                        ? "bg-card text-primary shadow-sm border border-border"
+                        : "text-muted-foreground hover:text-foreground"
                     }
                   `}
                 >
                   <Icon size={13} />
                   <span className="hidden sm:inline">{tab.label}</span>
                   <span className="sm:hidden">
-                    {tab.key === 'agent' ?'Agent'
-                      : tab.key === 'supervisor' ?'Supervisor' :'Admin'}
+                    {tab.key === "agent"
+                      ? "Agent"
+                      : tab.key === "supervisor"
+                        ? "Supervisor"
+                        : "Admin"}
                   </span>
                 </button>
               );
@@ -226,37 +242,37 @@ export default function LoginForm() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="space-y-4"
+            noValidate
+          >
             {/* Email */}
             <div>
               <label
-                htmlFor="email"
+                htmlFor="userCode"
                 className="block text-sm font-medium text-foreground mb-1.5"
               >
-                Email address
+                User Code
               </label>
               <input
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="yourname@cashcollect.in"
+                id="userCode"
+                type="text"
+                autoComplete="username"
+                placeholder="e.g. ADM-001"
                 className={`
                   w-full h-10 px-3 rounded-md border text-sm bg-card
                   focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
                   transition-all duration-150
-                  ${errors.email ? 'border-red-400 focus:ring-red-400' : 'border-input'}
+                  ${errors.userCode ? "border-red-400 focus:ring-red-400" : "border-input"}
                 `}
-                {...register('email', {
-                  required: 'Email address is required',
-                  pattern: {
-                    value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                    message: 'Enter a valid email address',
-                  },
+                {...register("userCode", {
+                  required: "User code is required",
                 })}
               />
-              {errors.email && (
+              {errors.userCode && (
                 <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
-                  {errors.email.message}
+                  {errors.userCode.message}
                 </p>
               )}
             </div>
@@ -272,20 +288,20 @@ export default function LoginForm() {
               <div className="relative">
                 <input
                   id="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="Enter your password"
                   className={`
                     w-full h-10 px-3 pr-10 rounded-md border text-sm bg-card
                     focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
                     transition-all duration-150
-                    ${errors.password ? 'border-red-400 focus:ring-red-400' : 'border-input'}
+                    ${errors.password ? "border-red-400 focus:ring-red-400" : "border-input"}
                   `}
-                  {...register('password', {
-                    required: 'Password is required',
+                  {...register("password", {
+                    required: "Password is required",
                     minLength: {
                       value: 6,
-                      message: 'Password must be at least 6 characters',
+                      message: "Password must be at least 6 characters",
                     },
                   })}
                 />
@@ -293,7 +309,7 @@ export default function LoginForm() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -311,7 +327,7 @@ export default function LoginForm() {
                 <input
                   type="checkbox"
                   className="w-4 h-4 rounded border-input accent-primary"
-                  {...register('remember')}
+                  {...register("remember")}
                 />
                 Remember me
               </label>
@@ -346,7 +362,7 @@ export default function LoginForm() {
                   Signing in…
                 </>
               ) : (
-                'Sign in'
+                "Sign in"
               )}
             </button>
           </form>
@@ -366,14 +382,14 @@ export default function LoginForm() {
                   onClick={() => handleAutofill(cred)}
                   role="button"
                   tabIndex={0}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAutofill(cred)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAutofill(cred)}
                 >
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-foreground">
                       {cred.role}
                     </p>
                     <p className="text-[11px] text-muted-foreground truncate">
-                      {cred.email}
+                      {cred.userCode}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
@@ -381,12 +397,12 @@ export default function LoginForm() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleCopy(cred.email, `email-${cred.roleKey}`);
+                        handleCopy(cred.userCode, `userCode-${cred.roleKey}`);
                       }}
                       className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-border transition-colors"
                       title="Copy email"
                     >
-                      {copiedField === `email-${cred.roleKey}` ? (
+                      {copiedField === `userCode-${cred.roleKey}` ? (
                         <Check size={12} className="text-emerald-500" />
                       ) : (
                         <Copy size={12} />
@@ -417,11 +433,11 @@ export default function LoginForm() {
           </div>
 
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            By signing in you agree to the{' '}
+            By signing in you agree to the{" "}
             <span className="text-primary hover:underline cursor-pointer">
               Terms of Service
-            </span>{' '}
-            and{' '}
+            </span>{" "}
+            and{" "}
             <span className="text-primary hover:underline cursor-pointer">
               Privacy Policy
             </span>

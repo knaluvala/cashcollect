@@ -30,6 +30,15 @@ export async function writeProjectFile(
   content: string,
 ): Promise<void> {
   const safePath = resolveSafePath(filePath);
+
+  try {
+    const existingContent = await fs.readFile(safePath, "utf-8");
+    const backupPath = `${safePath}.bak-${Date.now()}`;
+    await fs.writeFile(backupPath, existingContent, "utf-8");
+  } catch {
+    // If file does not exist, skip backup
+  }
+
   await fs.writeFile(safePath, content, "utf-8");
 }
 

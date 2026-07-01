@@ -13,6 +13,8 @@ import {
 } from "../lib/fileTools";
 import { getAllowedCommands, runAllowedCommand } from "../lib/commandRunner";
 import { askAI } from "../lib/aiService";
+import { getDefaultProjectContext } from "../lib/projectContext";
+import { discoverRelevantFiles } from "../lib/contextDiscovery";
 
 const router = Router();
 
@@ -144,20 +146,25 @@ router.post("/dev-agent/chat", async (req, res) => {
       });
     }
 
-    const contextText = Array.isArray(fileContext)
-      ? fileContext
-          .map(
-            (file) =>
-              `\n\n--- FILE: ${file.path} ---\n${file.content}\n--- END FILE ---`,
-          )
-          .join("")
-      : "";
+    const defaultContext = await getDefaultProjectContext();
+    const discoveredContext = await discoverRelevantFiles(message);
 
-    const reply = await askAI(`${message}${contextText}`);
+    const combinedContext = [
+      ...defaultContext,
+      ...discoveredContext,
+      ...(Array.isArray(fileContext) ? fileContext : []),
+    ];
+
+    const uniqueContext = Array.from(
+      new Map(combinedContext.map((file) => [file.path, file])).values(),
+    );
+
+    const reply = await askAI(message, uniqueContext);
 
     return res.json({
       success: true,
       reply,
+      contextFilesUsed: uniqueContext.map((file) => file.path),
     });
   } catch (error) {
     return res.status(500).json({

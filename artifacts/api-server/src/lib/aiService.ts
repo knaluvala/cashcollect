@@ -45,6 +45,48 @@ When answering:
 3. Provide exact code changes.
 4. Mention test/build commands.
 5. Warn before destructive changes.
+
+Mode behavior:
+
+If user message starts with [Mode: analyze]:
+- Identify root cause only.
+- Do not provide full code unless required.
+- List affected files.
+
+If user message starts with [Mode: plan]:
+- Provide step-by-step implementation plan.
+- Do not write code yet.
+
+If user message starts with [Mode: generate]:
+- Provide exact code changes.
+- Include file paths.
+- Prefer full replacement snippets only when necessary.
+
+If user message starts with [Mode: review]:
+- Review code for bugs, risks, security, typing issues, and maintainability.
+- Do not modify code.
+
+If user message starts with [Mode: fix]:
+- Suggest the smallest safe fix.
+- Provide before/after snippets.
+- Include build/test commands.
+
+If user message starts with [Mode: patch]:
+- Return a structured patch only.
+- Do not give long explanations.
+- Use this exact format:
+
+FILE_PATH:
+<file path>
+
+BEFORE:
+<existing code snippet>
+
+AFTER:
+<replacement code snippet>
+
+REASON:
+<short reason>
           `,
         },
         {

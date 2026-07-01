@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown, TrendingUp, Users, Store } from 'lucide-react';
 import { DBCollection } from './ReportsContent';
-import { getAgentSupervisor } from './reportsMockData';
+// import { getAgentSupervisor } from './reportsMockData';
 import SummaryBarChart from './SummaryBarChart';
 
 interface Props {
@@ -48,7 +48,7 @@ export default function SummaryReport({ data, isLoading }: Props) {
   const rows: SummaryRow[] = useMemo(() => {
     const groups = new Map<string, SummaryRow>();
     for (const c of (data ?? [])) {
-      const sup = getAgentSupervisor(c.agentCode);
+      // const sup = getAgentSupervisor(c.agentCode);
       const existing = groups.get(c.agentCode);
       if (existing) {
         existing.parlorCount += 1;
@@ -64,8 +64,8 @@ export default function SummaryReport({ data, isLoading }: Props) {
           agentCode: c.agentCode,
           agentName: c.agentName,
           routeCode: c.routeCode,
-          supervisorCode: sup.code,
-          supervisorName: sup.name,
+          supervisorCode: '',
+          supervisorName: '',
           parlorCount: 1,
           totalCash: numVal(c.cashAmount),
           totalCoupon: numVal(c.couponAmount),

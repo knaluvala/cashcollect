@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { Store, IndianRupee, FileText, Send, Save, CheckCircle, Clock, AlertCircle, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import StatusBadge from '@/components/ui/StatusBadge';
-import { ParlorEntry, ParlorType } from './mockData';
+import { ParlorEntry, ParlorType } from './types';
 
 interface CollectionFormValues {
   cashAmount: string;

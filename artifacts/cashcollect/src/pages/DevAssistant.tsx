@@ -22,9 +22,11 @@ export default function DevAssistant() {
   const [message, setMessage] = useState("");
   const [filePath, setFilePath] = useState("");
   const [fileContext, setFileContext] = useState<FileContext[]>([]);
+  const [contextFilesUsed, setContextFilesUsed] = useState<string[]>([]);
   const [reply, setReply] = useState("");
   const [log, setLog] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState("analyze");
 
   const addLog = (text: string) => {
     setLog((prev) => [`${new Date().toLocaleTimeString()} - ${text}`, ...prev]);
@@ -39,7 +41,14 @@ export default function DevAssistant() {
       body: JSON.stringify({ path: filePath }),
     });
 
-    const data = await res.json();
+    const text = await res.text();
+
+    if (!text) {
+      addLog("API returned empty response");
+      return;
+    }
+
+    const data = JSON.parse(text);
 
     if (!data.success) {
       addLog(`Failed to read file: ${data.error}`);
@@ -64,12 +73,20 @@ export default function DevAssistant() {
         method: "POST",
         headers: API_HEADERS,
         body: JSON.stringify({
-          message,
+          message: `[Mode: ${mode}]\n${message}`,
           fileContext,
         }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      console.log("Dev Assistant API response:", text);
+
+      if (!text) {
+        addLog(`API returned empty response. HTTP status: ${res.status}`);
+        return;
+      }
+
+      const data = JSON.parse(text);
 
       if (!data.success) {
         addLog(`AI error: ${data.error}`);
@@ -77,6 +94,7 @@ export default function DevAssistant() {
       }
 
       setReply(data.reply);
+      setContextFilesUsed(data.contextFilesUsed ?? []);
       addLog("AI analysis completed");
     } finally {
       setLoading(false);
@@ -93,7 +111,14 @@ export default function DevAssistant() {
         body: JSON.stringify({ command }),
       });
 
-      const data = await res.json();
+      const text = await res.text();
+
+      if (!text) {
+        addLog("API returned empty response");
+        return;
+      }
+
+      const data = JSON.parse(text);
 
       if (!data.success) {
         addLog(`Command failed: ${data.error}`);
@@ -129,7 +154,14 @@ export default function DevAssistant() {
       }),
     });
 
-    const data = await res.json();
+    const text = await res.text();
+
+    if (!text) {
+      addLog("API returned empty response");
+      return;
+    }
+
+    const data = JSON.parse(text);
 
     if (!data.success) {
       addLog(`File write failed: ${data.error}`);
@@ -145,6 +177,23 @@ export default function DevAssistant() {
 
       <section style={{ marginBottom: 24 }}>
         <h2>Development Request</h2>
+
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "block", marginBottom: 6 }}>Mode</label>
+
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value)}
+            style={{ padding: 8 }}
+          >
+            <option value="analyze">Analyze Issue</option>
+            <option value="plan">Create Plan</option>
+            <option value="generate">Generate Code</option>
+            <option value="review">Review Code</option>
+            <option value="fix">Suggest Fix</option>
+            <option value="patch">Generate Patch</option>
+          </select>
+        </div>
 
         <textarea
           value={message}
@@ -189,7 +238,6 @@ export default function DevAssistant() {
         >
           Apply File Change
         </button>
-      
       </section>
 
       <section style={{ marginBottom: 24 }}>
@@ -225,10 +273,24 @@ export default function DevAssistant() {
             padding: 16,
             minHeight: 250,
             overflow: "auto",
-          }}  
+          }}
         >
           {reply}
         </pre>
+      </section>
+
+      <section style={{ marginBottom: 24 }}>
+        <h2>Context Files Used</h2>
+
+        {contextFilesUsed.length === 0 ? (
+          <p>No context files used yet.</p>
+        ) : (
+          <ul>
+            {contextFilesUsed.map((file) => (
+              <li key={file}>{file}</li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section>

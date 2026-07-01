@@ -12,12 +12,8 @@ env = { "CI" = "true" }
 
 [[workflows.workflow]]
 name = "artifacts/cashcollect: web"
+mode = "parallel"
 author = "agent"
-mode = "sequential"
-
-[workflows.workflow.metadata]
-outputType = "webview"
-artifactId = "artifacts/cashcollect"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
@@ -30,14 +26,14 @@ router = "path"
 PORT = "23155"
 BASE_PATH = "/"
 
-[[workflows.workflow]]
-name = "artifacts/api-server: API Server"
-author = "agent"
-mode = "sequential"
-
 [workflows.workflow.metadata]
 outputType = "webview"
-artifactId = "3B4_FFSkEVBkAeYMFRJ2e"
+artifactId = "artifacts/cashcollect"
+
+[[workflows.workflow]]
+name = "artifacts/api-server: API Server"
+mode = "parallel"
+author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
@@ -47,6 +43,27 @@ waitForPort = 8080
 
 [workflows.workflow.tasks.env]
 PORT = "8080"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+artifactId = "3B4_FFSkEVBkAeYMFRJ2e"
+
+[[workflows.workflow]]
+name = "Start CashCollect"
+mode = "sequential"
+author = 60239837
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+#args = "bash scripts/start-cashcollect-dev.sh"
+args = "bash scripts/start-cashcollect-mobile.sh"
+#waitForPort = 23155
+waitForPort = 8082
+router = "path"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+artifactId = "artifacts/cashcollect"
 
 [agent]
 stack = "PNPM_WORKSPACE"
@@ -62,6 +79,7 @@ externalPort = 3001
 
 [[ports]]
 localPort = 5173
+externalPort = 5173
 
 [[ports]]
 localPort = 8080
@@ -88,4 +106,4 @@ localPort = 23155
 externalPort = 80
 
 [nix]
-packages = ["vim"]
+packages = ["lsof", "vim"]
