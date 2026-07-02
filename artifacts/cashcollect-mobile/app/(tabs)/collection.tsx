@@ -815,11 +815,13 @@ function makeStyles(
     statsBar: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.muted,
-      borderRadius: 8,
-      paddingVertical: 8,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: 10,
       paddingHorizontal: 8,
-      marginBottom: 8,
+      marginBottom: 10,
     },
     statItem: {
       flex: 1,
@@ -844,7 +846,12 @@ function makeStyles(
     },
     totalsBar: {
       flexDirection: "row",
-      paddingVertical: 4,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
     },
     listContent: {
       padding: 12,
