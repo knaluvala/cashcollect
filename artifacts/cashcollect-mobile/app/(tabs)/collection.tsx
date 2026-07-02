@@ -24,6 +24,8 @@ import {
   CollectionStatus,
   formatINR,
 } from "@/lib/collectionTypes";
+import { AppCard } from "@/components/ui/AppCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 
 const STATUS_CONFIG: Record<
   CollectionStatus,
@@ -524,14 +526,8 @@ function ParlorItem({
     (parlor.ccAmount ?? 0);
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.parlorCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
-      ]}
-      onPress={() => onPress(parlor)}
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity onPress={() => onPress(parlor)} activeOpacity={0.75}>
+     <AppCard style={styles.parlorCard}>
       <View style={styles.parlorCardTop}>
         <View style={styles.parlorInfo}>
           <Text
@@ -553,11 +549,11 @@ function ParlorItem({
             </View>
           </View>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: statusCfg.bg }]}>
-          <Text style={[styles.statusBadgeText, { color: statusCfg.text }]}>
-            {statusCfg.label}
-          </Text>
-        </View>
+        <StatusBadge
+  label={statusCfg.label}
+  backgroundColor={statusCfg.bg}
+  color={statusCfg.text}
+/>
       </View>
 
       {parlor.cashAmount !== null && (
@@ -589,6 +585,7 @@ function ParlorItem({
           Ack by {parlor.acknowledgedBy}
         </Text>
       )}
+     </AppCard>
     </TouchableOpacity>
   );
 }
@@ -895,9 +892,8 @@ function makeStyles(
 
 const styles = StyleSheet.create({
   parlorCard: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 12,
+    padding: 14,
+    marginBottom: 10,
   },
   parlorCardTop: {
     flexDirection: "row",
