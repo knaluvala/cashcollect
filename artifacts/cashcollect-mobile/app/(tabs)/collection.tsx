@@ -5,7 +5,7 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  StyleSheet,
+  StyleSheet, 
   Platform,
   RefreshControl,
 } from "react-native";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/collectionTypes";
 import { AppCard } from "@/components/ui/AppCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { KPIStatCard } from "@/components/ui/KPIStatCard";
 
 const STATUS_CONFIG: Record<
   CollectionStatus,
@@ -323,40 +324,16 @@ export default function CollectionScreen() {
         </View>
 
         {viewMode === "agent" && (
-          <View style={s.statsBar}>
-            <View style={s.statItem}>
-              <Text style={s.statNum}>{parlors.length}</Text>
-              <Text style={s.statLabel}>Assigned</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#854d0e" }]}>
-                {statusCounts.pending}
-              </Text>
-              <Text style={s.statLabel}>Pending</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#1d4ed8" }]}>
-                {statusCounts.entered}
-              </Text>
-              <Text style={s.statLabel}>Entered</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#6d28d9" }]}>
-                {statusCounts.submitted}
-              </Text>
-              <Text style={s.statLabel}>Submitted</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#065f46" }]}>
-                {statusCounts.acknowledged}
-              </Text>
-              <Text style={s.statLabel}>Ack'd</Text>
-            </View>
-          </View>
+          <View style={s.kpiGrid}>
+          <KPIStatCard label="Assigned" value={parlors.length} />
+          <KPIStatCard label="Pending" value={statusCounts.pending} valueColor="#854d0e" />
+          <KPIStatCard label="Entered" value={statusCounts.entered} valueColor="#1d4ed8" />
+        </View>
+        
+        <View style={s.kpiGrid}>
+          <KPIStatCard label="Submitted" value={statusCounts.submitted} valueColor="#6d28d9" />
+          <KPIStatCard label="Ack'd" value={statusCounts.acknowledged} valueColor="#065f46" />
+        </View>
         )}
 
         {viewMode === "agent" && (
@@ -744,6 +721,11 @@ function makeStyles(
       paddingTop: topPad + 8,
       paddingHorizontal: 16,
       paddingBottom: 12,
+    },
+    kpiGrid: {
+      flexDirection: "row",
+      gap: 10,
+      marginBottom: 10,
     },
     headerTop: {
       flexDirection: "row",
