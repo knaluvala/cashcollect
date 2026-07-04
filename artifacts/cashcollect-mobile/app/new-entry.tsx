@@ -649,42 +649,63 @@ export default function NewEntryScreen() {
 
             {/* Notes */}
             <View
-              style={[
-                s.card,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View style={s.sectionHeader}>
-                <View style={s.sectionIconWrap}>
-                  <Feather name="file-text" size={15} color={colors.primary} />
-                </View>
-                <Text style={[s.sectionTitle, { color: colors.foreground }]}>
-                  Remarks
-                </Text>
-                <Text style={[s.optional, { color: colors.mutedForeground }]}>
-                  Optional
-                </Text>
-              </View>
-              <TextInput
-                style={[
-                  s.notesInput,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: isReadOnly
-                      ? colors.muted
-                      : colors.background,
-                    color: colors.foreground,
-                  },
-                ]}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="POS issues, missing slips, discrepancies..."
-                placeholderTextColor={colors.mutedForeground}
-                multiline
-                numberOfLines={3}
-                editable={!isReadOnly}
-              />
-            </View>
+  style={[
+    s.card,
+    { backgroundColor: colors.card, borderColor: colors.border },
+  ]}
+>
+  <View style={s.sectionHeader}>
+    <View style={s.sectionIconWrap}>
+      <Feather
+        name="file-text"
+        size={15}
+        color={colors.primary}
+      />
+    </View>
+
+    <Text style={[s.sectionTitle, { color: colors.foreground }]}>
+      Remarks
+    </Text>
+
+    <Text
+      style={[
+        s.optional,
+        { color: colors.mutedForeground },
+      ]}
+    >
+      Optional
+    </Text>
+  </View>
+
+  <Text
+    style={[
+      s.fieldDescription,
+      { color: colors.mutedForeground },
+    ]}
+  >
+    Add any collection notes, POS issues, missing slips or discrepancies.
+  </Text>
+
+  <TextInput
+    style={[
+      s.notesInput,
+      {
+        borderColor: colors.border,
+        backgroundColor: isReadOnly
+          ? colors.muted
+          : colors.background,
+        color: colors.foreground,
+      },
+    ]}
+    value={notes}
+    onChangeText={setNotes}
+    placeholder="Enter remarks..."
+    placeholderTextColor={colors.mutedForeground}
+    multiline
+    numberOfLines={4}
+    editable={!isReadOnly}
+  />
+</View>
 
             {/* Actions */}
             {!isReadOnly && (
@@ -1073,6 +1094,12 @@ function makeStyles(
       alignItems: "center",
       gap: 8,
       marginBottom: 12,
+    },
+    fieldDescription: {
+      fontSize: 12,
+      fontFamily: "DMSans_400Regular",
+      marginBottom: 10,
+      lineHeight: 18,
     },
     parlorCodePill: {
       minWidth: 64,
