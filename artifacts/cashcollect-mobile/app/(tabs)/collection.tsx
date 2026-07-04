@@ -324,16 +324,14 @@ export default function CollectionScreen() {
         </View>
 
         {viewMode === "agent" && (
-          <View style={s.kpiGrid}>
-          <KPIStatCard label="Assigned" value={parlors.length} />
-          <KPIStatCard label="Pending" value={statusCounts.pending} valueColor="#854d0e" />
-          <KPIStatCard label="Entered" value={statusCounts.entered} valueColor="#1d4ed8" />
-        </View>
-        
-        <View style={s.kpiGrid}>
-          <KPIStatCard label="Submitted" value={statusCounts.submitted} valueColor="#6d28d9" />
-          <KPIStatCard label="Ack'd" value={statusCounts.acknowledged} valueColor="#065f46" />
-        </View>
+         <>
+         <View style={s.kpiGrid}>
+           <KPIStatCard label="Assigned" value={parlors.length} />
+           <KPIStatCard label="Pending" value={statusCounts.pending} valueColor="#854d0e" />
+           <KPIStatCard label="Entered" value={statusCounts.entered} valueColor="#1d4ed8" />
+           <KPIStatCard label="Ack'd" value={statusCounts.acknowledged} valueColor="#065f46" />
+         </View>
+       </>
         )}
 
         {viewMode === "agent" && (
