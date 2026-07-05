@@ -5,7 +5,7 @@ import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 
 type Props = {
-  label: string;
+  label?: string;
   value: string;
   onChange: (value: string) => void;
   required?: boolean;
@@ -55,7 +55,11 @@ export function DatePickerField({
   return (
     <View>
       <View style={styles.labelRow}>
-        <Text style={[styles.label, { color: colors.foreground }]}>{label}</Text>
+      {label ? (
+  <Text style={[styles.label, { color: colors.foreground }]}>
+    {label}
+  </Text>
+) : null}
         {required && <Text style={styles.required}>*</Text>}
       </View>
 
