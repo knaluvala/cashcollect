@@ -19,6 +19,8 @@ import { useEffect } from "react";
 import { apiFetch } from "@/lib/api";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import { DatePickerField } from "@/components/ui/DatePickerField";
+import { FormSection } from "@/components/ui/FormSection";
 
 type DetailedReportRow = {
   id: number;
@@ -420,41 +422,19 @@ export default function ReportsScreen() {
       </View>
 
       <View style={s.dateRow}>
-        <View
-          style={[
-            s.dateBox,
-            { borderColor: colors.border, backgroundColor: colors.card },
-          ]}
-        >
-          <Text style={[s.dateLabel, { color: colors.mutedForeground }]}>
-            From
-          </Text>
-          <TextInput
-            style={[s.dateInput, { color: colors.foreground }]}
-            value={dateFrom}
-            onChangeText={setDateFrom}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.mutedForeground}
-          />
-        </View>
+      <FormSection title="Date From" icon="calendar" style={{ marginBottom: 12 }}>
+  <DatePickerField
+    value={dateFrom}
+    onChange={setDateFrom}
+  />
+</FormSection>
 
-        <View
-          style={[
-            s.dateBox,
-            { borderColor: colors.border, backgroundColor: colors.card },
-          ]}
-        >
-          <Text style={[s.dateLabel, { color: colors.mutedForeground }]}>
-            To
-          </Text>
-          <TextInput
-            style={[s.dateInput, { color: colors.foreground }]}
-            value={dateTo}
-            onChangeText={setDateTo}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.mutedForeground}
-          />
-        </View>
+<FormSection title="Date To" icon="calendar" style={{ marginBottom: 12 }}>
+  <DatePickerField
+    value={dateTo}
+    onChange={setDateTo}
+  />
+</FormSection>
       </View>
 
       <View style={s.quickDateRow}>
