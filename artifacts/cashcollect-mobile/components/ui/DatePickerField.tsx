@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import DateTimePicker, { DateTimePickerEvent } from "@react-native-community/datetimepicker";
+import DateTimePicker, {
+  type DateTimePickerEvent,
+} from "@react-native-community/datetimepicker";
 import { Feather } from "@expo/vector-icons";
 import { useColors } from "@/hooks/useColors";
 
@@ -13,11 +15,21 @@ type Props = {
 };
 
 function toISODate(date: Date) {
-  return date.toISOString().split("T")[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
 }
 
 function parseISODate(value: string) {
-  return new Date(`${value}T00:00:00`);
+  const parsed = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date();
+  }
+
+  return parsed;
 }
 
 function formatDisplayDate(value: string) {
@@ -36,46 +48,60 @@ export function DatePickerField({
   disabled = false,
 }: Props) {
   const colors = useColors();
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const selectedDate = useMemo(() => parseISODate(value), [value]);
 
-  function handleChange(event: DateTimePickerEvent, date?: Date) {
+  function handleChange(event: DateTimePickerEvent, selected?: Date) {
     if (Platform.OS === "android") {
-      setOpen(false);
+      setIsOpen(false);
     }
 
-    if (event.type === "dismissed" || !date) {
+    if (event.type === "dismissed" || !selected) {
       return;
     }
 
-    onChange(toISODate(date));
+    onChange(toISODate(selected));
   }
 
   return (
     <View>
-      <View style={styles.labelRow}>
-      {label ? (
-  <Text style={[styles.label, { color: colors.foreground }]}>
-    {label}
-  </Text>
-) : null}
-        {required && <Text style={styles.required}>*</Text>}
-      </View>
+      {label || required ? (
+        <View style={styles.labelRow}>
+          {label ? (
+            <Text style={[styles.label, { color: colors.foreground }]}>
+              {label}
+            </Text>
+          ) : null}
+
+          {required ? <Text style={styles.required}>*</Text> : null}
+        </View>
+      ) : null}
 
       <TouchableOpacity
         style={[
           styles.field,
           {
-            backgroundColor: disabled ? colors.muted : colors.background,
             borderColor: colors.border,
+            backgroundColor: disabled ? colors.muted : colors.background,
           },
         ]}
-        onPress={() => !disabled && setOpen(true)}
         activeOpacity={0.75}
         disabled={disabled}
+        onPress={() => {
+          if (!disabled) {
+            setIsOpen(true);
+          }
+        }}
       >
-        <Feather name="calendar" size={18} color={colors.primary} />
+        <View
+          style={[
+            styles.iconWrap,
+            { backgroundColor: colors.primary + "18" },
+          ]}
+        >
+          <Feather name="calendar" size={16} color={colors.primary} />
+        </View>
 
         <View style={styles.valueWrap}>
           <Text style={[styles.value, { color: colors.foreground }]}>
@@ -86,17 +112,21 @@ export function DatePickerField({
           </Text>
         </View>
 
-        <Feather name="chevron-down" size={18} color={colors.mutedForeground} />
+        <Feather
+          name="chevron-down"
+          size={18}
+          color={colors.mutedForeground}
+        />
       </TouchableOpacity>
 
-      {open && (
+      {isOpen ? (
         <DateTimePicker
           value={selectedDate}
           mode="date"
           display={Platform.OS === "ios" ? "inline" : "default"}
           onChange={handleChange}
         />
-      )}
+      ) : null}
     </View>
   );
 }
@@ -119,14 +149,21 @@ const styles = StyleSheet.create({
     fontFamily: "DMSans_500Medium",
   },
   field: {
-    minHeight: 54,
+    minHeight: 56,
     borderWidth: 1,
     borderRadius: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+  },
+  iconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
   },
   valueWrap: {
     flex: 1,
