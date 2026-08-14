@@ -1,4 +1,4 @@
-const CACHE_NAME = "cashcollect-shell-v1";
+const CACHE_NAME = "cashcollect-shell-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -42,9 +42,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(request).then(async (cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-
+    (async () => {
       try {
         const networkResponse = await fetch(request);
         if (networkResponse.ok && url.pathname !== "/service-worker.js") {
@@ -53,12 +51,15 @@ self.addEventListener("fetch", (event) => {
         }
         return networkResponse;
       } catch (error) {
+        const cachedResponse = await caches.match(request);
+        if (cachedResponse) return cachedResponse;
+
         if (request.mode === "navigate") {
           const shell = await caches.match("/index.html");
           if (shell) return shell;
         }
         throw error;
       }
-    }),
+    })(),
   );
 });
