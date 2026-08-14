@@ -501,7 +501,12 @@ export default function RouteMasterContent() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteRoute(route.id);
+                       const confirmed = window.confirm(
+                         `Delete route ${route.routeCode}? This action cannot be undone.`,
+                       );
+                       if (confirmed) {
+                         handleDeleteRoute(route.id);
+                       }
                     }}
                     className="mt-1 text-[11px] text-red-500 hover:text-red-700 transition-colors"
                   >
