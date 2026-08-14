@@ -13,7 +13,6 @@ import {
   Settings,
   Bell,
   Map,
-  Bot,
 } from "lucide-react";
 import Icon from "@/components/ui/AppIcon";
 import { useAuth } from "@/context/AuthContext";
@@ -68,13 +67,6 @@ const NAV_GROUPS = [
         badge: null,
       },
       {
-        key: "nav-dev-assistant",
-        href: "/dev-assistant",
-        icon: Bot,
-        label: "Dev Assistant",
-        badge: null,
-      },
-      {
         key: "nav-settings",
         href: "/settings",
         icon: Settings,
@@ -116,7 +108,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             if (item.key === "nav-users") return isSuperAdmin;
             if (item.key === "nav-parlors") return isSuperAdmin;
             if (item.key === "nav-routes") return isSuperAdmin;
-            if (item.key === 'nav-dev-assistant') return isSuperAdmin;
             return true;
           });
           if (visibleItems.length === 0) return null;
