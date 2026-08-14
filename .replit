@@ -18,7 +18,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=3000 BASE_PATH=/ VITE_PORT=5173 pnpm --filter @workspace/cashcollect dev"
+args = "bash /home/runner/workspace/scripts/start-cashcollect-dev.sh"
 waitForPort = 5173
 
 [workflows.workflow.metadata]
