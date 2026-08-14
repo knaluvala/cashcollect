@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
 import { authenticate } from "../middlewares/authenticate";
@@ -29,10 +29,12 @@ function sanitizeUser(user: typeof usersTable.$inferSelect) {
 }
 
 router.post("/auth/login", async (req, res): Promise<void> => {
-  const { userCode, password } = req.body ?? {};
+  const { identifier: submittedIdentifier, userCode, password } = req.body ?? {};
+  const identifier =
+    typeof submittedIdentifier === "string" ? submittedIdentifier.trim() : userCode?.trim();
 
-  if (typeof userCode !== "string" || typeof password !== "string") {
-    res.status(400).json({ error: "User code and password are required" });
+  if (!identifier || typeof password !== "string") {
+    res.status(400).json({ error: "User code or email address and password are required" });
     return;
   }
 
@@ -40,7 +42,13 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     .select()
     .from(usersTable)
     .where(
-      and(eq(usersTable.agentCode, userCode), eq(usersTable.status, "active")),
+      and(
+        or(
+          eq(usersTable.agentCode, identifier),
+          eq(usersTable.email, identifier.toLowerCase()),
+        ),
+        eq(usersTable.status, "active"),
+      ),
     )
     .limit(1);
 
