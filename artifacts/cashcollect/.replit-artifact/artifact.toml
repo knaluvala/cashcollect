@@ -12,10 +12,10 @@ version = "1.0.0"
 [[services]]
 name = "web"
 paths = [ "/" ]
-localPort = 23155
+localPort = 5173
 
 [services.development]
-run = "bash /home/runner/workspace/scripts/start-cashcollect-dev.sh"
+run = "PORT=3000 BASE_PATH=/ VITE_PORT=5173 pnpm --filter @workspace/cashcollect dev"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/cashcollect", "run", "build" ]
@@ -27,6 +27,6 @@ from = "/*"
 to = "/index.html"
 
 [services.env]
-PORT = "23155"
+PORT = "3000"
 BASE_PATH = "/"
-VITE_PORT = "23155"
+VITE_PORT = "5173"

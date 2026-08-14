@@ -9,6 +9,7 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
+runButton = "artifacts/cashcollect: web"
 
 [[workflows.workflow]]
 name = "artifacts/cashcollect: web"
@@ -17,8 +18,8 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bash /home/runner/workspace/scripts/start-cashcollect-dev.sh"
-waitForPort = 23155
+args = "PORT=3000 BASE_PATH=/ VITE_PORT=5173 pnpm --filter @workspace/cashcollect dev"
+waitForPort = 5173
 
 [workflows.workflow.metadata]
 outputType = "webview"
@@ -52,7 +53,7 @@ externalPort = 3001
 
 [[ports]]
 localPort = 5173
-externalPort = 5173
+externalPort = 80
 
 [[ports]]
 localPort = 8080
@@ -73,10 +74,6 @@ externalPort = 3000
 [[ports]]
 localPort = 23145
 externalPort = 3002
-
-[[ports]]
-localPort = 23155
-externalPort = 80
 
 [nix]
 packages = ["lsof", "vim"]
