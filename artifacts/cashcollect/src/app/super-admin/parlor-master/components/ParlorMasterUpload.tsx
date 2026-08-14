@@ -130,6 +130,9 @@ export default function ParlorMasterUpload() {
     useState<ExistingSortKey>("parlorCode");
   const [existingSortDir, setExistingSortDir] = useState<SortDir>("asc");
   const [loadingExisting, setLoadingExisting] = useState(false);
+  const [parlorToDelete, setParlorToDelete] = useState<SavedParlor | null>(
+    null,
+  );
 
   const fetchExistingParlors = useCallback(async () => {
     setLoadingExisting(true);
@@ -293,6 +296,7 @@ export default function ParlorMasterUpload() {
     try {
       const res = await fetch(`${API_BASE}/parlors/${id}`, {
         method: "DELETE",
+        headers: { "X-Parlor-Delete-Confirmed": "true" },
       });
       if (res.ok) {
         toast.success("Parlor deleted");
@@ -912,7 +916,7 @@ export default function ParlorMasterUpload() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <button
-                            onClick={() => handleDelete(parlor.id)}
+                            onClick={() => setParlorToDelete(parlor)}
                             className="text-red-600 hover:text-red-800 transition-colors"
                             title="Delete"
                           >
@@ -936,6 +940,60 @@ export default function ParlorMasterUpload() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {parlorToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm"
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-md bg-card rounded-xl border border-border shadow-xl"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-parlor-title"
+            aria-describedby="delete-parlor-description"
+          >
+            <div className="px-5 py-4 border-b border-border">
+              <h2
+                id="delete-parlor-title"
+                className="text-base font-semibold text-foreground"
+              >
+                Delete parlor?
+              </h2>
+            </div>
+            <div className="px-5 py-4">
+              <p
+                id="delete-parlor-description"
+                className="text-sm text-muted-foreground"
+              >
+                Delete parlor{" "}
+                <span className="font-semibold text-foreground">
+                  {parlorToDelete.parlorName} ({parlorToDelete.parlorCode})
+                </span>
+                ? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+              <button
+                onClick={() => setParlorToDelete(null)}
+                className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted border border-border transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const parlorId = parlorToDelete.id;
+                  setParlorToDelete(null);
+                  await handleDelete(parlorId);
+                }}
+                className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors"
+              >
+                Delete parlor
+              </button>
             </div>
           </div>
         </div>

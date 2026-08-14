@@ -89,6 +89,7 @@ export default function UserManagementContent() {
   const [resetPassword, setResetPassword] = useState("");
   const [resetConfirmPassword, setResetConfirmPassword] = useState("");
   const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<AppUser | null>(null);
 
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -259,6 +260,7 @@ export default function UserManagementContent() {
     try {
       const res = await fetch(`${API_BASE}/users/${u.id}`, {
         method: "DELETE",
+        headers: { "X-User-Delete-Confirmed": "true" },
       });
       if (!res.ok) {
         const data = await res.json();
@@ -754,7 +756,10 @@ export default function UserManagementContent() {
                         )}
                       </button>
                       <button
-                        onClick={() => handleDelete(u)}
+                        onClick={() => {
+                          setMenuOpenId(null);
+                          setUserToDelete(u);
+                        }}
                         className="flex items-center justify-center w-7 h-7 rounded-md text-muted-foreground hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all duration-150"
                         title="Delete user"
                       >
@@ -1076,6 +1081,59 @@ export default function UserManagementContent() {
                   <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 )}
                 {isResettingPassword ? "Resetting…" : "Reset Password"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {userToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm"
+          role="presentation"
+        >
+          <div
+            className="w-full max-w-md bg-card rounded-2xl border border-border shadow-2xl"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-user-title"
+            aria-describedby="delete-user-description"
+          >
+            <div className="px-5 py-4 border-b border-border">
+              <h2
+                id="delete-user-title"
+                className="text-base font-semibold text-foreground"
+              >
+                Delete user?
+              </h2>
+            </div>
+            <div className="px-5 py-4">
+              <p
+                id="delete-user-description"
+                className="text-sm text-muted-foreground"
+              >
+                Delete user{" "}
+                <span className="font-semibold text-foreground">
+                  {userToDelete.name} ({userToDelete.agentCode})
+                </span>
+                ? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+              <button
+                onClick={() => setUserToDelete(null)}
+                className="px-4 py-2 rounded-md border border-border bg-card text-sm font-medium text-foreground hover:bg-muted transition-all duration-150"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const user = userToDelete;
+                  setUserToDelete(null);
+                  await handleDelete(user);
+                }}
+                className="px-4 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-semibold hover:bg-destructive/90 transition-all duration-150"
+              >
+                Delete user
               </button>
             </div>
           </div>

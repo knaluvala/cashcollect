@@ -198,6 +198,13 @@ router.post("/users/:id/reset-password", async (req, res) => {
 
 // DELETE /api/users/:id — delete a user
 router.delete("/users/:id", async (req, res) => {
+  if (req.get("X-User-Delete-Confirmed") !== "true") {
+    res.status(428).json({
+      error: "User deletion requires explicit confirmation.",
+    });
+    return;
+  }
+
   const id = parseInt(req.params.id, 10);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
