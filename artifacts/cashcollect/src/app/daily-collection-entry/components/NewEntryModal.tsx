@@ -90,8 +90,10 @@ export default function NewEntryModal({
     cashAmount: number;
     couponAmount: number;
     ccAmount: number;
+    source: string;
   } | null>(null);
   const [isLoadingExternal, setIsLoadingExternal] = useState(false);
+  const [externalError, setExternalError] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -153,6 +155,7 @@ export default function NewEntryModal({
     if (!selectedParlor) return;
     setChecking(true);
     setIsLoadingExternal(true);
+    setExternalError(null);
 
     // Fetch existing collection from DB
     fetch(
@@ -186,15 +189,23 @@ export default function NewEntryModal({
     fetch(
       `${API_BASE}/external/parlor-summary/${selectedParlor.parlorCode}/${selectedDate}`,
     )
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || "External amount source is unavailable");
+        return data;
+      })
       .then((data) => {
         setExternalData({
           cashAmount: data.cashAmount ?? 0,
           couponAmount: data.couponAmount ?? 0,
           ccAmount: data.ccAmount ?? 0,
+          source: data.source ?? "External System",
         });
       })
-      .catch(() => setExternalData(null))
+      .catch((error: Error) => {
+        setExternalData(null);
+        setExternalError(error.message);
+      })
       .finally(() => setIsLoadingExternal(false));
   }, [selectedParlor, selectedDate, reset]);
 
@@ -477,6 +488,11 @@ export default function NewEntryModal({
           {/* Entry form — shown once a parlor is selected and checked */}
           {selectedParlor && !checking && (
             <>
+              {externalError && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  External amounts unavailable: {externalError} You can continue entering collection amounts manually.
+                </div>
+              )}
               {/* Read-only banner for existing submitted data */}
               {isReadOnly && (
                 <div
@@ -519,7 +535,7 @@ export default function NewEntryModal({
                               {fmt(externalData?.cashAmount ?? 0)}
                             </span>
                             <span className="text-[9px] text-slate-400">
-                              POS/ERP
+                              {externalData?.source ?? "External source"}
                             </span>
                           </div>
                         )}
@@ -577,7 +593,7 @@ export default function NewEntryModal({
                               {fmt(externalData?.couponAmount ?? 0)}
                             </span>
                             <span className="text-[9px] text-slate-400">
-                              POS/ERP
+                              {externalData?.source ?? "External source"}
                             </span>
                           </div>
                         )}
@@ -635,7 +651,7 @@ export default function NewEntryModal({
                               {fmt(externalData?.ccAmount ?? 0)}
                             </span>
                             <span className="text-[9px] text-slate-400">
-                              POS/ERP
+                              {externalData?.source ?? "External source"}
                             </span>
                           </div>
                         )}

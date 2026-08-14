@@ -1,12 +1,16 @@
 import { Router, type IRouter } from "express";
+import { lookup } from "node:dns/promises";
 import { eq, and, gte, lte, or } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   collectionsTable,
+  externalCollectionConfigTable,
   routesTable,
   insertCollectionSchema,
+  updateExternalCollectionConfigSchema,
   updateCollectionSchema,
 } from "@workspace/db/schema";
+import { authenticate, requireRole } from "../middlewares/authenticate";
 //import { z } from "zod/v4";
 import { z } from "zod";
 
@@ -366,8 +370,6 @@ router.post("/collections/:id/acknowledge", async (req, res) => {
        */
 });
 
-// GET /api/external/parlor-summary/:parlorCode/:date
-// Simulates fetching from an external ERP/POS system
 type ExternalSummary = {
   cashAmount: number;
   couponAmount: number;
@@ -376,45 +378,257 @@ type ExternalSummary = {
   fetchedAt: string;
 };
 
-function hashCode(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) {
-    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h);
+function serializeExternalConfig(config: typeof externalCollectionConfigTable.$inferSelect) {
+  return {
+    ...config,
+    endpoint: config.endpoint ?? "",
+  };
 }
 
-function deterministicAmount(
-  parlorCode: string,
-  date: string,
-  seed: number,
-): number {
-  const base = hashCode(parlorCode + date + String(seed));
-  // Generate realistic amounts between 500 and 25000
-  return Math.round((base % 24500) + 500);
+function getValueAtPath(value: unknown, path: string): unknown {
+  return path.split(".").reduce<unknown>((current, segment) => {
+    if (
+      !segment ||
+      segment === "__proto__" ||
+      segment === "constructor" ||
+      segment === "prototype" ||
+      current === null ||
+      typeof current !== "object"
+    ) {
+      return undefined;
+    }
+    return (current as Record<string, unknown>)[segment];
+  }, value);
 }
+
+function toAmount(value: unknown): number | null {
+  const amount =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value.replace(/,/g, "").trim())
+        : Number.NaN;
+  return Number.isFinite(amount) && amount >= 0 ? amount : null;
+}
+
+function isPrivateNetworkAddress(address: string): boolean {
+  const ipv4 = address.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4) {
+    const [first, second] = ipv4.slice(1).map(Number);
+    return (
+      first === 0 ||
+      first === 10 ||
+      first === 127 ||
+      (first === 169 && second === 254) ||
+      (first === 172 && second >= 16 && second <= 31) ||
+      (first === 192 && second === 168) ||
+      (first === 100 && second >= 64 && second <= 127)
+    );
+  }
+
+  const normalized = address.toLowerCase();
+  return (
+    normalized === "::1" ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd") ||
+    normalized.startsWith("fe80:")
+  );
+}
+
+async function isSafeExternalEndpoint(endpoint: URL): Promise<boolean> {
+  const addresses = await lookup(endpoint.hostname, { all: true });
+  return addresses.length > 0 && !addresses.some(({ address }) => isPrivateNetworkAddress(address));
+}
+
+router.get(
+  "/external/collection-config",
+  authenticate,
+  requireRole("superadmin"),
+  async (_req, res) => {
+    const [config] = await db
+      .select()
+      .from(externalCollectionConfigTable)
+      .where(eq(externalCollectionConfigTable.id, 1));
+
+    res.json({
+      config: config
+        ? serializeExternalConfig(config)
+        : {
+            enabled: false,
+            endpoint: "",
+            sourceLabel: "External System",
+            parlorCodeParameter: "parlorCode",
+            dateParameter: "date",
+            cashAmountPath: "cashAmount",
+            couponAmountPath: "couponAmount",
+            ccAmountPath: "ccAmount",
+          },
+      credentialConfigured: Boolean(process.env.EXTERNAL_COLLECTIONS_API_TOKEN),
+    });
+  },
+);
+
+router.put(
+  "/external/collection-config",
+  authenticate,
+  requireRole("superadmin"),
+  async (req, res) => {
+    const parsed = updateExternalCollectionConfigSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid external collection configuration" });
+      return;
+    }
+
+    const data = {
+      ...parsed.data,
+      endpoint: parsed.data.endpoint || null,
+      updatedBy: req.user?.email,
+      updatedAt: new Date(),
+    };
+    const [config] = await db
+      .insert(externalCollectionConfigTable)
+      .values({ id: 1, ...data })
+      .onConflictDoUpdate({
+        target: externalCollectionConfigTable.id,
+        set: data,
+      })
+      .returning();
+
+    res.json({
+      config: serializeExternalConfig(config),
+      credentialConfigured: Boolean(process.env.EXTERNAL_COLLECTIONS_API_TOKEN),
+    });
+  },
+);
 
 router.get("/external/parlor-summary/:parlorCode/:date", async (req, res) => {
   const parlorCode = req.params.parlorCode as string;
   const date = req.params.date as string;
 
-  if (!parlorCode || !date) {
-    res.status(400).json({ error: "parlorCode and date are required" });
+  if (!parlorCode || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    res.status(400).json({ error: "A parlor code and valid date are required" });
     return;
   }
 
-  // Simulate external API latency
-  await new Promise((r) => setTimeout(r, 120));
+  const [config] = await db
+    .select()
+    .from(externalCollectionConfigTable)
+    .where(eq(externalCollectionConfigTable.id, 1));
 
-  const summary: ExternalSummary = {
-    cashAmount: deterministicAmount(parlorCode, date, 1),
-    couponAmount: deterministicAmount(parlorCode, date, 2),
-    ccAmount: deterministicAmount(parlorCode, date, 3),
-    source: "External ERP System (POS/CRM)",
-    fetchedAt: new Date().toISOString(),
-  };
+  if (!config?.enabled || !config.endpoint) {
+    res.status(503).json({
+      error: "External collection source is not configured.",
+      code: "EXTERNAL_SOURCE_UNCONFIGURED",
+    });
+    return;
+  }
 
-  res.json(summary);
+  let endpoint: URL;
+  try {
+    endpoint = new URL(config.endpoint);
+    if (endpoint.protocol !== "https:") throw new Error();
+  } catch {
+    res.status(503).json({
+      error: "External collection source has an invalid endpoint.",
+      code: "EXTERNAL_SOURCE_INVALID_CONFIG",
+    });
+    return;
+  }
+
+  try {
+    if (!(await isSafeExternalEndpoint(endpoint))) {
+      throw new Error("External endpoint resolves to a private network address");
+    }
+  } catch (error) {
+    req.log.warn(
+      { err: error, endpoint: endpoint.hostname },
+      "Rejected unsafe external collection endpoint",
+    );
+    res.status(503).json({
+      error: "External collection source has an unsafe endpoint.",
+      code: "EXTERNAL_SOURCE_UNSAFE_ENDPOINT",
+    });
+    return;
+  }
+
+  const token = process.env.EXTERNAL_COLLECTIONS_API_TOKEN;
+  const allowedTokenHosts = new Set(
+    (process.env.EXTERNAL_COLLECTIONS_ALLOWED_HOSTS ?? "")
+      .split(",")
+      .map((host) => host.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  if (token && !allowedTokenHosts.has(endpoint.hostname.toLowerCase())) {
+    res.status(503).json({
+      error: "External collection source is not approved to receive the configured credential.",
+      code: "EXTERNAL_SOURCE_CREDENTIAL_HOST_NOT_ALLOWED",
+    });
+    return;
+  }
+
+  endpoint.searchParams.set(config.parlorCodeParameter, parlorCode);
+  endpoint.searchParams.set(config.dateParameter, date);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  try {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(endpoint, {
+      headers,
+      signal: controller.signal,
+      redirect: "error",
+    });
+    if (!response.ok) {
+      req.log.warn(
+        { statusCode: response.status, endpoint: endpoint.origin },
+        "External collection source returned an error",
+      );
+      res.status(502).json({
+        error: "External collection source is currently unavailable.",
+        code: "EXTERNAL_SOURCE_ERROR",
+      });
+      return;
+    }
+
+    const payload: unknown = await response.json();
+    const cashAmount = toAmount(getValueAtPath(payload, config.cashAmountPath));
+    const couponAmount = toAmount(
+      getValueAtPath(payload, config.couponAmountPath),
+    );
+    const ccAmount = toAmount(getValueAtPath(payload, config.ccAmountPath));
+
+    if (cashAmount === null || couponAmount === null || ccAmount === null) {
+      res.status(502).json({
+        error: "External collection source returned invalid amount fields.",
+        code: "EXTERNAL_SOURCE_INVALID_DATA",
+      });
+      return;
+    }
+
+    const summary: ExternalSummary = {
+      cashAmount,
+      couponAmount,
+      ccAmount,
+      source: config.sourceLabel,
+      fetchedAt: new Date().toISOString(),
+    };
+    res.json(summary);
+  } catch (error) {
+    req.log.warn(
+      { err: error, endpoint: endpoint.origin },
+      "External collection source request failed",
+    );
+    res.status(502).json({
+      error: "External collection source is currently unavailable.",
+      code: "EXTERNAL_SOURCE_UNAVAILABLE",
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 });
 
 // POST /api/collections/:id/submit — submit to supervisor
