@@ -98,6 +98,13 @@ router.put("/parlors/:id", async (req, res) => {
 
 // DELETE /api/parlors/:id — delete a parlor
 router.delete("/parlors/:id", async (req, res) => {
+  if (req.get("X-Parlor-Delete-Confirmed") !== "true") {
+    res.status(428).json({
+      error: "Parlor deletion requires explicit confirmation.",
+    });
+    return;
+  }
+
   const id = parseInt(req.params.id, 10);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
