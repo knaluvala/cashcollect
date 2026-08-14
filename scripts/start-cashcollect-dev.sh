@@ -16,5 +16,5 @@ for i in {1..30}; do
   sleep 1
 done
 
-echo "Starting CashCollect frontend on 23155..."
-PORT=23155 BASE_PATH=/ VITE_PORT=23155 pnpm --filter @workspace/cashcollect dev
+echo "Starting CashCollect frontend on 5173..."
+PORT=5173 BASE_PATH=/ VITE_PORT=5173 pnpm --filter @workspace/cashcollect dev
