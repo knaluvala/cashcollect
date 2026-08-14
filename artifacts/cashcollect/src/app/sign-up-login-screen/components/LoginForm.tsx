@@ -10,7 +10,7 @@ import AppLogo from "@/components/ui/AppLogo";
 import { useAuth } from "@/context/AuthContext";
 
 interface LoginFormValues {
-  userCode: string;
+  identifier: string;
   password: string;
   remember: boolean;
 }
@@ -28,10 +28,10 @@ export default function LoginForm() {
     setValue,
     formState: { errors },
   } = useForm<LoginFormValues>({
-    defaultValues: { userCode: "", password: "", remember: false },
+    defaultValues: { identifier: "", password: "", remember: false },
   });
 
-  const loginWithCredentials = async (userCode: string, password: string) => {
+  const loginWithCredentials = async (identifier: string, password: string) => {
     setIsLoading(true);
     setLoginError(null);
 
@@ -39,11 +39,11 @@ export default function LoginForm() {
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userCode, password }),
+        body: JSON.stringify({ identifier, password }),
       });
 
       if (!response.ok) {
-        setLoginError("Invalid user code or password.");
+        setLoginError("Invalid user code, email address, or password.");
         setIsLoading(false);
         return;
       }
@@ -60,7 +60,7 @@ export default function LoginForm() {
   };
 
   const onSubmit = async (data: LoginFormValues) => {
-    loginWithCredentials(data.userCode, data.password);
+    loginWithCredentials(data.identifier, data.password);
   };
 
   return (
@@ -137,29 +137,29 @@ export default function LoginForm() {
           >
             <div>
               <label
-                htmlFor="userCode"
+                htmlFor="identifier"
                 className="block text-sm font-medium text-foreground mb-1.5"
               >
-                User Code
+                User Code or Email Address
               </label>
               <input
-                id="userCode"
+                id="identifier"
                 type="text"
                 autoComplete="username"
-                  placeholder="Enter your user code"
+                placeholder="Enter your user code or email address"
                 className={`
                   w-full h-10 px-3 rounded-md border text-sm bg-card
                   focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
                   transition-all duration-150
-                  ${errors.userCode ? "border-red-400 focus:ring-red-400" : "border-input"}
+                  ${errors.identifier ? "border-red-400 focus:ring-red-400" : "border-input"}
                 `}
-                {...register("userCode", {
-                  required: "User code is required",
+                {...register("identifier", {
+                  required: "User code or email address is required",
                 })}
               />
-              {errors.userCode && (
+              {errors.identifier && (
                 <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
-                  {errors.userCode.message}
+                  {errors.identifier.message}
                 </p>
               )}
             </div>
