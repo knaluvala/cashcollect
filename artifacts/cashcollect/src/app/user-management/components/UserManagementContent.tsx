@@ -46,6 +46,8 @@ interface NewUserForm {
   role: UserRole;
   routeCode: string;
   agentCode: string;
+  password: string;
+  confirmPassword: string;
 }
 
 const EMPTY_FORM: NewUserForm = {
@@ -54,6 +56,8 @@ const EMPTY_FORM: NewUserForm = {
   role: "agent",
   routeCode: "",
   agentCode: "",
+  password: "",
+  confirmPassword: "",
 };
 
 type SortKey = "name" | "role" | "routeCode" | "status" | "createdAt";
@@ -157,6 +161,8 @@ export default function UserManagementContent() {
       role: u.role,
       routeCode: u.routeCode,
       agentCode: u.agentCode,
+      password: "",
+      confirmPassword: "",
     });
     setFormErrors({});
     setMenuOpenId(null);
@@ -171,6 +177,12 @@ export default function UserManagementContent() {
       errs.email = "Enter a valid email";
     if (!form.routeCode.trim()) errs.routeCode = "Route code is required";
     if (!form.agentCode.trim()) errs.agentCode = "User code is required";
+    if (!editingUser && form.password.length < 8) {
+      errs.password = "Password must be at least 8 characters";
+    }
+    if (!editingUser && form.password !== form.confirmPassword) {
+      errs.confirmPassword = "Passwords do not match";
+    }
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -209,10 +221,11 @@ export default function UserManagementContent() {
       }
     } else {
       try {
+        const { confirmPassword, ...newUserPayload } = form;
         const res = await fetch(`${API_BASE}/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...form, status: "active" }),
+          body: JSON.stringify({ ...newUserPayload, status: "active" }),
         });
         const result = await res.json();
         if (!res.ok) {
@@ -919,6 +932,53 @@ export default function UserManagementContent() {
                   )}
                 </div>
               </div>
+              {!editingUser && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">
+                      Temporary Password <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={form.password}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, password: e.target.value }))
+                      }
+                      autoComplete="new-password"
+                      placeholder="At least 8 characters"
+                      className={`w-full h-9 px-3 rounded-md border text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-150 ${formErrors.password ? "border-red-400" : "border-input"}`}
+                    />
+                    {formErrors.password && (
+                      <p className="mt-0.5 text-[11px] text-red-500">
+                        {formErrors.password}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-foreground mb-1">
+                      Confirm Password <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={form.confirmPassword}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          confirmPassword: e.target.value,
+                        }))
+                      }
+                      autoComplete="new-password"
+                      placeholder="Re-enter password"
+                      className={`w-full h-9 px-3 rounded-md border text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-150 ${formErrors.confirmPassword ? "border-red-400" : "border-input"}`}
+                    />
+                    {formErrors.confirmPassword && (
+                      <p className="mt-0.5 text-[11px] text-red-500">
+                        {formErrors.confirmPassword}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Modal Footer */}

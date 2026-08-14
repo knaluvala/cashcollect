@@ -7,8 +7,17 @@ import {
   updateUserSchema,
 } from "@workspace/db/schema";
 import bcrypt from "bcryptjs";
+import { z } from "zod/v4";
 
 const router: IRouter = Router();
+
+const createUserSchema = insertUserSchema
+  .omit({ passwordHash: true })
+  .extend({
+    password: z.string().min(8, "Password must be at least 8 characters"),
+  });
+
+const updateUserInputSchema = updateUserSchema.omit({ passwordHash: true });
 
 function sanitizeUser(user: typeof usersTable.$inferSelect) {
   const { passwordHash, ...safeUser } = user;
@@ -72,13 +81,13 @@ router.get("/users/me", async (req, res) => {
 // POST /api/users — create a new user
 router.post("/users", async (req, res) => {
   const body = req.body;
-  const parsed = insertUserSchema.safeParse(body);
+  const parsed = createUserSchema.safeParse(body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues });
     return;
   }
 
-  const data = parsed.data;
+  const { password, ...data } = parsed.data;
 
   // Check for duplicate email
   const existingEmail = await db
@@ -100,7 +109,11 @@ router.post("/users", async (req, res) => {
     return;
   }
 
-  const inserted = await db.insert(usersTable).values(data).returning();
+  const passwordHash = await bcrypt.hash(password, 10);
+  const inserted = await db
+    .insert(usersTable)
+    .values({ ...data, passwordHash })
+    .returning();
 
   // res.status(201).json(inserted[0]);
   res.status(201).json(sanitizeUser(inserted[0]));
@@ -115,7 +128,7 @@ router.put("/users/:id", async (req, res) => {
   }
 
   const body = req.body;
-  const parsed = updateUserSchema.safeParse(body);
+  const parsed = updateUserInputSchema.safeParse(body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.issues });
     return;
