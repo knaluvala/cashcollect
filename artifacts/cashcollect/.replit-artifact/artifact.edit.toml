@@ -15,7 +15,7 @@ paths = [ "/" ]
 localPort = 23155
 
 [services.development]
-run = "bash /home/runner/workspace/scripts/start-cashcollect-dev.sh"
+run = "bash scripts/start-cashcollect-dev.sh"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/cashcollect", "run", "build" ]
