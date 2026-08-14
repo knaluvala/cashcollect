@@ -109,6 +109,13 @@ router.put("/routes/:id", async (req, res) => {
 
 // DELETE /api/routes/:id — delete a route and its parlor assignments
 router.delete("/routes/:id", async (req, res) => {
+  if (req.get("X-Route-Delete-Confirmed") !== "true") {
+    res.status(428).json({
+      error: "Route deletion requires explicit confirmation.",
+    });
+    return;
+  }
+
   const id = parseInt(req.params.id, 10);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
