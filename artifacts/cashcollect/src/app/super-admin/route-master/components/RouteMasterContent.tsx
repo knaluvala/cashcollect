@@ -244,7 +244,10 @@ export default function RouteMasterContent() {
 
   async function handleDeleteRoute(id: number) {
     try {
-      const res = await fetch(`${API_BASE}/routes/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/routes/${id}`, {
+        method: "DELETE",
+        headers: { "X-Route-Delete-Confirmed": "true" },
+      });
       if (res.ok) {
         toast.success("Route deleted");
         await fetchRoutes();
