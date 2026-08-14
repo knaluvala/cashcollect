@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Building API server..."
-pnpm --filter @workspace/api-server build
+# Resolve paths relative to this script's location (workspace root)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+DIST="$WORKSPACE_ROOT/artifacts/api-server/dist/index.mjs"
+
+if [ ! -f "$DIST" ]; then
+  echo "Building API server (first run)..."
+  pnpm --filter @workspace/api-server build
+else
+  echo "Skipping API build — dist already exists."
+fi
 
 echo "Starting API server on 3000..."
 PORT=3000 pnpm --filter @workspace/api-server start &
