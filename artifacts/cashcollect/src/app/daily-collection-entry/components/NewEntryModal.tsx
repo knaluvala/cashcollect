@@ -51,7 +51,7 @@ interface Props {
   defaultDate: string;
 }
 
-const API_BASE = "/api";
+import { API_BASE } from "@/lib/apiBase";
 
 const PARLOR_TYPE_COLORS: Record<ParlorType, string> = {
   Mall: "bg-blue-100 text-blue-700",

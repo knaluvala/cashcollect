@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { API_BASE } from "@/lib/apiBase";
 
 type SettingsTab =
   | "profile"
@@ -194,7 +195,7 @@ export default function SettingsContent() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/users/me?email=${encodeURIComponent(user.email)}`,
+        `${API_BASE}/users/me?email=${encodeURIComponent(user.email)}`,
       );
       const data = await res.json();
       if (!res.ok) {
@@ -220,7 +221,7 @@ export default function SettingsContent() {
     if (user?.role !== "superadmin" || !user) return;
     const token = localStorage.getItem("@cashcollect_web_token");
     setExternalConfigLoading(true);
-    fetch("/api/external/collection-config", {
+    fetch(`${API_BASE}/external/collection-config`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then(async (res) => {
@@ -251,7 +252,7 @@ export default function SettingsContent() {
     try {
       const token = localStorage.getItem("@cashcollect_web_token");
 
-      const res = await fetch("/api/auth/change-password", {
+      const res = await fetch(`${API_BASE}/auth/change-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -289,7 +290,7 @@ export default function SettingsContent() {
     const token = localStorage.getItem("@cashcollect_web_token");
     setExternalConfigSaving(true);
     try {
-      const res = await fetch("/api/external/collection-config", {
+      const res = await fetch(`${API_BASE}/external/collection-config`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

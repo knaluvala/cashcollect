@@ -16,7 +16,7 @@ import NewEntryModal from "./NewEntryModal";
 import { ParlorEntry, CollectionStatus } from "./types";
 import { useAuth } from "@/context/AuthContext";
 
-const API_BASE = "/api";
+import { API_BASE } from "@/lib/apiBase";
 
 function todayStr() {
   return new Date().toISOString().split("T")[0];

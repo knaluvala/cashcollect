@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const API_BASE = "/api";
+import { API_BASE } from "@/lib/apiBase";
 
 interface ParlorRow {
   parlorCode: string;

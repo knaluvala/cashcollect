@@ -73,7 +73,12 @@ export function requireRole(...roles: string[]) {
       return;
     }
 
-    if (!roles.includes(req.user.role)) {
+    const normalizedRole =
+      req.user.role.trim().toLowerCase() === "admin"
+        ? "superadmin"
+        : req.user.role.trim().toLowerCase();
+
+    if (!roles.includes(normalizedRole)) {
       res.status(403).json({ error: "Access denied" });
       return;
     }

@@ -68,6 +68,11 @@ export default defineConfig({
     port: Number(process.env.VITE_PORT ?? process.env.PORT ?? 5173),
     strictPort: true,
     allowedHosts: true,
+    cors: {
+      origin: true,
+      methods: ["GET", "HEAD", "PUT", "PATCH", "POST", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    },
     proxy: {
       "/api": {
         target: "http://localhost:3000",
