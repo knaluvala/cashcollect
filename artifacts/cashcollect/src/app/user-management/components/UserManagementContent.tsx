@@ -24,7 +24,7 @@ import {
 import { toast } from "sonner";
 import * as XLSX from "@e965/xlsx";
 
-const API_BASE = "/api";
+import { API_BASE } from "@/lib/apiBase";
 
 type UserRole = "agent" | "supervisor";
 type UserStatus = "active" | "inactive";

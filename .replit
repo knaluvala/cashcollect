@@ -79,8 +79,6 @@ externalPort = 3002
 localPort = 23155
 externalPort = 80
 
-
-
 [nix]
 packages = ["lsof", "vim"]
 channel = "stable-25_05"
