@@ -60,28 +60,30 @@ export default function DetailedReport({ data, isLoading }: Props) {
   const [perPage, setPerPage] = useState(10);
 
   const rows: Row[] = useMemo(() => {
-    return (data ?? []).map((c) => {
-      //  const sup = getAgentSupervisor(c.agentCode);
-      return {
-        id: String(c.id),
-        date: fmtDate(c.collectionDate),
-        parlorCode: c.parlorCode,
-        parlorName: c.parlorName,
-        parlorType: c.parlorType,
-        routeCode: c.routeCode,
-        agentCode: c.agentCode,
-        agentName: c.agentName,
-        supervisorCode: "",
-        supervisorName: "",
-        cashAmount: numVal(c.cashAmount),
-        couponAmount: numVal(c.couponAmount),
-        ccAmount: numVal(c.ccAmount),
-        total:
-          numVal(c.cashAmount) + numVal(c.couponAmount) + numVal(c.ccAmount),
-        status: c.status,
-      };
-    });
-  }, [data]);
+  return (data ?? []).map((c) => {
+    // Retrieve supervisor dynamic data or from c if provided by the backend API
+    const supervisorCode = c.supervisorCode ?? "";
+    const supervisorName = c.supervisorName ?? "";
+
+    return {
+      id: String(c.id),
+      date: fmtDate(c.collectionDate),
+      parlorCode: c.parlorCode,
+      parlorName: c.parlorName,
+      parlorType: c.parlorType,
+      routeCode: c.routeCode,
+      agentCode: c.agentCode,
+      agentName: c.agentName,
+      supervisorCode,
+      supervisorName,
+      cashAmount: numVal(c.cashAmount),
+      couponAmount: numVal(c.couponAmount),
+      ccAmount: numVal(c.ccAmount),
+      total: numVal(c.cashAmount) + numVal(c.couponAmount) + numVal(c.ccAmount),
+      status: c.status,
+    };
+  });
+}, [data]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
