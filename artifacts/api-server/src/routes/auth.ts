@@ -1,7 +1,8 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import { timingSafeEqual } from "node:crypto";
 import jwt from "jsonwebtoken";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db/schema";
 import { authenticate } from "../middlewares/authenticate";
@@ -16,12 +17,27 @@ if (!jwtSecret) {
 
 const JWT_SECRET: string = jwtSecret;
 
+function canonicalRole(role: string): "agent" | "supervisor" | "superadmin" {
+  const normalized = role.trim().toLowerCase();
+  if (normalized === "admin" || normalized === "superadmin") {
+    return "superadmin";
+  }
+  if (normalized === "supervisor") {
+    return "supervisor";
+  }
+  return "agent";
+}
+
+function isActiveStatus(status: string): boolean {
+  return status.trim().toLowerCase() === "active";
+}
+
 function sanitizeUser(user: typeof usersTable.$inferSelect) {
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role,
+    role: canonicalRole(user.role),
     routeCode: user.routeCode,
     agentCode: user.agentCode,
     status: user.status,
@@ -29,10 +45,12 @@ function sanitizeUser(user: typeof usersTable.$inferSelect) {
 }
 
 router.post("/auth/login", async (req, res): Promise<void> => {
-  const { userCode, password } = req.body ?? {};
+  const { identifier: submittedIdentifier, userCode, password } = req.body ?? {};
+  const identifier =
+    typeof submittedIdentifier === "string" ? submittedIdentifier.trim() : userCode?.trim();
 
-  if (typeof userCode !== "string" || typeof password !== "string") {
-    res.status(400).json({ error: "User code and password are required" });
+  if (!identifier || typeof password !== "string") {
+    res.status(400).json({ error: "User code or email address and password are required" });
     return;
   }
 
@@ -40,11 +58,16 @@ router.post("/auth/login", async (req, res): Promise<void> => {
     .select()
     .from(usersTable)
     .where(
-      and(eq(usersTable.agentCode, userCode), eq(usersTable.status, "active")),
+      and(
+        or(
+          eq(usersTable.agentCode, identifier),
+          eq(usersTable.email, identifier.toLowerCase()),
+        ),
+      ),
     )
     .limit(1);
 
-  if (!user || !user.passwordHash) {
+  if (!user || !isActiveStatus(user.status) || !user.passwordHash) {
     res.status(401).json({ error: "Invalid credentials" });
     return;
   }
@@ -66,6 +89,54 @@ router.post("/auth/login", async (req, res): Promise<void> => {
   });
 });
 
+router.post("/auth/recover-initial-admin", async (req, res): Promise<void> => {
+  const recoveryToken = process.env.ADMIN_RECOVERY_TOKEN;
+  const resetPassword = process.env.ADMIN_RESET_PASSWORD;
+  const submittedToken = req.body?.recoveryToken;
+
+  if (!recoveryToken || !resetPassword) {
+    res.status(503).json({ error: "Administrator recovery is not enabled." });
+    return;
+  }
+
+  if (
+    typeof submittedToken !== "string" ||
+    submittedToken.length !== recoveryToken.length ||
+    !timingSafeEqual(
+      Buffer.from(submittedToken),
+      Buffer.from(recoveryToken),
+    )
+  ) {
+    res.status(401).json({ error: "Invalid recovery token." });
+    return;
+  }
+
+  const [initialAdmin] = await db
+    .select()
+    .from(usersTable)
+    .where(eq(usersTable.agentCode, "ADM-001"))
+    .limit(1);
+
+  if (!initialAdmin) {
+    res.status(404).json({ error: "Initial administrator account was not found." });
+    return;
+  }
+
+  await db
+    .update(usersTable)
+    .set({
+      role: "superadmin",
+      status: "active",
+      passwordHash: await bcrypt.hash(resetPassword, 10),
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(usersTable.id, initialAdmin.id));
+
+  res.json({
+    message: "Administrator password reset. You can now sign in with ADM-001.",
+  });
+});
+
 router.post("/auth/refresh", authenticate, async (req, res): Promise<void> => {
   if (!req.user) {
     res.status(401).json({ error: "Authentication required" });
@@ -78,7 +149,7 @@ router.post("/auth/refresh", authenticate, async (req, res): Promise<void> => {
     .where(eq(usersTable.id, req.user.id))
     .limit(1);
 
-  if (!user || user.status !== "active") {
+  if (!user || !isActiveStatus(user.status)) {
     res.status(401).json({ error: "User not found or inactive" });
     return;
   }
@@ -104,7 +175,7 @@ router.get("/auth/me", authenticate, async (req, res): Promise<void> => {
     .where(eq(usersTable.id, req.user.id))
     .limit(1);
 
-  if (!user || user.status !== "active") {
+  if (!user || !isActiveStatus(user.status)) {
     res.status(401).json({ error: "User not found or inactive" });
     return;
   }

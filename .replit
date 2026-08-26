@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "nodejs-24", "python-3.11"]
+modules = ["nodejs-20", "nodejs-24", "python-3.11", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -9,6 +9,7 @@ args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
+runButton = "artifacts/cashcollect: web"
 
 [[workflows.workflow]]
 name = "artifacts/cashcollect: web"
@@ -17,36 +18,12 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "pnpm --filter @workspace/cashcollect run dev"
-cwd = "./artifacts/cashcollect"
-waitForPort = 23155
-router = "path"
-
-[workflows.workflow.tasks.env]
-PORT = "23155"
-BASE_PATH = "/"
+args = "bash /home/runner/workspace/scripts/start-cashcollect-dev.sh"
+waitForPort = 5173
 
 [workflows.workflow.metadata]
 outputType = "webview"
 artifactId = "artifacts/cashcollect"
-
-[[workflows.workflow]]
-name = "artifacts/api-server: API Server"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "pnpm --filter @workspace/api-server run dev"
-cwd = "./artifacts/api-server"
-waitForPort = 8080
-
-[workflows.workflow.tasks.env]
-PORT = "8080"
-
-[workflows.workflow.metadata]
-outputType = "webview"
-artifactId = "3B4_FFSkEVBkAeYMFRJ2e"
 
 [[workflows.workflow]]
 name = "Start CashCollect"
@@ -55,11 +32,8 @@ author = 60239837
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-#args = "bash scripts/start-cashcollect-dev.sh"
 args = "bash scripts/start-cashcollect-mobile.sh"
-#waitForPort = 23155
 waitForPort = 8082
-router = "path"
 
 [workflows.workflow.metadata]
 outputType = "webview"
@@ -107,3 +81,4 @@ externalPort = 80
 
 [nix]
 packages = ["lsof", "vim"]
+channel = "stable-25_05"

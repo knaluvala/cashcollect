@@ -24,6 +24,8 @@ import {
   CollectionStatus,
   formatINR,
 } from "@/lib/collectionTypes";
+import { DatePickerField } from "@/components/ui/DatePickerField";
+import { AmountInput } from "@/components/ui/AmountInput";
 
 const STATUS_CONFIG: Record<
   CollectionStatus,
@@ -407,142 +409,123 @@ export default function NewEntryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View
-          style={[
-            s.card,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-        >
-          <View style={s.sectionHeader}>
-            <View style={s.sectionIconWrap}>
-              <Feather name="calendar" size={15} color={colors.primary} />
-            </View>
-            <Text style={[s.sectionTitle, { color: colors.foreground }]}>
-              Collection Date
-            </Text>
-            <Text style={s.required}>*</Text>
-          </View>
-
-          <TextInput
-            value={collectionDate}
-            onChangeText={setCollectionDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.mutedForeground}
-            style={[
-              s.notesInput,
-              {
-                minHeight: 44,
-                borderColor: colors.border,
-                backgroundColor: colors.background,
-                color: colors.foreground,
-              },
-            ]}
-          />
-        </View>
+  style={[
+    s.card,
+    { backgroundColor: colors.card, borderColor: colors.border },
+  ]}
+>
+  <DatePickerField
+    label="Collection Date"
+    value={collectionDate}
+    onChange={setCollectionDate}
+    required
+  />
+</View>
 
         {/* Parlor selector */}
         <View
-          style={[
-            s.card,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-        >
-          <View style={s.sectionHeader}>
-            <View style={s.sectionIconWrap}>
-              <Feather name="home" size={15} color={colors.primary} />
-            </View>
-            <Text style={[s.sectionTitle, { color: colors.foreground }]}>
-              Select Parlor
-            </Text>
-            <Text style={s.required}>*</Text>
-          </View>
+  style={[
+    s.card,
+    { backgroundColor: colors.card, borderColor: colors.border },
+  ]}
+>
+  <View style={s.sectionHeader}>
+    <View style={s.sectionIconWrap}>
+      <Feather name="home" size={15} color={colors.primary} />
+    </View>
+    <Text style={[s.sectionTitle, { color: colors.foreground }]}>
+      Parlor Code / Name
+    </Text>
+    <Text style={s.required}>*</Text>
+  </View>
 
-          <TouchableOpacity
-            style={[
-              s.parlorSelector,
-              {
-                borderColor: selectedParlor ? colors.primary : colors.border,
-                backgroundColor: colors.background,
-              },
-            ]}
-            onPress={() => {
-              setParlorPickerOpen(true);
-              Haptics.selectionAsync();
-            }}
-            activeOpacity={0.7}
-          >
-            {selectedParlor ? (
-              <View style={s.parlorSelectedContent}>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={[s.parlorSelectedName, { color: colors.foreground }]}
-                    numberOfLines={1}
-                  >
-                    {selectedParlor.parlorName}
-                  </Text>
-                  <View style={s.parlorSelectedMeta}>
-                    <Text
-                      style={[s.parlorCode, { color: colors.mutedForeground }]}
-                    >
-                      {selectedParlor.parlorCode}
-                    </Text>
-                    {(() => {
-                      const cfg = PARLOR_TYPE_CONFIG[selectedParlor.parlorType];
-                      return (
-                        <View
-                          style={[s.typeBadge, { backgroundColor: cfg?.bg }]}
-                        >
-                          <Text style={[s.typeBadgeText, { color: cfg?.text }]}>
-                            {selectedParlor.parlorType}
-                          </Text>
-                        </View>
-                      );
-                    })()}
-                    {(() => {
-                      const cfg = STATUS_CONFIG[selectedParlor.status];
-                      return (
-                        <View
-                          style={[s.statusBadge, { backgroundColor: cfg.bg }]}
-                        >
-                          <Text
-                            style={[s.statusBadgeText, { color: cfg.text }]}
-                          >
-                            {cfg.label}
-                          </Text>
-                        </View>
-                      );
-                    })()}
-                  </View>
-                </View>
-                <Feather
-                  name="chevron-down"
-                  size={16}
-                  color={colors.mutedForeground}
-                />
-              </View>
-            ) : (
-              <View style={s.parlorPlaceholderRow}>
-                <Feather
-                  name="search"
-                  size={15}
-                  color={colors.mutedForeground}
-                />
-                <Text
-                  style={[
-                    s.parlorPlaceholder,
-                    { color: colors.mutedForeground },
-                  ]}
-                >
-                  Search and select a parlor...
-                </Text>
-                <Feather
-                  name="chevron-down"
-                  size={15}
-                  color={colors.mutedForeground}
-                />
-              </View>
-            )}
-          </TouchableOpacity>
+  <TouchableOpacity
+    style={[
+      s.parlorSelector,
+      {
+        borderColor: selectedParlor ? colors.primary : colors.border,
+        backgroundColor: colors.background,
+      },
+    ]}
+    onPress={() => {
+      setParlorPickerOpen(true);
+      Haptics.selectionAsync();
+    }}
+    activeOpacity={0.75}
+  >
+    {selectedParlor ? (
+      <View style={s.parlorSelectedContent}>
+        <View style={s.parlorCodePill}>
+          <Text style={s.parlorCodePillText}>
+            {selectedParlor.parlorCode}
+          </Text>
         </View>
+
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[s.parlorSelectedName, { color: colors.foreground }]}
+            numberOfLines={1}
+          >
+            {selectedParlor.parlorName}
+          </Text>
+
+          <View style={s.parlorSelectedMeta}>
+            {(() => {
+              const cfg = PARLOR_TYPE_CONFIG[selectedParlor.parlorType];
+              return (
+                <View style={[s.typeBadge, { backgroundColor: cfg?.bg }]}>
+                  <Text style={[s.typeBadgeText, { color: cfg?.text }]}>
+                    {selectedParlor.parlorType}
+                  </Text>
+                </View>
+              );
+            })()}
+
+            {(() => {
+              const cfg = STATUS_CONFIG[selectedParlor.status];
+              return (
+                <View style={[s.statusBadge, { backgroundColor: cfg.bg }]}>
+                  <Text style={[s.statusBadgeText, { color: cfg.text }]}>
+                    {cfg.label}
+                  </Text>
+                </View>
+              );
+            })()}
+          </View>
+        </View>
+
+        <Feather
+          name="chevron-down"
+          size={17}
+          color={colors.mutedForeground}
+        />
+      </View>
+    ) : (
+      <View style={s.parlorPlaceholderRow}>
+        <View style={s.parlorCodePillMuted}>
+          <Text style={[s.parlorCodePillText, { color: colors.mutedForeground }]}>
+            LOV
+          </Text>
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text style={[s.parlorPlaceholder, { color: colors.foreground }]}>
+            Select parlor from list
+          </Text>
+          <Text style={[s.parlorHelpText, { color: colors.mutedForeground }]}>
+            Search by code, name, or type
+          </Text>
+        </View>
+
+        <Feather
+          name="chevron-down"
+          size={17}
+          color={colors.mutedForeground}
+        />
+      </View>
+    )}
+  </TouchableOpacity>
+</View>
 
         {/* Amounts form */}
         {selectedParlor && (
@@ -615,39 +598,40 @@ export default function NewEntryScreen() {
                 </Text>
               </View>
 
-              <AmountRow
-                label="Cash Amount"
-                hint="Physical currency collected"
-                value={cash}
-                onChange={setCash}
-                locked={isReadOnly}
-                accentColor="#065f46"
-                colors={colors}
-              />
-              <View
-                style={[s.fieldDivider, { backgroundColor: colors.border }]}
-              />
-              <AmountRow
-                label="Coupon Amount"
-                hint="Physical coupons redeemed"
-                value={coupon}
-                onChange={setCoupon}
-                locked={isReadOnly}
-                accentColor="#1d4ed8"
-                colors={colors}
-              />
-              <View
-                style={[s.fieldDivider, { backgroundColor: colors.border }]}
-              />
-              <AmountRow
-                label="Credit Card Total"
-                hint="POS / card transaction total"
-                value={cc}
-                onChange={setCC}
-                locked={isReadOnly}
-                accentColor="#6d28d9"
-                colors={colors}
-              />
+              <AmountInput
+  label="Cash Amount"
+  hint="Physical currency collected"
+  value={cash}
+  onChange={setCash}
+  disabled={isReadOnly}
+  accentColor="#065f46"
+/>
+
+<View
+  style={[s.fieldDivider, { backgroundColor: colors.border }]}
+/>
+
+<AmountInput
+  label="Coupon Amount"
+  hint="Physical coupons redeemed"
+  value={coupon}
+  onChange={setCoupon}
+  disabled={isReadOnly}
+  accentColor="#1d4ed8"
+/>
+
+<View
+  style={[s.fieldDivider, { backgroundColor: colors.border }]}
+/>
+
+<AmountInput
+  label="Credit Card Total"
+  hint="POS / Card transaction total"
+  value={cc}
+  onChange={setCC}
+  disabled={isReadOnly}
+  accentColor="#6d28d9"
+/>
 
               {total > 0 && (
                 <View style={[s.totalRow, { borderTopColor: colors.border }]}>
@@ -665,42 +649,63 @@ export default function NewEntryScreen() {
 
             {/* Notes */}
             <View
-              style={[
-                s.card,
-                { backgroundColor: colors.card, borderColor: colors.border },
-              ]}
-            >
-              <View style={s.sectionHeader}>
-                <View style={s.sectionIconWrap}>
-                  <Feather name="file-text" size={15} color={colors.primary} />
-                </View>
-                <Text style={[s.sectionTitle, { color: colors.foreground }]}>
-                  Remarks
-                </Text>
-                <Text style={[s.optional, { color: colors.mutedForeground }]}>
-                  Optional
-                </Text>
-              </View>
-              <TextInput
-                style={[
-                  s.notesInput,
-                  {
-                    borderColor: colors.border,
-                    backgroundColor: isReadOnly
-                      ? colors.muted
-                      : colors.background,
-                    color: colors.foreground,
-                  },
-                ]}
-                value={notes}
-                onChangeText={setNotes}
-                placeholder="POS issues, missing slips, discrepancies..."
-                placeholderTextColor={colors.mutedForeground}
-                multiline
-                numberOfLines={3}
-                editable={!isReadOnly}
-              />
-            </View>
+  style={[
+    s.card,
+    { backgroundColor: colors.card, borderColor: colors.border },
+  ]}
+>
+  <View style={s.sectionHeader}>
+    <View style={s.sectionIconWrap}>
+      <Feather
+        name="file-text"
+        size={15}
+        color={colors.primary}
+      />
+    </View>
+
+    <Text style={[s.sectionTitle, { color: colors.foreground }]}>
+      Remarks
+    </Text>
+
+    <Text
+      style={[
+        s.optional,
+        { color: colors.mutedForeground },
+      ]}
+    >
+      Optional
+    </Text>
+  </View>
+
+  <Text
+    style={[
+      s.fieldDescription,
+      { color: colors.mutedForeground },
+    ]}
+  >
+    Add any collection notes, POS issues, missing slips or discrepancies.
+  </Text>
+
+  <TextInput
+    style={[
+      s.notesInput,
+      {
+        borderColor: colors.border,
+        backgroundColor: isReadOnly
+          ? colors.muted
+          : colors.background,
+        color: colors.foreground,
+      },
+    ]}
+    value={notes}
+    onChangeText={setNotes}
+    placeholder="Enter remarks..."
+    placeholderTextColor={colors.mutedForeground}
+    multiline
+    numberOfLines={4}
+    editable={!isReadOnly}
+  />
+</View>
 
             {/* Actions */}
             {!isReadOnly && (
@@ -1089,6 +1094,41 @@ function makeStyles(
       alignItems: "center",
       gap: 8,
       marginBottom: 12,
+    },
+    fieldDescription: {
+      fontSize: 12,
+      fontFamily: "DMSans_400Regular",
+      marginBottom: 10,
+      lineHeight: 18,
+    },
+    parlorCodePill: {
+      minWidth: 64,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      backgroundColor: colors.primary + "18",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    parlorCodePillMuted: {
+      minWidth: 64,
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      backgroundColor: colors.muted,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    parlorCodePillText: {
+      fontSize: 12,
+      fontWeight: "700" as const,
+      fontFamily: "DMSans_700Bold",
+      color: colors.primary,
+    },
+    parlorHelpText: {
+      fontSize: 11,
+      fontFamily: "DMSans_400Regular",
+      marginTop: 2,
     },
     sectionIconWrap: {
       width: 26,

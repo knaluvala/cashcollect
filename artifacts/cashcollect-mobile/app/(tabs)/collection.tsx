@@ -5,7 +5,7 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  StyleSheet,
+  StyleSheet, 
   Platform,
   RefreshControl,
 } from "react-native";
@@ -24,6 +24,9 @@ import {
   CollectionStatus,
   formatINR,
 } from "@/lib/collectionTypes";
+import { AppCard } from "@/components/ui/AppCard";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { KPIStatCard } from "@/components/ui/KPIStatCard";
 
 const STATUS_CONFIG: Record<
   CollectionStatus,
@@ -321,40 +324,14 @@ export default function CollectionScreen() {
         </View>
 
         {viewMode === "agent" && (
-          <View style={s.statsBar}>
-            <View style={s.statItem}>
-              <Text style={s.statNum}>{parlors.length}</Text>
-              <Text style={s.statLabel}>Assigned</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#854d0e" }]}>
-                {statusCounts.pending}
-              </Text>
-              <Text style={s.statLabel}>Pending</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#1d4ed8" }]}>
-                {statusCounts.entered}
-              </Text>
-              <Text style={s.statLabel}>Entered</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#6d28d9" }]}>
-                {statusCounts.submitted}
-              </Text>
-              <Text style={s.statLabel}>Submitted</Text>
-            </View>
-            <View style={s.statDivider} />
-            <View style={[s.statItem, { alignItems: "center" }]}>
-              <Text style={[s.statNum, { color: "#065f46" }]}>
-                {statusCounts.acknowledged}
-              </Text>
-              <Text style={s.statLabel}>Ack'd</Text>
-            </View>
-          </View>
+         <>
+         <View style={s.kpiGrid}>
+           <KPIStatCard label="Assigned" value={parlors.length} />
+           <KPIStatCard label="Pending" value={statusCounts.pending} valueColor="#854d0e" />
+           <KPIStatCard label="Entered" value={statusCounts.entered} valueColor="#1d4ed8" />
+           <KPIStatCard label="Ack'd" value={statusCounts.acknowledged} valueColor="#065f46" />
+         </View>
+       </>
         )}
 
         {viewMode === "agent" && (
@@ -524,14 +501,8 @@ function ParlorItem({
     (parlor.ccAmount ?? 0);
 
   return (
-    <TouchableOpacity
-      style={[
-        styles.parlorCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
-      ]}
-      onPress={() => onPress(parlor)}
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity onPress={() => onPress(parlor)} activeOpacity={0.75}>
+     <AppCard style={styles.parlorCard}>
       <View style={styles.parlorCardTop}>
         <View style={styles.parlorInfo}>
           <Text
@@ -553,11 +524,11 @@ function ParlorItem({
             </View>
           </View>
         </View>
-        <View style={[styles.statusBadge, { backgroundColor: statusCfg.bg }]}>
-          <Text style={[styles.statusBadgeText, { color: statusCfg.text }]}>
-            {statusCfg.label}
-          </Text>
-        </View>
+        <StatusBadge
+  label={statusCfg.label}
+  backgroundColor={statusCfg.bg}
+  color={statusCfg.text}
+/>
       </View>
 
       {parlor.cashAmount !== null && (
@@ -589,6 +560,7 @@ function ParlorItem({
           Ack by {parlor.acknowledgedBy}
         </Text>
       )}
+     </AppCard>
     </TouchableOpacity>
   );
 }
@@ -748,6 +720,11 @@ function makeStyles(
       paddingHorizontal: 16,
       paddingBottom: 12,
     },
+    kpiGrid: {
+      flexDirection: "row",
+      gap: 10,
+      marginBottom: 10,
+    },
     headerTop: {
       flexDirection: "row",
       alignItems: "flex-start",
@@ -818,11 +795,13 @@ function makeStyles(
     statsBar: {
       flexDirection: "row",
       alignItems: "center",
-      backgroundColor: colors.muted,
-      borderRadius: 8,
-      paddingVertical: 8,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: 10,
       paddingHorizontal: 8,
-      marginBottom: 8,
+      marginBottom: 10,
     },
     statItem: {
       flex: 1,
@@ -847,7 +826,12 @@ function makeStyles(
     },
     totalsBar: {
       flexDirection: "row",
-      paddingVertical: 4,
+      backgroundColor: colors.card,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: 10,
+      paddingHorizontal: 8,
     },
     listContent: {
       padding: 12,
@@ -895,9 +879,8 @@ function makeStyles(
 
 const styles = StyleSheet.create({
   parlorCard: {
-    borderRadius: 10,
-    borderWidth: 1,
-    padding: 12,
+    padding: 14,
+    marginBottom: 10,
   },
   parlorCardTop: {
     flexDirection: "row",

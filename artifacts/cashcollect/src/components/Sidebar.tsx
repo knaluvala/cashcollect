@@ -13,7 +13,6 @@ import {
   Settings,
   Bell,
   Map,
-  Bot,
 } from "lucide-react";
 import Icon from "@/components/ui/AppIcon";
 import { useAuth } from "@/context/AuthContext";
@@ -32,14 +31,12 @@ const NAV_GROUPS = [
         href: "/daily-collection-entry",
         icon: ClipboardList,
         label: "Daily Collection",
-        badge: 3,
       },
       {
         key: "nav-reports",
         href: "/reports",
         icon: BarChart2,
         label: "Reports",
-        badge: null,
       },
     ],
   },
@@ -51,35 +48,24 @@ const NAV_GROUPS = [
         href: "/user-management",
         icon: Users,
         label: "User Management",
-        badge: null,
       },
       {
         key: "nav-parlors",
         href: "/super-admin/parlor-master",
         icon: Store,
         label: "Parlor Master",
-        badge: null,
       },
       {
         key: "nav-routes",
         href: "/super-admin/route-master",
         icon: Map,
         label: "Route Master",
-        badge: null,
-      },
-      {
-        key: "nav-dev-assistant",
-        href: "/dev-assistant",
-        icon: Bot,
-        label: "Dev Assistant",
-        badge: null,
       },
       {
         key: "nav-settings",
         href: "/settings",
         icon: Settings,
         label: "Settings",
-        badge: null,
       },
     ],
   },
@@ -116,7 +102,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             if (item.key === "nav-users") return isSuperAdmin;
             if (item.key === "nav-parlors") return isSuperAdmin;
             if (item.key === "nav-routes") return isSuperAdmin;
-            if (item.key === 'nav-dev-assistant') return isSuperAdmin;
             return true;
           });
           if (visibleItems.length === 0) return null;
@@ -160,11 +145,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                             {item.label}
                           </span>
                         )}
-                        {!collapsed && item.badge !== null && (
-                          <span className="text-[11px] font-semibold bg-accent text-accent-foreground rounded-full px-1.5 py-0.5 leading-none">
-                            {item.badge}
-                          </span>
-                        )}
                       </Link>
                     </li>
                   );
@@ -191,11 +171,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             className={`shrink-0 ${pathname === "/notifications" ? "text-primary" : ""}`}
           />
           {!collapsed && <span>Notifications</span>}
-          {!collapsed && (
-            <span className="ml-auto text-[11px] font-semibold bg-red-100 text-red-600 rounded-full px-1.5 py-0.5 leading-none">
-              2
-            </span>
-          )}
         </Link>
 
         {!collapsed && (

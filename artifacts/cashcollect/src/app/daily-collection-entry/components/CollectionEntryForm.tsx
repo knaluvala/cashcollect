@@ -28,7 +28,7 @@ interface Props {
   onSubmit: (id: string) => void;
 }
 
-const API_BASE = '/api';
+import { API_BASE } from "@/lib/apiBase";
 
 const PARLOR_TYPE_COLORS: Record<ParlorType, string> = {
   Mall: 'bg-blue-100 text-blue-700',
@@ -50,6 +50,7 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
   const [dbId, setDbId] = useState<number | null>(null);
   const [externalData, setExternalData] = useState<ExternalSummary | null>(null);
   const [isLoadingExternal, setIsLoadingExternal] = useState(false);
+  const [externalError, setExternalError] = useState<string | null>(null);
 
   const {
     register,
@@ -101,14 +102,22 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
 
     // Fetch external system data
     setIsLoadingExternal(true);
+    setExternalError(null);
     fetch(`${API_BASE}/external/parlor-summary/${parlor.parlorCode}/${date}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || "External amount source is unavailable");
+        return data;
+      })
       .then((data: ExternalSummary) => {
         if (cancelled) return;
         setExternalData(data);
       })
-      .catch(() => {
-        if (!cancelled) setExternalData(null);
+      .catch((error: Error) => {
+        if (!cancelled) {
+          setExternalData(null);
+          setExternalError(error.message);
+        }
       })
       .finally(() => {
         if (!cancelled) setIsLoadingExternal(false);
@@ -205,11 +214,11 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
   const fmt = (n: number) => '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2 });
 
   const AmountField = ({
-    id, label, helper, valueKey, externalValue, isLoading,
+    id, label, helper, valueKey, externalValue, isLoading, source, externalError,
     error, registerOptions,
   }: {
     id: string; label: string; helper: string; valueKey: 'cashAmount' | 'couponAmount' | 'ccAmount';
-    externalValue: number; isLoading: boolean;
+    externalValue: number; isLoading: boolean; source?: string; externalError: string | null;
     error?: { message?: string };
     registerOptions: any;
   }) => (
@@ -222,10 +231,12 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
         </div>
         {isLoading ? (
           <div className="h-6 bg-slate-200 rounded animate-pulse" />
+        ) : externalError ? (
+          <p className="text-xs text-amber-700 leading-snug">{externalError}</p>
         ) : (
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold text-slate-700">{fmt(externalValue)}</span>
-            <span className="text-[10px] text-slate-400">POS/ERP</span>
+            <span className="text-[10px] text-slate-400">{source ?? "External source"}</span>
           </div>
         )}
       </div>
@@ -330,6 +341,8 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
               valueKey="cashAmount"
               externalValue={externalData?.cashAmount ?? 0}
               isLoading={isLoadingExternal}
+              source={externalData?.source}
+              externalError={externalError}
               error={errors.cashAmount}
               registerOptions={{
                 required: !isReadOnly ? 'Cash amount is required' : false,
@@ -343,6 +356,8 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
               valueKey="couponAmount"
               externalValue={externalData?.couponAmount ?? 0}
               isLoading={isLoadingExternal}
+              source={externalData?.source}
+              externalError={externalError}
               error={errors.couponAmount}
               registerOptions={{
                 required: !isReadOnly ? 'Coupon amount is required' : false,
@@ -356,6 +371,8 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
               valueKey="ccAmount"
               externalValue={externalData?.ccAmount ?? 0}
               isLoading={isLoadingExternal}
+              source={externalData?.source}
+              externalError={externalError}
               error={errors.ccAmount}
               registerOptions={{
                 required: !isReadOnly ? 'Credit card amount is required' : false,

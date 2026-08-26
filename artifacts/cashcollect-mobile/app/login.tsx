@@ -15,6 +15,8 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
+import { AppCard } from "@/components/ui/AppCard";
+import { PrimaryButton } from "@/components/ui/PrimaryButton";
 
 type RoleTab = "agent" | "supervisor" | "superadmin";
 
@@ -109,6 +111,7 @@ export default function LoginScreen() {
 
       {/* Login card */}
       <View style={s.card}>
+       <AppCard style={s.loginCardInner}>
         <Text style={s.cardTitle}>Sign in</Text>
         <Text style={s.cardSubtitle}>
           Select your role and enter your credentials
@@ -179,18 +182,12 @@ export default function LoginScreen() {
         </View>
 
         {/* Sign in button */}
-        <TouchableOpacity
-          style={[s.signInBtn, isLoading && s.signInBtnDisabled]}
-          onPress={handleLogin}
-          disabled={isLoading}
-          activeOpacity={0.8}
-        >
-          {isLoading ? (
-            <Text style={s.signInBtnText}>Signing in...</Text>
-          ) : (
-            <Text style={s.signInBtnText}>Sign in</Text>
-          )}
-        </TouchableOpacity>
+        <PrimaryButton
+  title="Sign in"
+  onPress={handleLogin}
+  loading={isLoading}
+  style={s.signInBtn}
+/>
 
         {/* Demo accounts */}
         <View style={s.demoSection}>
@@ -231,6 +228,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
           ))}
         </View>
+      </AppCard>
       </View>
 
       <View
@@ -275,6 +273,9 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number) {
       color: "#fff",
       fontFamily: "DMSans_700Bold",
     },
+    loginCardInner: {
+      padding: 20,
+    },
     brandTagline: {
       fontSize: 26,
       fontWeight: "700" as const,
@@ -297,7 +298,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number) {
       backgroundColor: colors.background,
       borderTopLeftRadius: 24,
       borderTopRightRadius: 24,
-      padding: 24,
+      padding: 16,
     },
     cardTitle: {
       fontSize: 22,

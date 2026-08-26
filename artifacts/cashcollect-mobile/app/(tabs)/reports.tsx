@@ -19,6 +19,10 @@ import { useEffect } from "react";
 import { apiFetch } from "@/lib/api";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
+import { DatePickerField } from "@/components/ui/DatePickerField";
+import { FormSection } from "@/components/ui/FormSection";
+import { LovField } from "@/components/ui/LovField";
+import { KPIStatCard } from "@/components/ui/KPIStatCard";
 
 type DetailedReportRow = {
   id: number;
@@ -328,133 +332,117 @@ export default function ReportsScreen() {
       </View>
 
       {/* Filters */}
-      <View style={s.filtersRow}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.filtersScroll}
+<View style={s.filterPanel}>
+  <FormSection
+    title="Filters"
+    icon="filter"
+    description="Refine report results by date range, collector and status."
+  >
+    <View style={s.filterStack}>
+      <View style={s.filterGrid}>
+        <DatePickerField
+          label="Date From"
+          value={dateFrom}
+          onChange={setDateFrom}
+        />
+
+        <DatePickerField
+          label="Date To"
+          value={dateTo}
+          onChange={setDateTo}
+        />
+      </View>
+
+      <LovField
+        label="Collector"
+        icon="user"
+        valueLabel={
+          agentFilter
+            ? collectors.find((c) => c.code === agentFilter)?.name ?? agentFilter
+            : ""
+        }
+        valueSubLabel={agentFilter || undefined}
+        placeholder="All collectors"
+        helperText="Tap a collector chip below to filter"
+        onPress={() => {
+          setAgentFilter("");
+          Haptics.selectionAsync();
+        }}
+      />
+
+      <View style={s.filterChipRow}>
+        <TouchableOpacity
+          style={[
+            filterStyles.chip,
+            { borderColor: colors.border, backgroundColor: colors.card },
+            agentFilter === "" && {
+              backgroundColor: colors.primary,
+              borderColor: colors.primary,
+            },
+          ]}
+          onPress={() => {
+            setAgentFilter("");
+            Haptics.selectionAsync();
+          }}
         >
-          {/* Status filter */}
-          {(["", "entered", "submitted", "acknowledged"] as StatusFilter[]).map(
-            (s_) => (
-              <TouchableOpacity
-                key={s_ || "all"}
-                style={[
-                  filterStyles.chip,
-                  { borderColor: colors.border, backgroundColor: colors.card },
-                  statusFilter === s_ && {
-                    backgroundColor: colors.primary,
-                    borderColor: colors.primary,
-                  },
-                ]}
-                onPress={() => {
-                  setStatusFilter(s_);
-                  Haptics.selectionAsync();
-                }}
-              >
-                <Text
-                  style={[
-                    filterStyles.chipText,
-                    { color: colors.mutedForeground },
-                    statusFilter === s_ && { color: "#fff" },
-                  ]}
-                >
-                  {s_ === "" ? "All Status" : (STATUS_CONFIG[s_]?.label ?? s_)}
-                </Text>
-              </TouchableOpacity>
-            ),
-          )}
-          <View style={filterStyles.divider} />
-          {/* Agent filter */}
+          <Text
+            style={[
+              filterStyles.chipText,
+              { color: agentFilter === "" ? "#fff" : colors.mutedForeground },
+            ]}
+          >
+            All Agents
+          </Text>
+        </TouchableOpacity>
+
+        {collectors.map((c) => (
           <TouchableOpacity
+            key={c.code}
             style={[
               filterStyles.chip,
               { borderColor: colors.border, backgroundColor: colors.card },
-              agentFilter === "" && {
+              agentFilter === c.code && {
                 backgroundColor: colors.primary,
                 borderColor: colors.primary,
               },
             ]}
             onPress={() => {
-              setAgentFilter("");
+              setAgentFilter(c.code);
               Haptics.selectionAsync();
             }}
           >
             <Text
               style={[
                 filterStyles.chipText,
-                { color: agentFilter === "" ? "#fff" : colors.mutedForeground },
-              ]}
-            >
-              All Agents
-            </Text>
-          </TouchableOpacity>
-          {collectors.map((c) => (
-            <TouchableOpacity
-              key={c.code}
-              style={[
-                filterStyles.chip,
-                { borderColor: colors.border, backgroundColor: colors.card },
-                agentFilter === c.code && {
-                  backgroundColor: colors.primary,
-                  borderColor: colors.primary,
+                {
+                  color:
+                    agentFilter === c.code ? "#fff" : colors.mutedForeground,
                 },
               ]}
-              onPress={() => {
-                setAgentFilter(c.code);
-                Haptics.selectionAsync();
-              }}
             >
-              <Text
-                style={[
-                  filterStyles.chipText,
-                  { color: colors.mutedForeground },
-                  agentFilter === c.code && { color: "#fff" },
-                ]}
-              >
-                {c.name.split(" ")[0]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+              {c.name.split(" ")[0]}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
+    </View>
+  </FormSection>
+</View>
 
       <View style={s.dateRow}>
-        <View
-          style={[
-            s.dateBox,
-            { borderColor: colors.border, backgroundColor: colors.card },
-          ]}
-        >
-          <Text style={[s.dateLabel, { color: colors.mutedForeground }]}>
-            From
-          </Text>
-          <TextInput
-            style={[s.dateInput, { color: colors.foreground }]}
-            value={dateFrom}
-            onChangeText={setDateFrom}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.mutedForeground}
-          />
-        </View>
+      <FormSection title="Date From" icon="calendar" style={{ marginBottom: 12 }}>
+  <DatePickerField
+    value={dateFrom}
+    onChange={setDateFrom}
+  />
+</FormSection>
 
-        <View
-          style={[
-            s.dateBox,
-            { borderColor: colors.border, backgroundColor: colors.card },
-          ]}
-        >
-          <Text style={[s.dateLabel, { color: colors.mutedForeground }]}>
-            To
-          </Text>
-          <TextInput
-            style={[s.dateInput, { color: colors.foreground }]}
-            value={dateTo}
-            onChangeText={setDateTo}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={colors.mutedForeground}
-          />
-        </View>
+<FormSection title="Date To" icon="calendar" style={{ marginBottom: 12 }}>
+  <DatePickerField
+    value={dateTo}
+    onChange={setDateTo}
+  />
+</FormSection>
       </View>
 
       <View style={s.quickDateRow}>
@@ -562,23 +550,27 @@ export default function ReportsScreen() {
               </Text>{" "}
               records
             </Text>
-            <View style={s.totalsAmounts}>
-              <TotalsChip
-                label="Cash"
-                value={formatINR(totals.cash)}
-                color="#065f46"
-              />
-              <TotalsChip
-                label="Coupons"
-                value={formatINR(totals.coupon)}
-                color="#1d4ed8"
-              />
-              <TotalsChip
-                label="Card"
-                value={formatINR(totals.cc)}
-                color="#6d28d9"
-              />
-            </View>
+            <View style={s.reportKpiGrid}>
+  <KPIStatCard
+    label="Records"
+    value={filteredDetailed.length}
+  />
+  <KPIStatCard
+    label="Cash"
+    value={formatINR(totals.cash)}
+    valueColor="#065f46"
+  />
+  <KPIStatCard
+    label="Coupons"
+    value={formatINR(totals.coupon)}
+    valueColor="#1d4ed8"
+  />
+  <KPIStatCard
+    label="Card"
+    value={formatINR(totals.cc)}
+    valueColor="#6d28d9"
+  />
+</View>
           </View>
 
           <FlatList
@@ -959,6 +951,13 @@ function makeStyles(
       alignItems: "center",
       gap: 12,
     },
+    reportKpiGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 12,
+    },
     exportBtn: {
       flexDirection: "row",
       alignItems: "center",
@@ -967,6 +966,21 @@ function makeStyles(
       borderRadius: 10,
       paddingHorizontal: 12,
       paddingVertical: 9,
+    },
+    filterPanel: {
+      paddingHorizontal: 12,
+      paddingTop: 12,
+    },
+    filterStack: {
+      gap: 12,
+    },
+    filterGrid: {
+      gap: 12,
+    },
+    filterChipRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
     },
     exportBtnText: {
       color: "#fff",

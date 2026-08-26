@@ -11,11 +11,18 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  Database,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { API_BASE } from "@/lib/apiBase";
 
-type SettingsTab = "profile" | "notifications" | "security" | "appearance";
+type SettingsTab =
+  | "profile"
+  | "notifications"
+  | "security"
+  | "appearance"
+  | "external";
 
 interface DbUser {
   id: number;
@@ -37,6 +44,7 @@ const TABS: { key: SettingsTab; label: string; icon: React.ElementType }[] = [
   { key: "notifications", label: "Notifications", icon: Bell },
   { key: "security", label: "Security", icon: Shield },
   { key: "appearance", label: "Appearance", icon: Palette },
+  { key: "external", label: "External Amounts", icon: Database },
 ];
 
 function SectionCard({
@@ -164,6 +172,19 @@ export default function SettingsContent() {
     dateFormat: "DD/MM/YYYY",
     currency: "INR",
   });
+  const [externalConfig, setExternalConfig] = useState({
+    enabled: false,
+    endpoint: "",
+    sourceLabel: "External System",
+    parlorCodeParameter: "parlorCode",
+    dateParameter: "date",
+    cashAmountPath: "cashAmount",
+    couponAmountPath: "couponAmount",
+    ccAmountPath: "ccAmount",
+  });
+  const [externalConfigLoading, setExternalConfigLoading] = useState(false);
+  const [externalConfigSaving, setExternalConfigSaving] = useState(false);
+  const [credentialConfigured, setCredentialConfigured] = useState(false);
 
   async function fetchUser() {
     if (!user?.email) {
@@ -174,7 +195,7 @@ export default function SettingsContent() {
     setError(null);
     try {
       const res = await fetch(
-        `/api/users/me?email=${encodeURIComponent(user.email)}`,
+        `${API_BASE}/users/me?email=${encodeURIComponent(user.email)}`,
       );
       const data = await res.json();
       if (!res.ok) {
@@ -196,6 +217,23 @@ export default function SettingsContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email]);
 
+  useEffect(() => {
+    if (user?.role !== "superadmin" || !user) return;
+    const token = localStorage.getItem("@cashcollect_web_token");
+    setExternalConfigLoading(true);
+    fetch(`${API_BASE}/external/collection-config`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        setExternalConfig(data.config);
+        setCredentialConfigured(Boolean(data.credentialConfigured));
+      })
+      .catch(() => toast.error("Could not load external amount settings"))
+      .finally(() => setExternalConfigLoading(false));
+  }, [user]);
+
   function saveProfile() {
     toast.success("Profile updated successfully");
   }
@@ -214,7 +252,7 @@ export default function SettingsContent() {
     try {
       const token = localStorage.getItem("@cashcollect_web_token");
 
-      const res = await fetch("/api/auth/change-password", {
+      const res = await fetch(`${API_BASE}/auth/change-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -242,6 +280,37 @@ export default function SettingsContent() {
 
   function saveAppearance() {
     toast.success("Preferences saved");
+  }
+
+  async function saveExternalConfig() {
+    if (externalConfig.enabled && !externalConfig.endpoint) {
+      toast.error("Enter an external API endpoint before enabling the source");
+      return;
+    }
+    const token = localStorage.getItem("@cashcollect_web_token");
+    setExternalConfigSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/external/collection-config`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(externalConfig),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error || "Could not save external amount settings");
+        return;
+      }
+      setExternalConfig(data.config);
+      setCredentialConfigured(Boolean(data.credentialConfigured));
+      toast.success("External amount settings saved");
+    } catch {
+      toast.error("Network error: could not save external amount settings");
+    } finally {
+      setExternalConfigSaving(false);
+    }
   }
 
   const role = user?.role ?? "agent";
@@ -314,7 +383,7 @@ export default function SettingsContent() {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar Tabs */}
         <aside className="w-52 shrink-0 border-r border-border p-3 space-y-0.5 overflow-y-auto">
-          {TABS.map(({ key, label, icon: Icon }) => (
+          {TABS.filter((item) => item.key !== "external" || role === "superadmin").map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
@@ -810,6 +879,77 @@ export default function SettingsContent() {
                   Save Preferences
                 </button>
               </div>
+            </>
+          )}
+
+          {tab === "external" && role === "superadmin" && (
+            <>
+              <SectionCard
+                title="External Collection Amounts"
+                description="Configure the read-only API used to show Cash, Coupon, and Credit Card totals. Credentials remain in Replit Secrets."
+              >
+                {externalConfigLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 size={16} className="animate-spin" />
+                    Loading external amount settings…
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <Toggle
+                      label="Use external source for displayed amounts"
+                      checked={externalConfig.enabled}
+                      onChange={(enabled) =>
+                        setExternalConfig({ ...externalConfig, enabled })
+                      }
+                    />
+                    <Field label="Source Label">
+                      <input
+                        value={externalConfig.sourceLabel}
+                        onChange={(e) => setExternalConfig({ ...externalConfig, sourceLabel: e.target.value })}
+                        placeholder="e.g. Retail POS"
+                        className="px-3 py-2 rounded-lg border border-border bg-background text-sm"
+                      />
+                    </Field>
+                    <Field label="External API Endpoint">
+                      <input
+                        type="url"
+                        value={externalConfig.endpoint}
+                        onChange={(e) => setExternalConfig({ ...externalConfig, endpoint: e.target.value })}
+                        placeholder="https://example.com/api/collection-summary"
+                        className="px-3 py-2 rounded-lg border border-border bg-background text-sm"
+                      />
+                    </Field>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Field label="Parlor Code Parameter">
+                        <input value={externalConfig.parlorCodeParameter} onChange={(e) => setExternalConfig({ ...externalConfig, parlorCodeParameter: e.target.value })} className="px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                      </Field>
+                      <Field label="Date Parameter">
+                        <input value={externalConfig.dateParameter} onChange={(e) => setExternalConfig({ ...externalConfig, dateParameter: e.target.value })} className="px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                      </Field>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <Field label="Cash JSON Path">
+                        <input value={externalConfig.cashAmountPath} onChange={(e) => setExternalConfig({ ...externalConfig, cashAmountPath: e.target.value })} placeholder="data.cash" className="px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                      </Field>
+                      <Field label="Coupon JSON Path">
+                        <input value={externalConfig.couponAmountPath} onChange={(e) => setExternalConfig({ ...externalConfig, couponAmountPath: e.target.value })} placeholder="data.coupons" className="px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                      </Field>
+                      <Field label="Card JSON Path">
+                        <input value={externalConfig.ccAmountPath} onChange={(e) => setExternalConfig({ ...externalConfig, ccAmountPath: e.target.value })} placeholder="data.creditCard" className="px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                      </Field>
+                    </div>
+                    <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                      API credential: {credentialConfigured ? "Configured securely" : "Not configured"}. Set <code>EXTERNAL_COLLECTIONS_API_TOKEN</code> in Replit Secrets when the provider requires a bearer token.
+                    </div>
+                    <div className="flex justify-end">
+                      <button onClick={saveExternalConfig} disabled={externalConfigSaving} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60">
+                        {externalConfigSaving && <Loader2 size={14} className="animate-spin" />}
+                        Save External Settings
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </SectionCard>
             </>
           )}
         </div>

@@ -16,7 +16,7 @@ import {
   Loader2,
 } from "lucide-react";
 
-const API_BASE = "/api";
+import { API_BASE } from "@/lib/apiBase";
 
 interface Parlor {
   code: string;
@@ -57,6 +57,7 @@ export default function RouteMasterContent() {
   const [agents, setAgents] = useState<UserLov[]>([]);
   const [supervisors, setSupervisors] = useState<UserLov[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
+  const [routeToDelete, setRouteToDelete] = useState<RouteApi | null>(null);
   const [addParlorOpen, setAddParlorOpen] = useState(false);
   const [newRouteOpen, setNewRouteOpen] = useState(false);
   const [parlorSearch, setParlorSearch] = useState("");
@@ -243,7 +244,10 @@ export default function RouteMasterContent() {
 
   async function handleDeleteRoute(id: number) {
     try {
-      const res = await fetch(`${API_BASE}/routes/${id}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/routes/${id}`, {
+        method: "DELETE",
+        headers: { "X-Route-Delete-Confirmed": "true" },
+      });
       if (res.ok) {
         toast.success("Route deleted");
         await fetchRoutes();
@@ -501,7 +505,7 @@ export default function RouteMasterContent() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteRoute(route.id);
+                      setRouteToDelete(route);
                     }}
                     className="mt-1 text-[11px] text-red-500 hover:text-red-700 transition-colors"
                   >
@@ -899,6 +903,61 @@ export default function RouteMasterContent() {
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
               >
                 Create Route
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Route Confirmation */}
+      {routeToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm"
+          role="presentation"
+        >
+          <div
+            className="bg-card rounded-xl shadow-xl w-full max-w-md border border-border"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-route-title"
+            aria-describedby="delete-route-description"
+          >
+            <div className="px-5 py-4 border-b border-border">
+              <h2
+                id="delete-route-title"
+                className="text-base font-semibold text-foreground"
+              >
+                Delete route?
+              </h2>
+            </div>
+            <div className="px-5 py-4">
+              <p
+                id="delete-route-description"
+                className="text-sm text-muted-foreground"
+              >
+                Delete route{" "}
+                <span className="font-semibold text-foreground">
+                  {routeToDelete.routeCode}
+                </span>
+                ? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+              <button
+                onClick={() => setRouteToDelete(null)}
+                className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted border border-border transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const routeId = routeToDelete.id;
+                  setRouteToDelete(null);
+                  await handleDeleteRoute(routeId);
+                }}
+                className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors"
+              >
+                Delete route
               </button>
             </div>
           </div>
