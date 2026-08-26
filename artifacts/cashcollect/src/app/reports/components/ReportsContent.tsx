@@ -32,6 +32,8 @@ export interface DBCollection {
   routeCode: string;
   agentCode: string;
   agentName: string;
+  supervisorCode?: string;
+  supervisorName?: string;
   collectionDate: string;
   cashAmount: string | number;
   couponAmount: string | number;
