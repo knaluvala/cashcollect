@@ -15,4 +15,6 @@ export function getApiBase(): string {
   return "/api";
 }
 
+// export const API_BASE = getApiBase();
+
 export const API_BASE = getApiBase();
