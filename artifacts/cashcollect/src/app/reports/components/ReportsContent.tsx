@@ -14,7 +14,7 @@ import SummaryReport from "./SummaryReport";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
-const API_BASE = "/api";
+import { API_BASE } from "@/lib/apiBase";
 
 export interface ReportFilters {
   dateFrom: string;

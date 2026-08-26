@@ -21,3 +21,4 @@ export * from "./collections";
 export * from "./users";
 export * from "./parlors";
 export * from "./routes";
+export * from "./externalCollectionConfig";

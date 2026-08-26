@@ -12,7 +12,6 @@ import NotificationsPage from "@/app/notifications/page";
 import SettingsPage from "@/app/settings/page";
 import NotFound from "@/app/not-found";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import DevAssistantPage from "@/pages/DevAssistant";
 
 const queryClient = new QueryClient();
 
@@ -73,9 +72,6 @@ function Router() {
       </Route>
       <Route path="/super-admin/route-master">
         {() => <SuperAdminRoute component={RouteMasterPage} />}
-      </Route>
-      <Route path="/dev-assistant">
-        {() => <SuperAdminRoute component={DevAssistantPage} />}
       </Route>
       <Route path="/user-management">
         {() => <SuperAdminRoute component={UserManagementPage} />}

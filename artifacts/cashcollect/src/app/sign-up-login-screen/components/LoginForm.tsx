@@ -5,85 +5,28 @@ import { useLocation } from "wouter";
 import {
   Eye,
   EyeOff,
-  Copy,
-  Check,
-  IceCream,
-  TrendingUp,
-  Shield,
 } from "lucide-react";
 import AppLogo from "@/components/ui/AppLogo";
-import Icon from "@/components/ui/AppIcon";
 import { useAuth } from "@/context/AuthContext";
-
-type Role = "agent" | "supervisor" | "superadmin";
+import { API_BASE } from "@/lib/apiBase";
 
 interface LoginFormValues {
-  userCode: string;
+  identifier: string;
   password: string;
   remember: boolean;
 }
 
-interface DemoCredential {
-  role: string;
-  userCode: string;
-  password: string;
-  roleKey: Role;
-}
-
-const DEMO_CREDENTIALS: DemoCredential[] = [
-  {
-    role: "Collection Agent",
-    userCode: "AGT-042",
-    password: "Agent@2026",
-    roleKey: "agent",
-  },
-  {
-    role: "Supervisor",
-    userCode: "SUP-012",
-    password: "Super@2026",
-    roleKey: "supervisor",
-  },
-  {
-    role: "Super Admin",
-    userCode: "ADM-001",
-    password: "Admin@2026",
-    roleKey: "superadmin",
-  },
-];
-
-const ROLE_TABS: { key: Role; label: string; icon: React.ElementType }[] = [
-  { key: "agent", label: "Collection Agent", icon: IceCream },
-  { key: "supervisor", label: "Supervisor", icon: TrendingUp },
-  { key: "superadmin", label: "Super Admin", icon: Shield },
-];
-
-const DEMO_NAMES: Record<string, string> = {
-  "rajan.kumar@cashcollect.in": "Rajan Kumar",
-  "meena.sharma@cashcollect.in": "Meena Sharma",
-  "admin@cashcollect.in": "Super Admin",
-};
-
-const DEMO_CODES: Record<
-  string,
-  { id: number; agentCode?: string; supervisorCode?: string }
-> = {
-  "rajan.kumar@cashcollect.in": {
-    id: 2,
-    agentCode: "AGT-042",
-    supervisorCode: "SUP-012",
-  },
-  "meena.sharma@cashcollect.in": { id: 3, supervisorCode: "SUP-012" },
-  "admin@cashcollect.in": { id: 6 },
-};
-
 export default function LoginForm() {
   const [, setLocation] = useLocation();
   const { login: authLogin } = useAuth();
-  const [activeRole, setActiveRole] = useState<Role>("agent");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [copiedField, setCopiedField] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [recoveryToken, setRecoveryToken] = useState("");
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoverySuccess, setRecoverySuccess] = useState<string | null>(null);
+  const [isRecovering, setIsRecovering] = useState(false);
 
   const {
     register,
@@ -91,28 +34,22 @@ export default function LoginForm() {
     setValue,
     formState: { errors },
   } = useForm<LoginFormValues>({
-    defaultValues: { userCode: "", password: "", remember: false },
+    defaultValues: { identifier: "", password: "", remember: false },
   });
 
-  const handleCopy = async (text: string, field: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 1500);
-  };
-
-  const loginWithCredentials = async (userCode: string, password: string) => {
+  const loginWithCredentials = async (identifier: string, password: string) => {
     setIsLoading(true);
     setLoginError(null);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch(`${API_BASE}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userCode, password }),
+        body: JSON.stringify({ identifier, password }),
       });
 
       if (!response.ok) {
-        setLoginError("Invalid user code or password.");
+        setLoginError("Invalid user code, email address, or password.");
         setIsLoading(false);
         return;
       }
@@ -128,16 +65,37 @@ export default function LoginForm() {
     }
   };
 
-  const handleAutofill = (cred: DemoCredential) => {
-    setValue("userCode", cred.userCode);
-    setValue("password", cred.password);
-    setActiveRole(cred.roleKey);
-    setLoginError(null);
-    loginWithCredentials(cred.userCode, cred.password);
+  const onSubmit = async (data: LoginFormValues) => {
+    loginWithCredentials(data.identifier, data.password);
   };
 
-  const onSubmit = async (data: LoginFormValues) => {
-    loginWithCredentials(data.userCode, data.password);
+  const recoverInitialAdmin = async () => {
+    if (!recoveryToken.trim()) {
+      setRecoveryError("Enter the administrator recovery token.");
+      return;
+    }
+
+    setIsRecovering(true);
+    setRecoveryError(null);
+    setRecoverySuccess(null);
+    try {
+      const response = await fetch(`${API_BASE}/auth/recover-initial-admin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recoveryToken }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        setRecoveryError(result.error || "Administrator recovery could not be completed.");
+        return;
+      }
+      setRecoveryToken("");
+      setRecoverySuccess(result.message || "Administrator password reset.");
+    } catch {
+      setRecoveryError("Cannot reach server. Please try again.");
+    } finally {
+      setIsRecovering(false);
+    }
   };
 
   return (
@@ -202,43 +160,8 @@ export default function LoginForm() {
               Sign in
             </h2>
             <p className="text-muted-foreground text-sm">
-              Select your role and enter your credentials
+              Sign in with the user code and password assigned to your account
             </p>
-          </div>
-
-          {/* Role Tabs */}
-          <div className="flex rounded-lg border border-border bg-muted p-1 mb-6 gap-1">
-            {ROLE_TABS.map((tab) => {
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={`role-tab-${tab.key}`}
-                  onClick={() => {
-                    setActiveRole(tab.key);
-                    setLoginError(null);
-                  }}
-                  className={`
-                    flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-md text-xs font-medium
-                    transition-all duration-150
-                    ${
-                      activeRole === tab.key
-                        ? "bg-card text-primary shadow-sm border border-border"
-                        : "text-muted-foreground hover:text-foreground"
-                    }
-                  `}
-                >
-                  <Icon size={13} />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">
-                    {tab.key === "agent"
-                      ? "Agent"
-                      : tab.key === "supervisor"
-                        ? "Supervisor"
-                        : "Admin"}
-                  </span>
-                </button>
-              );
-            })}
           </div>
 
           {/* Form */}
@@ -247,32 +170,31 @@ export default function LoginForm() {
             className="space-y-4"
             noValidate
           >
-            {/* Email */}
             <div>
               <label
-                htmlFor="userCode"
+                htmlFor="identifier"
                 className="block text-sm font-medium text-foreground mb-1.5"
               >
-                User Code
+                User Code or Email Address
               </label>
               <input
-                id="userCode"
+                id="identifier"
                 type="text"
                 autoComplete="username"
-                placeholder="e.g. ADM-001"
+                placeholder="Enter your user code or email address"
                 className={`
                   w-full h-10 px-3 rounded-md border text-sm bg-card
                   focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
                   transition-all duration-150
-                  ${errors.userCode ? "border-red-400 focus:ring-red-400" : "border-input"}
+                  ${errors.identifier ? "border-red-400 focus:ring-red-400" : "border-input"}
                 `}
-                {...register("userCode", {
-                  required: "User code is required",
+                {...register("identifier", {
+                  required: "User code or email address is required",
                 })}
               />
-              {errors.userCode && (
+              {errors.identifier && (
                 <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
-                  {errors.userCode.message}
+                  {errors.identifier.message}
                 </p>
               )}
             </div>
@@ -299,10 +221,6 @@ export default function LoginForm() {
                   `}
                   {...register("password", {
                     required: "Password is required",
-                    minLength: {
-                      value: 6,
-                      message: "Password must be at least 6 characters",
-                    },
                   })}
                 />
                 <button
@@ -333,11 +251,50 @@ export default function LoginForm() {
               </label>
               <button
                 type="button"
+                onClick={() => {
+                  setShowRecovery((visible) => !visible);
+                  setRecoveryError(null);
+                  setRecoverySuccess(null);
+                }}
                 className="text-sm text-primary hover:underline font-medium"
               >
-                Forgot password?
+                Administrator recovery
               </button>
             </div>
+
+            {showRecovery && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2.5">
+                <p className="text-xs leading-relaxed text-amber-900">
+                  Use this only to restore the initial administrator account. Enter the one-time recovery token stored in Replit Secrets.
+                </p>
+                <label htmlFor="recovery-token" className="sr-only">
+                  Administrator recovery token
+                </label>
+                <input
+                  id="recovery-token"
+                  type="password"
+                  autoComplete="off"
+                  value={recoveryToken}
+                  onChange={(event) => setRecoveryToken(event.target.value)}
+                  placeholder="Recovery token"
+                  className="w-full h-9 px-3 rounded-md border border-amber-300 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                />
+                {recoveryError && (
+                  <p className="text-xs text-red-700">{recoveryError}</p>
+                )}
+                {recoverySuccess && (
+                  <p className="text-xs text-emerald-700">{recoverySuccess}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={recoverInitialAdmin}
+                  disabled={isRecovering}
+                  className="h-8 px-3 rounded-md border border-amber-400 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-60"
+                >
+                  {isRecovering ? "Resetting…" : "Reset initial administrator"}
+                </button>
+              </div>
+            )}
 
             {/* Login Error */}
             {loginError && (
@@ -366,71 +323,6 @@ export default function LoginForm() {
               )}
             </button>
           </form>
-
-          {/* Demo Credentials */}
-          <div className="mt-6 rounded-lg border border-border bg-muted/50 overflow-hidden">
-            <div className="px-4 py-2.5 border-b border-border bg-muted">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Demo Accounts — Click to autofill
-              </p>
-            </div>
-            <div className="divide-y divide-border">
-              {DEMO_CREDENTIALS.map((cred) => (
-                <div
-                  key={`demo-${cred.roleKey}`}
-                  className="px-4 py-3 flex items-center gap-3 hover:bg-muted/80 transition-colors cursor-pointer"
-                  onClick={() => handleAutofill(cred)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => e.key === "Enter" && handleAutofill(cred)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-foreground">
-                      {cred.role}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground truncate">
-                      {cred.userCode}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCopy(cred.userCode, `userCode-${cred.roleKey}`);
-                      }}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-border transition-colors"
-                      title="Copy email"
-                    >
-                      {copiedField === `userCode-${cred.roleKey}` ? (
-                        <Check size={12} className="text-emerald-500" />
-                      ) : (
-                        <Copy size={12} />
-                      )}
-                    </button>
-                    <span className="text-[10px] font-mono text-muted-foreground bg-border px-1.5 py-0.5 rounded">
-                      {cred.password}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCopy(cred.password, `pwd-${cred.roleKey}`);
-                      }}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-border transition-colors"
-                      title="Copy password"
-                    >
-                      {copiedField === `pwd-${cred.roleKey}` ? (
-                        <Check size={12} className="text-emerald-500" />
-                      ) : (
-                        <Copy size={12} />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
 
           <p className="mt-4 text-center text-xs text-muted-foreground">
             By signing in you agree to the{" "}

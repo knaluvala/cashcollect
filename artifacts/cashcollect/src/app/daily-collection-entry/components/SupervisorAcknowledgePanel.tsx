@@ -6,7 +6,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 //import { SUPERVISOR_AGENTS, SupervisorPendingItem } from "./types";
 import { SupervisorPendingItem } from "./types";
 
-const API_BASE = "/api";
+import { API_BASE } from "@/lib/apiBase";
 
 interface Props {
   supervisorCode?: string;
