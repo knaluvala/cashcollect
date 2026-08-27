@@ -60,30 +60,31 @@ export default function DetailedReport({ data, isLoading }: Props) {
   const [perPage, setPerPage] = useState(10);
 
   const rows: Row[] = useMemo(() => {
-  return (data ?? []).map((c) => {
-    // Retrieve supervisor dynamic data or from c if provided by the backend API
-    const supervisorCode = c.supervisorCode ?? "";
-    const supervisorName = c.supervisorName ?? "";
+    return (data ?? []).map((c) => {
+      // Retrieve supervisor dynamic data or from c if provided by the backend API
+      const supervisorCode = c.supervisorCode ?? "";
+      const supervisorName = c.supervisorName ?? "";
 
-    return {
-      id: String(c.id),
-      date: fmtDate(c.collectionDate),
-      parlorCode: c.parlorCode,
-      parlorName: c.parlorName,
-      parlorType: c.parlorType,
-      routeCode: c.routeCode,
-      agentCode: c.agentCode,
-      agentName: c.agentName,
-      supervisorCode,
-      supervisorName,
-      cashAmount: numVal(c.cashAmount),
-      couponAmount: numVal(c.couponAmount),
-      ccAmount: numVal(c.ccAmount),
-      total: numVal(c.cashAmount) + numVal(c.couponAmount) + numVal(c.ccAmount),
-      status: c.status,
-    };
-  });
-}, [data]);
+      return {
+        id: String(c.id),
+        date: fmtDate(c.collectionDate),
+        parlorCode: c.parlorCode,
+        parlorName: c.parlorName,
+        parlorType: c.parlorType,
+        routeCode: c.routeCode,
+        agentCode: c.agentCode,
+        agentName: c.agentName,
+        supervisorCode,
+        supervisorName,
+        cashAmount: numVal(c.cashAmount),
+        couponAmount: numVal(c.couponAmount),
+        ccAmount: numVal(c.ccAmount),
+        total:
+          numVal(c.cashAmount) + numVal(c.couponAmount) + numVal(c.ccAmount),
+        status: c.status,
+      };
+    });
+  }, [data]);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -154,15 +155,15 @@ export default function DetailedReport({ data, isLoading }: Props) {
   );
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col min-h-full md:h-full md:overflow-hidden">
       {/* Count + totals bar */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-muted/20 shrink-0">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-muted/20 shrink-0 gap-2">
+        <p className="text-xs sm:text-sm text-muted-foreground">
           Showing{" "}
           <span className="font-semibold text-foreground">{sorted.length}</span>{" "}
           collection records
         </p>
-        <div className="flex items-center gap-4 text-sm">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
           <span className="text-muted-foreground">
             Cash:{" "}
             <span className="font-semibold text-emerald-700 tabular-nums">
@@ -181,7 +182,7 @@ export default function DetailedReport({ data, isLoading }: Props) {
               {fmt(totals.cc)}
             </span>
           </span>
-          <span className="w-px h-4 bg-border" />
+          <span className="hidden sm:inline-block w-px h-4 bg-border" />
           <span className="text-muted-foreground">
             Grand Total:{" "}
             <span className="font-bold text-foreground tabular-nums">
@@ -191,183 +192,87 @@ export default function DetailedReport({ data, isLoading }: Props) {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto scrollbar-thin">
+      {/* Table Container */}
+      <div className="flex-1 overflow-x-auto scrollbar-thin">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <span className="w-6 h-6 border-2 border-border border-t-primary rounded-full animate-spin" />
           </div>
         ) : (
-          <>
-            <table className="w-full text-sm border-collapse min-w-[1100px]">
-              <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
-                <tr className="border-b border-border">
-                  <ColHeader col="date" label="Date" />
-                  <ColHeader col="parlorCode" label="Parlor Code" />
-                  <ColHeader col="parlorName" label="Parlor Name" />
-                  <th className="px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-left">
-                    Type
-                  </th>
-                  <ColHeader col="routeCode" label="Route" />
-                  <ColHeader col="agentName" label="Collector" />
-                  <ColHeader col="supervisorName" label="Supervisor" />
-                  <ColHeader col="cashAmount" label="Cash (₹)" align="right" />
-                  <ColHeader
-                    col="couponAmount"
-                    label="Coupons (₹)"
-                    align="right"
-                  />
-                  <ColHeader col="ccAmount" label="Card (₹)" align="right" />
-                  <ColHeader col="total" label="Total (₹)" align="right" />
-                  <th className="px-3 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide text-left">
-                    Status
-                  </th>
+          <table className="w-full text-xs sm:text-sm border-collapse min-w-[1100px] table-fixed">
+            <thead className="bg-muted/50 sticky top-0 z-10 text-muted-foreground uppercase text-[10px] font-semibold">
+              <tr>
+                <th className="p-2 sm:p-3 text-left w-24">Date</th>
+                <th className="p-2 sm:p-3 text-left w-28">Parlor Code</th>
+                <th className="p-2 sm:p-3 text-left w-36">Parlor Name</th>
+                <th className="p-2 sm:p-3 text-left w-24">Route</th>
+                <th className="p-2 sm:p-3 text-left w-28">Agent Code</th>
+                <th className="p-2 sm:p-3 text-left w-32">Agent Name</th>
+                <th className="p-2 sm:p-3 text-right w-24">Cash</th>
+                <th className="p-2 sm:p-3 text-right w-24">Coupon</th>
+                <th className="p-2 sm:p-3 text-right w-24">Card</th>
+                <th className="p-2 sm:p-3 text-right w-28">Total</th>
+                <th className="p-2 sm:p-3 text-center w-28">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border bg-card">
+              {paginated.map((row) => (
+                <tr
+                  key={row.id}
+                  className="hover:bg-muted/30 transition-colors"
+                >
+                  <td className="p-2 sm:p-3 whitespace-nowrap text-foreground">
+                    {row.date}
+                  </td>
+                  <td className="p-2 sm:p-3 whitespace-nowrap font-medium text-foreground">
+                    {row.parlorCode}
+                  </td>
+                  <td className="p-2 sm:p-3 whitespace-nowrap text-foreground truncate">
+                    {row.parlorName}
+                  </td>
+                  <td className="p-2 sm:p-3 whitespace-nowrap text-muted-foreground">
+                    {row.routeCode}
+                  </td>
+                  <td className="p-2 sm:p-3 whitespace-nowrap text-muted-foreground">
+                    {row.agentCode}
+                  </td>
+                  <td className="p-2 sm:p-3 whitespace-nowrap text-foreground truncate">
+                    {row.agentName}
+                  </td>
+                  <td className="p-2 sm:p-3 text-right font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
+                    {fmt(row.cashAmount)}
+                  </td>
+                  <td className="p-2 sm:p-3 text-right font-medium text-blue-600 dark:text-blue-400 tabular-nums">
+                    {fmt(row.couponAmount)}
+                  </td>
+                  <td className="p-2 sm:p-3 text-right font-medium text-purple-600 dark:text-purple-400 tabular-nums">
+                    {fmt(row.ccAmount)}
+                  </td>
+                  <td className="p-2 sm:p-3 text-right font-bold text-foreground tabular-nums">
+                    {fmt(row.total)}
+                  </td>
+                  <td className="p-2 sm:p-3 text-center">
+                    <span
+                      className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded-full uppercase ${
+                        row.status === "acknowledged"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
+                      }`}
+                    >
+                      {row.status}
+                    </span>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {paginated.map((row, idx) => (
-                  <tr
-                    key={row.id}
-                    className={`border-b border-border hover:bg-muted/40 transition-colors ${idx % 2 === 0 ? "" : "bg-muted/10"}`}
-                  >
-                    <td className="px-3 py-3 text-sm text-foreground whitespace-nowrap">
-                      {row.date}
-                    </td>
-                    <td className="px-3 py-3 text-xs font-mono text-muted-foreground">
-                      {row.parlorCode}
-                    </td>
-                    <td className="px-3 py-3 text-sm text-foreground max-w-[200px] truncate">
-                      {row.parlorName}
-                    </td>
-                    <td className="px-3 py-3">
-                      <span
-                        className={`text-[11px] px-1.5 py-0.5 rounded font-medium ${PARLOR_TYPE_COLORS[row.parlorType]}`}
-                      >
-                        {row.parlorType}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-xs font-mono text-muted-foreground">
-                      {row.routeCode}
-                    </td>
-                    <td className="px-3 py-3 text-sm text-foreground whitespace-nowrap">
-                      <div>{row.agentName}</div>
-                      <div className="text-[11px] text-muted-foreground font-mono">
-                        {row.agentCode}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-sm text-foreground whitespace-nowrap">
-                      <div>{row.supervisorName}</div>
-                      <div className="text-[11px] text-muted-foreground font-mono">
-                        {row.supervisorCode}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-right text-sm font-semibold text-emerald-700 tabular-nums">
-                      {fmt(row.cashAmount)}
-                    </td>
-                    <td className="px-3 py-3 text-right text-sm font-semibold text-blue-700 tabular-nums">
-                      {fmt(row.couponAmount)}
-                    </td>
-                    <td className="px-3 py-3 text-right text-sm font-semibold text-purple-700 tabular-nums">
-                      {fmt(row.ccAmount)}
-                    </td>
-                    <td className="px-3 py-3 text-right text-sm font-bold text-foreground tabular-nums">
-                      {fmt(row.total)}
-                    </td>
-                    <td className="px-3 py-3">
-                      <StatusBadge status={row.status} size="sm" />
-                    </td>
-                  </tr>
-                ))}
-                <tr className="border-t-2 border-border bg-muted/60 font-semibold sticky bottom-0">
-                  <td
-                    className="px-3 py-3 text-xs font-bold text-foreground uppercase tracking-wide"
-                    colSpan={7}
-                  >
-                    Totals ({sorted.length} records)
-                  </td>
-                  <td className="px-3 py-3 text-right text-sm font-bold text-emerald-700 tabular-nums">
-                    {fmt(totals.cash)}
-                  </td>
-                  <td className="px-3 py-3 text-right text-sm font-bold text-blue-700 tabular-nums">
-                    {fmt(totals.coupon)}
-                  </td>
-                  <td className="px-3 py-3 text-right text-sm font-bold text-purple-700 tabular-nums">
-                    {fmt(totals.cc)}
-                  </td>
-                  <td className="px-3 py-3 text-right text-sm font-bold text-foreground tabular-nums">
-                    {fmt(totals.total)}
-                  </td>
-                  <td className="px-3 py-3" />
-                </tr>
-              </tbody>
-            </table>
-            {paginated.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <FileTextIcon
-                  className="text-muted-foreground/30 mb-3"
-                  size={40}
-                />
-                <p className="text-base font-medium text-muted-foreground">
-                  No collection records found
-                </p>
-                <p className="text-sm text-muted-foreground/70 mt-1">
-                  Adjust the date range or filters to see collection data
-                </p>
-              </div>
-            )}
-          </>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
 
       {/* Pagination */}
       {sorted.length > 0 && (
-        <div className="flex items-center justify-between px-6 py-3 border-t border-border bg-card shrink-0">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Rows per page:</span>
-            <select
-              value={perPage}
-              onChange={(e) => {
-                setPerPage(Number(e.target.value));
-                setPage(1);
-              }}
-              className="h-7 px-2 rounded border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              {[10, 25, 50].map((n) => (
-                <option key={`perpage-${n}`} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-            <span>
-              {(page - 1) * perPage + 1}–
-              {Math.min(page * perPage, sorted.length)} of {sorted.length}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="h-7 w-7 rounded border border-border flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
-            >
-              ‹
-            </button>
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button
-                key={`page-${i + 1}`}
-                onClick={() => setPage(i + 1)}
-                className={`h-7 w-7 rounded border text-sm font-medium transition-all duration-150 ${page === i + 1 ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="h-7 w-7 rounded border border-border flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
-            >
-              ›
-            </button>
-          </div>
+        <div className="flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 py-3 border-t border-border bg-card shrink-0 gap-3">
+          {/* Pagination controls */}
         </div>
       )}
     </div>

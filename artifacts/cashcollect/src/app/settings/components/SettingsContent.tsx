@@ -57,7 +57,7 @@ function SectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bg-card border border-border rounded-xl p-5">
+    <div className="bg-card border border-border rounded-xl p-4 sm:p-5 w-full">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {description && (
@@ -77,7 +77,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1.5 w-full">
       <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         {label}
       </label>
@@ -96,11 +96,11 @@ function Toggle({
   label: string;
 }) {
   return (
-    <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
+    <div className="flex items-center justify-between py-2.5 border-b border-border last:border-0 gap-2">
       <span className="text-sm text-foreground">{label}</span>
       <button
         onClick={() => onChange(!checked)}
-        className={`relative w-9 h-5 rounded-full transition-colors duration-200 focus:outline-none ${checked ? "bg-primary" : "bg-muted-foreground/30"}`}
+        className={`relative w-9 h-5 rounded-full shrink-0 transition-colors duration-200 focus:outline-none ${checked ? "bg-primary" : "bg-muted-foreground/30"}`}
       >
         <span
           className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${checked ? "translate-x-4" : ""}`}
@@ -318,16 +318,18 @@ export default function SettingsContent() {
   // Loading state
   if (loading && !dbUser) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+      <div className="flex flex-col min-h-screen md:h-full w-full bg-background">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border shrink-0">
           <div>
-            <h1 className="text-xl font-semibold text-foreground">Settings</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <h1 className="text-lg sm:text-xl font-semibold text-foreground">
+              Settings
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               Manage your account and preferences
             </p>
           </div>
         </div>
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-1 items-center justify-center p-6">
           <div className="flex flex-col items-center gap-3 text-muted-foreground">
             <Loader2 size={28} className="animate-spin" />
             <p className="text-sm">Loading your profile...</p>
@@ -340,16 +342,18 @@ export default function SettingsContent() {
   // Error state
   if (error && !dbUser) {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+      <div className="flex flex-col min-h-screen md:h-full w-full bg-background">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border shrink-0">
           <div>
-            <h1 className="text-xl font-semibold text-foreground">Settings</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <h1 className="text-lg sm:text-xl font-semibold text-foreground">
+              Settings
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               Manage your account and preferences
             </p>
           </div>
         </div>
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-1 items-center justify-center p-6">
           <div className="flex flex-col items-center gap-3 max-w-sm text-center">
             <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
               <AlertCircle size={24} className="text-red-500" />
@@ -369,25 +373,29 @@ export default function SettingsContent() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-screen md:h-full md:overflow-hidden bg-background w-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+      <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border shrink-0">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Settings</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <h1 className="text-lg sm:text-xl font-semibold text-foreground">
+            Settings
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Manage your account and preferences
           </p>
         </div>
       </div>
 
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar Tabs */}
-        <aside className="w-52 shrink-0 border-r border-border p-3 space-y-0.5 overflow-y-auto">
-          {TABS.filter((item) => item.key !== "external" || role === "superadmin").map(({ key, label, icon: Icon }) => (
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden w-full">
+        {/* Navigation Tabs (Horizontal Scroll on Mobile, Vertical Sidebar on Desktop) */}
+        <aside className="w-full md:w-52 shrink-0 border-b md:border-b-0 md:border-r border-border p-2 sm:p-3 flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto scrollbar-none gap-1 bg-card">
+          {TABS.filter(
+            (item) => item.key !== "external" || role === "superadmin",
+          ).map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setTab(key)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap transition-all duration-150 ${
                 tab === key
                   ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -396,7 +404,9 @@ export default function SettingsContent() {
               <Icon
                 size={15}
                 className={
-                  tab === key ? "text-primary" : "text-muted-foreground"
+                  tab === key
+                    ? "text-primary shrink-0"
+                    : "text-muted-foreground shrink-0"
                 }
               />
               {label}
@@ -404,8 +414,8 @@ export default function SettingsContent() {
           ))}
         </aside>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4">
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin p-4 sm:p-6 space-y-4 bg-background w-full">
           {/* Profile */}
           {tab === "profile" && (
             <>
@@ -415,7 +425,7 @@ export default function SettingsContent() {
                 description="Your role and current status in the system"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-lg">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold text-lg shrink-0">
                     {user?.name?.charAt(0).toUpperCase() ?? "?"}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -426,7 +436,7 @@ export default function SettingsContent() {
                       <RoleBadge role={user?.role ?? role} />
                       <StatusBadge status={dbUser?.status ?? "active"} />
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
                       {user?.email ?? "N/A"}
                     </p>
                   </div>
@@ -437,21 +447,21 @@ export default function SettingsContent() {
                 title="Personal Information"
                 description="Update your name and contact details"
               >
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Full Name">
                     <input
                       value={profile.name}
                       onChange={(e) =>
                         setProfile({ ...profile, name: e.target.value })
                       }
-                      className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-full"
                     />
                   </Field>
                   <Field label="Email Address">
                     <input
                       value={profile.email}
                       readOnly
-                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed w-full"
                     />
                   </Field>
                   <Field label="Phone Number">
@@ -460,7 +470,7 @@ export default function SettingsContent() {
                       onChange={(e) =>
                         setProfile({ ...profile, phone: e.target.value })
                       }
-                      className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-full"
                     />
                   </Field>
                 </div>
@@ -472,26 +482,26 @@ export default function SettingsContent() {
                   title="Route & Agent Details"
                   description="Read-only — managed by your administrator"
                 >
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Route Code">
                       <input
                         value={dbUser?.routeCode || "N/A"}
                         readOnly
-                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed w-full"
                       />
                     </Field>
                     <Field label="Agent Code">
                       <input
                         value={user?.agentCode || "N/A"}
                         readOnly
-                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed w-full"
                       />
                     </Field>
                     <Field label="Supervisor Code">
                       <input
                         value={user?.supervisorCode || "N/A"}
                         readOnly
-                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed w-full"
                       />
                     </Field>
                   </div>
@@ -503,19 +513,19 @@ export default function SettingsContent() {
                   title="Supervisor Details"
                   description="Read-only — managed by your administrator"
                 >
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Supervisor Code">
                       <input
                         value={user?.agentCode || "N/A"}
                         readOnly
-                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed w-full"
                       />
                     </Field>
                     <Field label="Assigned Routes">
                       <input
                         value={dbUser?.routeCode || "N/A"}
                         readOnly
-                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed w-full"
                       />
                     </Field>
                   </div>
@@ -527,19 +537,19 @@ export default function SettingsContent() {
                   title="Admin Details"
                   description="Read-only — system administrator privileges"
                 >
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <Field label="Admin Code">
                       <input
                         value={user?.agentCode || "N/A"}
                         readOnly
-                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed w-full"
                       />
                     </Field>
                     <Field label="Access Scope">
                       <input
                         value={dbUser?.routeCode || "ALL"}
                         readOnly
-                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                        className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed w-full"
                       />
                     </Field>
                   </div>
@@ -550,7 +560,7 @@ export default function SettingsContent() {
                 title="Account Metadata"
                 description="Account creation and activity timestamps"
               >
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Account Created">
                     <input
                       value={
@@ -562,7 +572,7 @@ export default function SettingsContent() {
                           : "N/A"
                       }
                       readOnly
-                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed w-full"
                     />
                   </Field>
                   <Field label="Last Login">
@@ -576,23 +586,23 @@ export default function SettingsContent() {
                           : "N/A"
                       }
                       readOnly
-                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed w-full"
                     />
                   </Field>
                   <Field label="User ID">
                     <input
                       value={dbUser?.id ?? user?.id ?? "N/A"}
                       readOnly
-                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                      className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed w-full"
                     />
                   </Field>
                 </div>
               </SectionCard>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-2">
                 <button
                   onClick={saveProfile}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto justify-center"
                 >
                   <Save size={14} />
                   Save Changes
@@ -669,7 +679,7 @@ export default function SettingsContent() {
               >
                 <div className="space-y-3">
                   <Field label="Current Password">
-                    <div className="relative">
+                    <div className="relative w-full">
                       <input
                         type={showCurrent ? "text" : "password"}
                         value={passwords.current}
@@ -691,7 +701,7 @@ export default function SettingsContent() {
                     </div>
                   </Field>
                   <Field label="New Password">
-                    <div className="relative">
+                    <div className="relative w-full">
                       <input
                         type={showNew ? "text" : "password"}
                         value={passwords.newPass}
@@ -726,7 +736,7 @@ export default function SettingsContent() {
                   <div className="flex justify-end pt-1">
                     <button
                       onClick={changePassword}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto justify-center"
                     >
                       <Shield size={14} />
                       Update Password
@@ -756,24 +766,24 @@ export default function SettingsContent() {
                   ].map((s) => (
                     <div
                       key={s.device}
-                      className="flex items-center justify-between py-2 border-b border-border last:border-0"
+                      className="flex items-center justify-between py-2 border-b border-border last:border-0 gap-2"
                     >
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">
                           {s.device}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground truncate">
                           {s.location} · {s.time}
                         </p>
                       </div>
                       {s.active ? (
-                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
                           Active
                         </span>
                       ) : (
                         <button
                           onClick={() => toast.success("Session revoked")}
-                          className="text-xs text-red-600 hover:underline"
+                          className="text-xs text-red-600 hover:underline shrink-0"
                         >
                           Revoke
                         </button>
@@ -792,7 +802,7 @@ export default function SettingsContent() {
                 title="Regional Preferences"
                 description="Language, date format, and currency display"
               >
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Language">
                     <select
                       value={appearance.language}
@@ -802,7 +812,7 @@ export default function SettingsContent() {
                           language: e.target.value,
                         })
                       }
-                      className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-full"
                     >
                       <option value="en">English</option>
                       <option value="hi">Hindi</option>
@@ -818,7 +828,7 @@ export default function SettingsContent() {
                           dateFormat: e.target.value,
                         })
                       }
-                      className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-full"
                     >
                       <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                       <option value="MM/DD/YYYY">MM/DD/YYYY</option>
@@ -834,7 +844,7 @@ export default function SettingsContent() {
                           currency: e.target.value,
                         })
                       }
-                      className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-full"
                     >
                       <option value="INR">INR (₹)</option>
                       <option value="USD">USD ($)</option>
@@ -847,14 +857,14 @@ export default function SettingsContent() {
                 title="Display"
                 description="Application theme and interface options"
               >
-                <div className="flex items-center justify-between py-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between py-2 gap-3">
                   <div>
                     <p className="text-sm font-medium text-foreground">Theme</p>
                     <p className="text-xs text-muted-foreground">
                       Light theme is currently active
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {(["Light", "Dark", "System"] as const).map((t) => (
                       <button
                         key={t}
@@ -870,10 +880,10 @@ export default function SettingsContent() {
                 </div>
               </SectionCard>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-2">
                 <button
                   onClick={saveAppearance}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors w-full sm:w-auto justify-center"
                 >
                   <Save size={14} />
                   Save Preferences
@@ -905,45 +915,114 @@ export default function SettingsContent() {
                     <Field label="Source Label">
                       <input
                         value={externalConfig.sourceLabel}
-                        onChange={(e) => setExternalConfig({ ...externalConfig, sourceLabel: e.target.value })}
+                        onChange={(e) =>
+                          setExternalConfig({
+                            ...externalConfig,
+                            sourceLabel: e.target.value,
+                          })
+                        }
                         placeholder="e.g. Retail POS"
-                        className="px-3 py-2 rounded-lg border border-border bg-background text-sm"
+                        className="px-3 py-2 rounded-lg border border-border bg-background text-sm w-full"
                       />
                     </Field>
                     <Field label="External API Endpoint">
                       <input
                         type="url"
                         value={externalConfig.endpoint}
-                        onChange={(e) => setExternalConfig({ ...externalConfig, endpoint: e.target.value })}
+                        onChange={(e) =>
+                          setExternalConfig({
+                            ...externalConfig,
+                            endpoint: e.target.value,
+                          })
+                        }
                         placeholder="https://example.com/api/collection-summary"
-                        className="px-3 py-2 rounded-lg border border-border bg-background text-sm"
+                        className="px-3 py-2 rounded-lg border border-border bg-background text-sm w-full"
                       />
                     </Field>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <Field label="Parlor Code Parameter">
-                        <input value={externalConfig.parlorCodeParameter} onChange={(e) => setExternalConfig({ ...externalConfig, parlorCodeParameter: e.target.value })} className="px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                        <input
+                          value={externalConfig.parlorCodeParameter}
+                          onChange={(e) =>
+                            setExternalConfig({
+                              ...externalConfig,
+                              parlorCodeParameter: e.target.value,
+                            })
+                          }
+                          className="px-3 py-2 rounded-lg border border-border bg-background text-sm w-full"
+                        />
                       </Field>
                       <Field label="Date Parameter">
-                        <input value={externalConfig.dateParameter} onChange={(e) => setExternalConfig({ ...externalConfig, dateParameter: e.target.value })} className="px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                        <input
+                          value={externalConfig.dateParameter}
+                          onChange={(e) =>
+                            setExternalConfig({
+                              ...externalConfig,
+                              dateParameter: e.target.value,
+                            })
+                          }
+                          className="px-3 py-2 rounded-lg border border-border bg-background text-sm w-full"
+                        />
                       </Field>
                     </div>
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <Field label="Cash JSON Path">
-                        <input value={externalConfig.cashAmountPath} onChange={(e) => setExternalConfig({ ...externalConfig, cashAmountPath: e.target.value })} placeholder="data.cash" className="px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                        <input
+                          value={externalConfig.cashAmountPath}
+                          onChange={(e) =>
+                            setExternalConfig({
+                              ...externalConfig,
+                              cashAmountPath: e.target.value,
+                            })
+                          }
+                          placeholder="data.cash"
+                          className="px-3 py-2 rounded-lg border border-border bg-background text-sm w-full"
+                        />
                       </Field>
                       <Field label="Coupon JSON Path">
-                        <input value={externalConfig.couponAmountPath} onChange={(e) => setExternalConfig({ ...externalConfig, couponAmountPath: e.target.value })} placeholder="data.coupons" className="px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                        <input
+                          value={externalConfig.couponAmountPath}
+                          onChange={(e) =>
+                            setExternalConfig({
+                              ...externalConfig,
+                              couponAmountPath: e.target.value,
+                            })
+                          }
+                          placeholder="data.coupons"
+                          className="px-3 py-2 rounded-lg border border-border bg-background text-sm w-full"
+                        />
                       </Field>
                       <Field label="Card JSON Path">
-                        <input value={externalConfig.ccAmountPath} onChange={(e) => setExternalConfig({ ...externalConfig, ccAmountPath: e.target.value })} placeholder="data.creditCard" className="px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                        <input
+                          value={externalConfig.ccAmountPath}
+                          onChange={(e) =>
+                            setExternalConfig({
+                              ...externalConfig,
+                              ccAmountPath: e.target.value,
+                            })
+                          }
+                          placeholder="data.creditCard"
+                          className="px-3 py-2 rounded-lg border border-border bg-background text-sm w-full"
+                        />
                       </Field>
                     </div>
                     <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                      API credential: {credentialConfigured ? "Configured securely" : "Not configured"}. Set <code>EXTERNAL_COLLECTIONS_API_TOKEN</code> in Replit Secrets when the provider requires a bearer token.
+                      API credential:{" "}
+                      {credentialConfigured
+                        ? "Configured securely"
+                        : "Not configured"}
+                      . Set <code>EXTERNAL_COLLECTIONS_API_TOKEN</code> in
+                      Replit Secrets when the provider requires a bearer token.
                     </div>
-                    <div className="flex justify-end">
-                      <button onClick={saveExternalConfig} disabled={externalConfigSaving} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60">
-                        {externalConfigSaving && <Loader2 size={14} className="animate-spin" />}
+                    <div className="flex justify-end pt-2">
+                      <button
+                        onClick={saveExternalConfig}
+                        disabled={externalConfigSaving}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60 w-full sm:w-auto justify-center"
+                      >
+                        {externalConfigSaving && (
+                          <Loader2 size={14} className="animate-spin" />
+                        )}
                         Save External Settings
                       </button>
                     </div>

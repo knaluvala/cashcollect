@@ -7,6 +7,7 @@ import {
   CheckSquare,
   AlertCircle,
   Plus,
+  ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import ParlorList from "./ParlorList";
@@ -23,7 +24,6 @@ function todayStr() {
 }
 
 function fmtDBDate(s: string) {
-  // "2026-06-03 04:01:26.314281" → "03/06/2026 04:01"
   if (!s) return "";
   const d = new Date(s);
   return d.toLocaleString("en-GB", {
@@ -67,7 +67,6 @@ export default function DailyCollectionContent() {
 
   const role = user?.role ?? "agent";
   const agentCode = user?.agentCode;
-  //  const supervisorCode = user?.supervisorCode;
   const supervisorCode =
     role === "supervisor" ? user?.agentCode : user?.supervisorCode;
 
@@ -77,6 +76,9 @@ export default function DailyCollectionContent() {
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [newEntryOpen, setNewEntryOpen] = useState(false);
+
+  // Mobile navigation state to toggle between list and details view
+  const [mobileShowDetails, setMobileShowDetails] = useState(false);
 
   // Base parlors (static from mockData)
   const [baseParlors, setBaseParlors] = useState<ParlorEntry[]>([]);
@@ -138,7 +140,6 @@ export default function DailyCollectionContent() {
     loadAssignedParlors();
   }, [role, agentCode, supervisorCode]);
 
-  // Show only parlors with DB entries for the selected date
   const [parlors, setParlors] = useState<ParlorEntry[]>([]);
   const [activeParlorId, setActiveParlorId] = useState<string>("");
   const selectedParlor =
@@ -163,7 +164,6 @@ export default function DailyCollectionContent() {
 
       const collMap = new Map(collections.map((c) => [c.parlorCode, c]));
 
-      // Only show parlors that have a DB entry for this date
       const merged: ParlorEntry[] = baseParlors
         .filter((p) => collMap.has(p.parlorCode))
         .map((p) => {
@@ -194,7 +194,6 @@ export default function DailyCollectionContent() {
     }
   };
 
-  // Auto-refresh on date change
   useEffect(() => {
     if (baseParlors.length > 0) {
       refreshData();
@@ -202,14 +201,12 @@ export default function DailyCollectionContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, baseParlors.length]);
 
-  // Reset active parlor when parlors change
   useEffect(() => {
-    if (parlors.length > 0) {
+    if (parlors.length > 0 && !activeParlorId) {
       setActiveParlorId(parlors[0].id);
     }
-  }, [parlors]);
+  }, [parlors, activeParlorId]);
 
-  // ── Header subtitle ────────────────────────────────────────────
   const headerSubtitle = useMemo(() => {
     if (!user) return "";
     if (role === "agent" && agentCode) {
@@ -225,7 +222,6 @@ export default function DailyCollectionContent() {
     return `All Routes · Super Admin View`;
   }, [user, role, agentCode, supervisorCode, parlors, baseParlors]);
 
-  // ── Stats ────────────────────────────────────────────
   const stats = {
     total: parlors.length,
     pending: parlors.filter((p) => p.status === "pending").length,
@@ -234,7 +230,6 @@ export default function DailyCollectionContent() {
     acknowledged: parlors.filter((p) => p.status === "acknowledged").length,
   };
 
-  // ── Handlers ────────────────────────────────────────────
   const handleSaveEntry = (
     id: string,
     data: {
@@ -274,21 +269,25 @@ export default function DailyCollectionContent() {
   const canSeeAgentView = true;
   const canSeeSupervisorView = role !== "agent";
 
+  const handleSelectParlor = (id: string) => {
+    setActiveParlorId(id);
+    setMobileShowDetails(true);
+  };
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-screen md:h-full md:overflow-hidden bg-background w-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-card shrink-0 gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">
+          <h1 className="text-lg sm:text-xl font-semibold text-foreground">
             Daily Collection Entry
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             {headerSubtitle}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* View Mode Toggle */}
+        <div className="flex items-center gap-2 flex-wrap">
           {canSeeAgentView && canSeeSupervisorView && (
             <div className="flex rounded-lg border border-border bg-muted p-0.5 gap-0.5">
               {(["agent", "supervisor"] as ViewMode[]).map((mode) => (
@@ -296,7 +295,7 @@ export default function DailyCollectionContent() {
                   key={`view-${mode}`}
                   onClick={() => setViewMode(mode)}
                   className={`
-                    flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium
+                    flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium
                     transition-all duration-150
                     ${
                       viewMode === mode
@@ -316,21 +315,20 @@ export default function DailyCollectionContent() {
             </div>
           )}
 
-          {/* Date Picker */}
-          <div className="flex items-center gap-2 border border-border rounded-md px-3 py-1.5 bg-card text-sm">
-            <Calendar size={14} className="text-muted-foreground" />
+          <div className="flex items-center gap-2 border border-border rounded-md px-2.5 sm:px-3 py-1.5 bg-card text-xs sm:text-sm">
+            <Calendar size={14} className="text-muted-foreground shrink-0" />
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-sm text-foreground focus:outline-none"
+              className="bg-transparent text-xs sm:text-sm text-foreground focus:outline-none"
             />
           </div>
 
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-md border border-border bg-card text-xs sm:text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 disabled:opacity-50"
           >
             <RefreshCw
               size={14}
@@ -339,11 +337,10 @@ export default function DailyCollectionContent() {
             Refresh
           </button>
 
-          {/* New Entry */}
           {viewMode === "agent" && (
             <button
               onClick={() => setNewEntryOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 active:scale-[0.98] transition-all duration-150"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs sm:text-sm font-medium hover:bg-primary/90 transition-all duration-150"
             >
               <Plus size={14} />
               New Entry
@@ -354,32 +351,32 @@ export default function DailyCollectionContent() {
 
       {/* Stats Bar */}
       {viewMode === "agent" && (
-        <div className="flex items-center gap-4 px-6 py-3 border-b border-border bg-muted/40 shrink-0">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-2.5 border-b border-border bg-muted/40 shrink-0 overflow-x-auto whitespace-nowrap scrollbar-none">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
             <span className="font-semibold text-foreground">{stats.total}</span>
             Parlors Assigned
           </div>
-          <div className="w-px h-4 bg-border" />
-          <div className="flex items-center gap-1.5 text-xs">
+          <div className="w-px h-4 bg-border shrink-0" />
+          <div className="flex items-center gap-1.5 text-xs shrink-0">
             <span className="w-2 h-2 rounded-full bg-amber-400" />
             <span className="font-semibold text-amber-700">
               {stats.pending}
             </span>
             <span className="text-muted-foreground">Pending</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs">
+          <div className="flex items-center gap-1.5 text-xs shrink-0">
             <span className="w-2 h-2 rounded-full bg-blue-400" />
             <span className="font-semibold text-blue-700">{stats.entered}</span>
             <span className="text-muted-foreground">Entered</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs">
+          <div className="flex items-center gap-1.5 text-xs shrink-0">
             <span className="w-2 h-2 rounded-full bg-purple-400" />
             <span className="font-semibold text-purple-700">
               {stats.submitted}
             </span>
             <span className="text-muted-foreground">Submitted</span>
           </div>
-          <div className="flex items-center gap-1.5 text-xs">
+          <div className="flex items-center gap-1.5 text-xs shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
             <span className="font-semibold text-emerald-700">
               {stats.acknowledged}
@@ -389,8 +386,8 @@ export default function DailyCollectionContent() {
 
           {stats.pending > 0 && (
             <>
-              <div className="w-px h-4 bg-border" />
-              <div className="flex items-center gap-1.5 text-xs text-red-600">
+              <div className="w-px h-4 bg-border shrink-0" />
+              <div className="flex items-center gap-1.5 text-xs text-red-600 shrink-0">
                 <AlertCircle size={13} />
                 <span className="font-medium">
                   {stats.pending} parlor{stats.pending > 1 ? "s" : ""} not yet
@@ -414,27 +411,53 @@ export default function DailyCollectionContent() {
         />
       )}
 
-      {/* Main Content */}
+      {/* Main Content Area */}
       {viewMode === "agent" ? (
-        <div className="flex flex-1 overflow-hidden">
-          <ParlorList
-            parlors={parlors}
-            selectedId={activeParlorId}
-            onSelect={setActiveParlorId}
-          />
-          <div className="flex-1 overflow-y-auto scrollbar-thin bg-background">
-            {selectedParlor && (
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden w-full relative">
+          {/* Parlor List - Full width on mobile when details view is hidden */}
+          <div
+            className={`w-full md:w-80 shrink-0 border-r-0 md:border-r border-border bg-card ${
+              mobileShowDetails ? "hidden md:block" : "block"
+            }`}
+          >
+            <ParlorList
+              parlors={parlors}
+              selectedId={activeParlorId}
+              onSelect={handleSelectParlor}
+            />
+          </div>
+
+          {/* Details Form Area - Full width on mobile when details view is active */}
+          <div
+            className={`w-full flex-1 overflow-y-auto bg-background p-4 sm:p-6 ${
+              mobileShowDetails ? "block" : "hidden md:block"
+            }`}
+          >
+            {/* Back Button for mobile */}
+            <button
+              onClick={() => setMobileShowDetails(false)}
+              className="md:hidden flex items-center gap-2 mb-4 text-xs font-medium text-primary hover:underline"
+            >
+              <ArrowLeft size={16} />
+              Back to Parlor List
+            </button>
+
+            {selectedParlor ? (
               <CollectionEntryForm
                 parlor={selectedParlor}
                 date={selectedDate}
                 onSave={handleSaveEntry}
                 onSubmit={handleSubmitEntry}
               />
+            ) : (
+              <div className="p-8 text-center text-xs text-muted-foreground">
+                Select a parlor to view collection details.
+              </div>
             )}
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto scrollbar-thin">
+        <div className="flex-1 overflow-x-auto md:overflow-y-auto p-4 sm:p-6 w-full">
           <SupervisorAcknowledgePanel
             supervisorCode={supervisorCode}
             supervisorName={user?.name}

@@ -371,19 +371,21 @@ export default function ReportsContent() {
   }, [filters]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-screen md:h-full md:overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-card shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-card shrink-0 gap-3">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Reports</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <h1 className="text-lg sm:text-xl font-semibold text-foreground">
+            Reports
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             {headerSubtitle}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setShowFilters((v) => !v)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm font-medium transition-all duration-150 ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs sm:text-sm font-medium transition-all duration-150 ${
               showFilters
                 ? "bg-primary/10 text-primary border-primary/30"
                 : "bg-card text-muted-foreground border-border hover:bg-muted hover:text-foreground"
@@ -400,7 +402,7 @@ export default function ReportsContent() {
           <button
             onClick={fetchData}
             disabled={isRefreshing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-xs sm:text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150 disabled:opacity-50"
           >
             <RefreshCw
               size={14}
@@ -411,7 +413,7 @@ export default function ReportsContent() {
           <button
             onClick={handleExportCsv}
             disabled={isRefreshing || data.length === 0}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-xs sm:text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download size={14} />
             Export CSV
@@ -421,60 +423,58 @@ export default function ReportsContent() {
 
       {/* Filters Panel */}
       {showFilters && (
-        <div className="px-6 py-4 border-b border-border bg-muted/30 shrink-0">
-          <div className="flex flex-wrap items-end gap-4">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
-                Date From
+        <div className="px-4 sm:px-6 py-3 border-b border-border bg-muted/40 shrink-0 z-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
+            {/* From Date */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase">
+                From Date
               </label>
               <input
                 type="date"
                 value={filters.dateFrom}
                 onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
-                className="h-8 px-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-2.5 py-1.5 text-xs sm:text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
-                Date To
+
+            {/* To Date */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase">
+                To Date
               </label>
               <input
                 type="date"
                 value={filters.dateTo}
                 onChange={(e) => handleFilterChange("dateTo", e.target.value)}
-                className="h-8 px-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-2.5 py-1.5 text-xs sm:text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
-            {user?.role !== "agent" && (
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">
-                  Collector
-                </label>
-                <select
-                  value={filters.agentCode}
-                  onChange={(e) =>
-                    handleFilterChange("agentCode", e.target.value)
-                  }
-                  className="h-8 px-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-[160px]"
-                >
-                  <option value="">
-                    {user?.role === "supervisor"
-                      ? "All My Agents"
-                      : "All Collectors"}
+
+            {/* Agent Dropdown */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase">
+                Agent
+              </label>
+              <select
+                value={filters.agentCode}
+                onChange={(e) =>
+                  handleFilterChange("agentCode", e.target.value)
+                }
+                className="w-full px-2.5 py-1.5 text-xs sm:text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="">All Agents</option>
+                {scopedCollectors.map((c) => (
+                  <option key={c.id} value={c.agentCode}>
+                    {c.name} ({c.agentCode})
                   </option>
-                  {scopedCollectors.map((c) => (
-                    <option
-                      key={`filter-collector-${c.agentCode}`}
-                      value={c.agentCode}
-                    >
-                      {c.name} ({c.agentCode})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                ))}
+              </select>
+            </div>
+
+            {/* Parlor Dropdown */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-muted-foreground uppercase">
                 Parlor
               </label>
               <select
@@ -482,49 +482,51 @@ export default function ReportsContent() {
                 onChange={(e) =>
                   handleFilterChange("parlorCode", e.target.value)
                 }
-                className="h-8 px-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-[180px]"
+                className="w-full px-2.5 py-1.5 text-xs sm:text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 <option value="">All Parlors</option>
                 {parlors.map((p) => (
-                  <option
-                    key={`filter-parlor-${p.parlorCode}`}
-                    value={p.parlorCode}
-                  >
+                  <option key={p.id} value={p.parlorCode}>
                     {p.parlorName} ({p.parlorCode})
                   </option>
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">
-                Status
-              </label>
-              <select
-                value={filters.status}
-                onChange={(e) => handleFilterChange("status", e.target.value)}
-                className="h-8 px-2 rounded-md border border-input bg-card text-sm focus:outline-none focus:ring-2 focus:ring-ring min-w-[140px]"
-              >
-                <option value="">All Statuses</option>
-                <option value="entered">Entered</option>
-                <option value="submitted">Submitted</option>
-                <option value="acknowledged">Acknowledged</option>
-              </select>
+
+            {/* Status & Clear Filters Button */}
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-1 flex-1">
+                <label className="text-[11px] font-medium text-muted-foreground uppercase">
+                  Status
+                </label>
+                <select
+                  value={filters.status}
+                  onChange={(e) => handleFilterChange("status", e.target.value)}
+                  className="w-full px-2.5 py-1.5 text-xs sm:text-sm bg-background border border-border rounded-md text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="entered">Entered</option>
+                  <option value="submitted">Submitted</option>
+                  <option value="acknowledged">Acknowledged</option>
+                </select>
+              </div>
+
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={clearFilters}
+                  className="p-2 mt-5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md border border-border transition-colors"
+                  title="Clear filters"
+                >
+                  <X size={16} />
+                </button>
+              )}
             </div>
-            {activeFilterCount > 0 && (
-              <button
-                onClick={clearFilters}
-                className="flex items-center gap-1 h-8 px-3 rounded-md text-xs font-medium text-muted-foreground hover:text-red-600 border border-border hover:border-red-300 hover:bg-red-50 transition-all duration-150"
-              >
-                <X size={12} />
-                Clear filters
-              </button>
-            )}
           </div>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 px-6 pt-4 border-b border-border bg-card shrink-0">
+      <div className="flex items-center gap-1 px-4 sm:px-6 pt-2 sm:pt-4 border-b border-border bg-card shrink-0">
         {[
           {
             key: "detailed" as const,
@@ -538,7 +540,7 @@ export default function ReportsContent() {
             <button
               key={`report-tab-${tab.key}`}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-all duration-150 ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-medium border-b-2 -mb-px transition-all duration-150 ${
                 activeTab === tab.key
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -552,7 +554,7 @@ export default function ReportsContent() {
       </div>
 
       {/* Report Content */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 md:overflow-hidden">
         {activeTab === "detailed" ? (
           <DetailedReport data={data} isLoading={isRefreshing} />
         ) : (
