@@ -14,6 +14,7 @@ import {
   Users,
   Shield,
   Loader2,
+  ArrowLeft,
 } from "lucide-react";
 
 import { API_BASE } from "@/lib/apiBase";
@@ -62,6 +63,7 @@ export default function RouteMasterContent() {
   const [newRouteOpen, setNewRouteOpen] = useState(false);
   const [parlorSearch, setParlorSearch] = useState("");
   const [routeSearch, setRouteSearch] = useState("");
+  const [showMobileDetail, setShowMobileDetail] = useState(false);
   const [newRoute, setNewRoute] = useState({
     routeCode: "",
     description: "",
@@ -223,6 +225,7 @@ export default function RouteMasterContent() {
         const created = await res.json();
         toast.success(`Route ${created.routeCode} created`);
         setSelectedRouteId(created.id);
+        setShowMobileDetail(true);
         setNewRouteOpen(false);
         setNewRoute({
           routeCode: "",
@@ -334,28 +337,28 @@ export default function RouteMasterContent() {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col min-h-screen md:h-full w-full bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-4 border-b border-border gap-3 shrink-0">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">
+          <h1 className="text-lg sm:text-xl font-semibold text-foreground">
             Route Master
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Manage route codes and their assigned parlors
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={downloadTemplate}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-xs sm:text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150"
           >
             <Download size={14} />
             Template
           </button>
           <button
             onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-xs sm:text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150"
           >
             <Upload size={14} />
             Upload
@@ -369,7 +372,7 @@ export default function RouteMasterContent() {
           />
           <button
             onClick={() => setNewRouteOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-all duration-150"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs sm:text-sm font-medium hover:bg-primary/90 transition-all duration-150"
           >
             <Plus size={14} />
             New Route
@@ -378,7 +381,7 @@ export default function RouteMasterContent() {
       </div>
 
       {/* Stats strip */}
-      <div className="flex items-stretch border-b border-border shrink-0">
+      <div className="flex items-stretch border-b border-border shrink-0 overflow-x-auto scrollbar-none">
         {[
           {
             label: "Total Routes",
@@ -421,15 +424,17 @@ export default function RouteMasterContent() {
           return (
             <div
               key={s.label}
-              className={`flex-1 px-5 py-3 border-r border-border last:border-r-0 ${s.bg}`}
+              className={`flex-1 min-w-[130px] sm:min-w-0 px-4 sm:px-5 py-3 border-r border-border last:border-r-0 ${s.bg}`}
             >
               <div className="flex items-center gap-1.5 mb-0.5">
                 {Icon && <Icon size={12} className={s.color} />}
-                <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                   {s.label}
                 </p>
               </div>
-              <p className={`text-xl font-bold tabular-nums ${s.color}`}>
+              <p
+                className={`text-lg sm:text-xl font-bold tabular-nums ${s.color}`}
+              >
                 {s.value}
               </p>
             </div>
@@ -438,14 +443,18 @@ export default function RouteMasterContent() {
       </div>
 
       {/* Split Panel */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden w-full">
         {/* Left: Route List */}
-        <aside className="w-72 shrink-0 border-r border-border flex flex-col overflow-hidden">
+        <aside
+          className={`w-full md:w-72 md:shrink-0 border-b md:border-b-0 md:border-r border-border flex flex-col overflow-hidden ${
+            showMobileDetail ? "hidden md:flex" : "flex"
+          }`}
+        >
           <div className="p-3 border-b border-border">
             <div className="relative">
               <Search
                 size={13}
-                className="absolute left-2.5 top-2 text-muted-foreground"
+                className="absolute left-2.5 top-2.5 text-muted-foreground"
               />
               <input
                 value={routeSearch}
@@ -467,7 +476,10 @@ export default function RouteMasterContent() {
             {filteredRoutes.map((route) => (
               <li key={route.id}>
                 <div
-                  onClick={() => setSelectedRouteId(route.id)}
+                  onClick={() => {
+                    setSelectedRouteId(route.id);
+                    setShowMobileDetail(true);
+                  }}
                   className={`w-full text-left px-4 py-3 transition-colors border-b border-border/60 last:border-0 cursor-pointer ${
                     selectedRouteId === route.id
                       ? "bg-primary/10 border-l-2 border-l-primary"
@@ -523,24 +535,37 @@ export default function RouteMasterContent() {
         </aside>
 
         {/* Right: Route Detail */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div
+          className={`flex-1 flex flex-col overflow-hidden w-full ${
+            !showMobileDetail ? "hidden md:flex" : "flex"
+          }`}
+        >
           {selectedRoute && (
             <>
               {/* Route Info Header */}
-              <div className="px-6 py-4 border-b border-border bg-muted/20 shrink-0">
-                <div className="flex items-start justify-between">
+              <div className="px-4 sm:px-6 py-4 border-b border-border bg-muted/20 shrink-0">
+                <div className="flex items-center mb-2 md:hidden">
+                  <button
+                    onClick={() => setShowMobileDetail(false)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                  >
+                    <ArrowLeft size={14} />
+                    Back to Routes List
+                  </button>
+                </div>
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold font-mono text-primary">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-base sm:text-lg font-bold font-mono text-primary">
                         {selectedRoute.routeCode}
                       </span>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-xs sm:text-sm text-muted-foreground">
                         {selectedRoute.description}
                       </span>
                     </div>
-                    <div className="flex items-center gap-4 mt-1.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-1.5">
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Users size={11} />
+                        <Users size={11} className="shrink-0" />
                         Agent:{" "}
                         <span className="font-medium text-foreground ml-0.5">
                           {selectedRoute.assignedAgent}
@@ -550,7 +575,7 @@ export default function RouteMasterContent() {
                         </span>
                       </span>
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Shield size={11} />
+                        <Shield size={11} className="shrink-0" />
                         Supervisor:{" "}
                         <span className="font-medium text-foreground ml-0.5">
                           {selectedRoute.supervisorName}
@@ -566,7 +591,7 @@ export default function RouteMasterContent() {
                       setParlorSearch("");
                       setAddParlorOpen(true);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-all duration-150"
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs sm:text-sm font-medium hover:bg-primary/90 transition-all duration-150 shrink-0 w-full sm:w-auto"
                   >
                     <Plus size={13} />
                     Add Parlor
@@ -575,9 +600,9 @@ export default function RouteMasterContent() {
               </div>
 
               {/* Parlors Table */}
-              <div className="flex-1 overflow-y-auto scrollbar-thin">
+              <div className="flex-1 overflow-x-auto overflow-y-auto scrollbar-thin w-full">
                 {selectedRoute.parlors.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-48 gap-3">
+                  <div className="flex flex-col items-center justify-center h-48 gap-3 p-4">
                     <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
                       <Store size={18} className="text-muted-foreground" />
                     </div>
@@ -592,22 +617,22 @@ export default function RouteMasterContent() {
                     </button>
                   </div>
                 ) : (
-                  <table className="w-full text-sm">
+                  <table className="w-full min-w-[500px] text-sm">
                     <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm border-b border-border z-10">
                       <tr>
-                        <th className="text-left px-5 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        <th className="text-left px-4 sm:px-5 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           #
                         </th>
-                        <th className="text-left px-5 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        <th className="text-left px-4 sm:px-5 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           Parlor Code
                         </th>
-                        <th className="text-left px-5 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        <th className="text-left px-4 sm:px-5 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           Parlor Name
                         </th>
-                        <th className="text-left px-5 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                        <th className="text-left px-4 sm:px-5 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           Type
                         </th>
-                        <th className="px-5 py-2.5 w-16" />
+                        <th className="px-4 sm:px-5 py-2.5 w-16" />
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -620,30 +645,30 @@ export default function RouteMasterContent() {
                             key={parlor.code}
                             className="hover:bg-muted/30 transition-colors group"
                           >
-                            <td className="px-5 py-3 text-xs text-muted-foreground tabular-nums">
+                            <td className="px-4 sm:px-5 py-3 text-xs text-muted-foreground tabular-nums">
                               {idx + 1}
                             </td>
-                            <td className="px-5 py-3">
+                            <td className="px-4 sm:px-5 py-3">
                               <span className="font-mono text-xs font-semibold text-foreground bg-muted px-2 py-0.5 rounded">
                                 {parlor.code}
                               </span>
                             </td>
-                            <td className="px-5 py-3 text-sm text-foreground">
+                            <td className="px-4 sm:px-5 py-3 text-xs sm:text-sm text-foreground">
                               {parlorInfo?.name || parlor.code}
                             </td>
-                            <td className="px-5 py-3">
+                            <td className="px-4 sm:px-5 py-3">
                               <span
                                 className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${TYPE_COLORS[parlorInfo?.type || "Standalone"]}`}
                               >
                                 {parlorInfo?.type || "Standalone"}
                               </span>
                             </td>
-                            <td className="px-5 py-3">
+                            <td className="px-4 sm:px-5 py-3">
                               <button
                                 onClick={() =>
                                   removeParlorFromRoute(parlor.code)
                                 }
-                                className="opacity-0 group-hover:opacity-100 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
+                                className="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
                               >
                                 <Trash2 size={11} />
                                 Remove
@@ -659,7 +684,7 @@ export default function RouteMasterContent() {
 
               {/* Footer count */}
               {selectedRoute.parlors.length > 0 && (
-                <div className="px-5 py-2.5 border-t border-border bg-muted/20 shrink-0">
+                <div className="px-4 sm:px-5 py-2.5 border-t border-border bg-muted/20 shrink-0">
                   <p className="text-xs text-muted-foreground">
                     <span className="font-semibold text-foreground">
                       {selectedRoute.parlors.length}
@@ -671,7 +696,7 @@ export default function RouteMasterContent() {
             </>
           )}
           {!selectedRoute && !loading && (
-            <div className="flex flex-col items-center justify-center h-full gap-3">
+            <div className="flex flex-col items-center justify-center h-full gap-3 p-4">
               <p className="text-sm text-muted-foreground">No route selected</p>
               <button
                 onClick={() => setNewRouteOpen(true)}
@@ -687,8 +712,8 @@ export default function RouteMasterContent() {
       {/* Add Parlor Modal */}
       {addParlorOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm">
-          <div className="bg-card rounded-xl shadow-xl w-full max-w-md border border-border flex flex-col max-h-[70vh]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-md border border-border flex flex-col max-h-[85vh] sm:max-h-[70vh]">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-border shrink-0">
               <div>
                 <h2 className="text-base font-semibold text-foreground">
                   Add Parlor to {selectedRoute?.routeCode}
@@ -708,7 +733,7 @@ export default function RouteMasterContent() {
               <div className="relative">
                 <Search
                   size={13}
-                  className="absolute left-2.5 top-2 text-muted-foreground"
+                  className="absolute left-2.5 top-2.5 text-muted-foreground"
                 />
                 <input
                   autoFocus
@@ -721,7 +746,7 @@ export default function RouteMasterContent() {
             </div>
             <div className="flex-1 overflow-y-auto scrollbar-thin">
               {parlors.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-2">
+                <div className="flex flex-col items-center justify-center py-10 gap-2 p-4">
                   <p className="text-sm text-muted-foreground">
                     No parlors found in Parlor Master.
                   </p>
@@ -754,18 +779,18 @@ export default function RouteMasterContent() {
                               setAddParlorOpen(false);
                               setParlorSearch("");
                             }}
-                            className={`w-full text-left flex items-center justify-between px-5 py-3 transition-colors ${
+                            className={`w-full text-left flex items-center justify-between px-4 sm:px-5 py-3 transition-colors ${
                               alreadyAssigned
                                 ? "bg-muted/30 cursor-not-allowed opacity-60"
                                 : "hover:bg-muted/40"
                             }`}
                           >
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-mono text-xs font-semibold text-muted-foreground">
                                 {p.code}
                               </span>
                               <span
-                                className={`text-sm ${alreadyAssigned ? "text-muted-foreground" : "text-foreground"}`}
+                                className={`text-xs sm:text-sm ${alreadyAssigned ? "text-muted-foreground" : "text-foreground"}`}
                               >
                                 {p.name}
                               </span>
@@ -776,7 +801,7 @@ export default function RouteMasterContent() {
                               )}
                             </div>
                             <span
-                              className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${TYPE_COLORS[p.type]}`}
+                              className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${TYPE_COLORS[p.type]}`}
                             >
                               {p.type}
                             </span>
@@ -794,8 +819,8 @@ export default function RouteMasterContent() {
       {/* New Route Modal */}
       {newRouteOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm">
-          <div className="bg-card rounded-xl shadow-xl w-full max-w-md border border-border">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-md border border-border max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-4 border-b border-border shrink-0">
               <h2 className="text-base font-semibold text-foreground">
                 Create New Route
               </h2>
@@ -806,7 +831,7 @@ export default function RouteMasterContent() {
                 <X size={18} />
               </button>
             </div>
-            <div className="px-5 py-4 space-y-3">
+            <div className="px-4 sm:px-5 py-4 space-y-3 overflow-y-auto scrollbar-thin flex-1">
               {[
                 {
                   label: "Route Code *",
@@ -832,7 +857,7 @@ export default function RouteMasterContent() {
                       }))
                     }
                     placeholder={placeholder}
-                    className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 w-full"
                   />
                 </div>
               ))}
@@ -853,7 +878,7 @@ export default function RouteMasterContent() {
                       assignedAgent: selected?.name ?? "",
                     }));
                   }}
-                  className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 w-full"
                 >
                   <option value="">Select agent</option>
                   {agents.map((agent) => (
@@ -880,7 +905,7 @@ export default function RouteMasterContent() {
                       supervisorName: selected?.name ?? "",
                     }));
                   }}
-                  className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 w-full"
                 >
                   <option value="">Select supervisor</option>
                   {supervisors.map((supervisor) => (
@@ -891,7 +916,7 @@ export default function RouteMasterContent() {
                 </select>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+            <div className="flex items-center justify-end gap-2 px-4 sm:px-5 py-4 border-t border-border shrink-0">
               <button
                 onClick={() => setNewRouteOpen(false)}
                 className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted border border-border transition-colors"
@@ -922,7 +947,7 @@ export default function RouteMasterContent() {
             aria-labelledby="delete-route-title"
             aria-describedby="delete-route-description"
           >
-            <div className="px-5 py-4 border-b border-border">
+            <div className="px-4 sm:px-5 py-4 border-b border-border">
               <h2
                 id="delete-route-title"
                 className="text-base font-semibold text-foreground"
@@ -930,7 +955,7 @@ export default function RouteMasterContent() {
                 Delete route?
               </h2>
             </div>
-            <div className="px-5 py-4">
+            <div className="px-4 sm:px-5 py-4">
               <p
                 id="delete-route-description"
                 className="text-sm text-muted-foreground"
@@ -942,7 +967,7 @@ export default function RouteMasterContent() {
                 ? This action cannot be undone.
               </p>
             </div>
-            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+            <div className="flex items-center justify-end gap-2 px-4 sm:px-5 py-4 border-t border-border">
               <button
                 onClick={() => setRouteToDelete(null)}
                 className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted border border-border transition-colors"
