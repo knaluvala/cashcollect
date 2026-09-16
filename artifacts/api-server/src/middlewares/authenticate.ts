@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 const jwtSecret = process.env.JWT_SECRET;
 
 if (!jwtSecret) {
-  throw new Error("JWT_SECRET is required. Please add it in Replit Secrets.");
+  throw new Error("JWT_SECRET is required. Please set it in your environment configuration.");
 }
 
 const JWT_SECRET: string = jwtSecret;

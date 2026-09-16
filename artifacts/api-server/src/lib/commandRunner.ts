@@ -7,10 +7,9 @@ pnpm --filter @workspace/cashcollect typecheck
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { WORKSPACE_ROOT } from "./workspaceRoot";
 
 const execFileAsync = promisify(execFile);
-
-const WORKSPACE_ROOT = "/home/runner/workspace";
 
 const ALLOWED_COMMANDS: Record<string, { command: string; args: string[] }> = {
   "api-server build": {

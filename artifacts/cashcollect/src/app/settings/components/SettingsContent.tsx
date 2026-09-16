@@ -896,7 +896,7 @@ export default function SettingsContent() {
             <>
               <SectionCard
                 title="External Collection Amounts"
-                description="Configure the read-only API used to show Cash, Coupon, and Credit Card totals. Credentials remain in Replit Secrets."
+                description="Configure the read-only API used to show Cash, Coupon, and Credit Card totals. Credentials remain in server environment variables."
               >
                 {externalConfigLoading ? (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -1012,7 +1012,7 @@ export default function SettingsContent() {
                         ? "Configured securely"
                         : "Not configured"}
                       . Set <code>EXTERNAL_COLLECTIONS_API_TOKEN</code> in
-                      Replit Secrets when the provider requires a bearer token.
+                      the server environment when the provider requires a bearer token.
                     </div>
                     <div className="flex justify-end pt-2">
                       <button
