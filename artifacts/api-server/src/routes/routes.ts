@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, like, or } from "drizzle-orm";
+import { and, eq, like, or } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   routesTable,
@@ -193,7 +193,10 @@ router.delete("/routes/:routeId/parlors/:parlorCode", async (req, res) => {
   await db
     .delete(routeParlorsTable)
     .where(
-      eq(routeParlorsTable.routeId, routeId)
+      and(
+        eq(routeParlorsTable.routeId, routeId),
+        eq(routeParlorsTable.parlorCode, parlorCode)
+      )
     );
 
   res.json({ success: true });

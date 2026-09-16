@@ -265,7 +265,7 @@ export default function LoginForm() {
             {showRecovery && (
               <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2.5">
                 <p className="text-xs leading-relaxed text-amber-900">
-                  Use this only to restore the initial administrator account. Enter the one-time recovery token stored in Replit Secrets.
+                  Use this only to restore the initial administrator account. Enter the one-time recovery token stored in the server environment.
                 </p>
                 <label htmlFor="recovery-token" className="sr-only">
                   Administrator recovery token

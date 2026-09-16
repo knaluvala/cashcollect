@@ -7,8 +7,7 @@ prevent access outside workspace
 
 import path from "node:path";
 import fs from "node:fs/promises";
-
-const WORKSPACE_ROOT = "/home/runner/workspace";
+import { WORKSPACE_ROOT } from "./workspaceRoot";
 
 function resolveSafePath(inputPath: string): string {
   const resolvedPath = path.resolve(WORKSPACE_ROOT, inputPath);

@@ -18,5 +18,5 @@ done
 
 echo "Starting CashCollect mobile web on 8082..."
 PORT=8082 \
-EXPO_PUBLIC_API_BASE_URL="https://$REPLIT_DEV_DOMAIN:3001" \
+EXPO_PUBLIC_API_BASE_URL="${EXPO_PUBLIC_API_BASE_URL:-http://localhost:3000}" \
 pnpm --filter @workspace/cashcollect-mobile dev
