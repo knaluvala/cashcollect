@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import {
   User,
-  Bell,
   Shield,
   Palette,
   Save,
@@ -19,7 +18,6 @@ import { API_BASE } from "@/lib/apiBase";
 
 type SettingsTab =
   | "profile"
-  | "notifications"
   | "security"
   | "appearance"
   | "external";
@@ -41,7 +39,6 @@ interface DbUser {
 
 const TABS: { key: SettingsTab; label: string; icon: React.ElementType }[] = [
   { key: "profile", label: "Profile", icon: User },
-  { key: "notifications", label: "Notifications", icon: Bell },
   { key: "security", label: "Security", icon: Shield },
   { key: "appearance", label: "Appearance", icon: Palette },
   { key: "external", label: "External Amounts", icon: Database },
@@ -157,14 +154,6 @@ export default function SettingsContent() {
     current: "",
     newPass: "",
     confirm: "",
-  });
-
-  const [notifPrefs, setNotifPrefs] = useState({
-    acknowledgments: true,
-    reminders: true,
-    mismatches: true,
-    weeklyReport: false,
-    parlorUpdates: true,
   });
 
   const [appearance, setAppearance] = useState({
@@ -611,65 +600,6 @@ export default function SettingsContent() {
             </>
           )}
 
-          {/* Notifications */}
-          {tab === "notifications" && (
-            <SectionCard
-              title="Notification Preferences"
-              description="Choose what you want to be notified about"
-            >
-              <Toggle
-                label="Collection acknowledgments"
-                checked={notifPrefs.acknowledgments}
-                onChange={(v) => {
-                  setNotifPrefs({ ...notifPrefs, acknowledgments: v });
-                  toast.success(
-                    v
-                      ? "Acknowledgment alerts enabled"
-                      : "Acknowledgment alerts disabled",
-                  );
-                }}
-              />
-              <Toggle
-                label="Pending collection reminders"
-                checked={notifPrefs.reminders}
-                onChange={(v) => {
-                  setNotifPrefs({ ...notifPrefs, reminders: v });
-                  toast.success(v ? "Reminders enabled" : "Reminders disabled");
-                }}
-              />
-              <Toggle
-                label="Collection mismatch alerts"
-                checked={notifPrefs.mismatches}
-                onChange={(v) => {
-                  setNotifPrefs({ ...notifPrefs, mismatches: v });
-                  toast.success(
-                    v ? "Mismatch alerts enabled" : "Mismatch alerts disabled",
-                  );
-                }}
-              />
-              <Toggle
-                label="Weekly summary reports"
-                checked={notifPrefs.weeklyReport}
-                onChange={(v) => {
-                  setNotifPrefs({ ...notifPrefs, weeklyReport: v });
-                  toast.success(
-                    v ? "Weekly reports enabled" : "Weekly reports disabled",
-                  );
-                }}
-              />
-              <Toggle
-                label="Parlor master updates"
-                checked={notifPrefs.parlorUpdates}
-                onChange={(v) => {
-                  setNotifPrefs({ ...notifPrefs, parlorUpdates: v });
-                  toast.success(
-                    v ? "Parlor updates enabled" : "Parlor updates disabled",
-                  );
-                }}
-              />
-            </SectionCard>
-          )}
-
           {/* Security */}
           {tab === "security" && (
             <>
@@ -767,8 +697,6 @@ export default function SettingsContent() {
                       className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-full"
                     >
                       <option value="en">English</option>
-                      <option value="hi">Hindi</option>
-                      <option value="kn">Kannada</option>
                     </select>
                   </Field>
                   <Field label="Date Format">
