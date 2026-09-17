@@ -8,6 +8,7 @@ import {
 } from "@workspace/db/schema";
 import bcrypt from "bcryptjs";
 import { z } from "zod/v4";
+import { authenticate } from "../middlewares/authenticate";
 
 const router: IRouter = Router();
 
@@ -50,18 +51,17 @@ router.get("/users", async (req, res) => {
   res.json({ users: rows.map(sanitizeUser) });
 });
 
-// GET /api/users/me — get current user by email
-router.get("/users/me", async (req, res) => {
-  const email = req.query.email as string | undefined;
-  if (!email) {
-    res.status(400).json({ error: "Email query parameter is required" });
+// GET /api/users/me — get the authenticated user's own record
+router.get("/users/me", authenticate, async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ error: "Authentication required" });
     return;
   }
 
   const rows = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.email, email));
+    .where(eq(usersTable.id, req.user.id));
 
   if (rows.length === 0) {
     res.status(404).json({ error: "User not found" });
@@ -139,6 +139,28 @@ router.put("/users/:id", async (req, res) => {
   if (rows.length === 0) {
     res.status(404).json({ error: "User not found" });
     return;
+  }
+
+  if (parsed.data.email) {
+    const existingEmail = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, parsed.data.email));
+    if (existingEmail.length > 0 && existingEmail[0].id !== id) {
+      res.status(409).json({ error: "Email already exists" });
+      return;
+    }
+  }
+
+  if (parsed.data.agentCode) {
+    const existingCode = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.agentCode, parsed.data.agentCode));
+    if (existingCode.length > 0 && existingCode[0].id !== id) {
+      res.status(409).json({ error: "User code already exists" });
+      return;
+    }
   }
 
   const updated = await db
