@@ -46,3 +46,8 @@ Thumbs.db
 
 .cache/
 .local/
+
+# Environment variables
+.env
+.env.*
+!.env.example
