@@ -211,7 +211,7 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
   const isReadOnly = parlor.status === 'submitted' || parlor.status === 'acknowledged';
   const canSubmit = parlor.status === 'entered';
 
-  const fmt = (n: number) => '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+  const fmt = (n: number) => 'AED ' + n.toLocaleString('en-AE', { minimumFractionDigits: 2 });
 
   const AmountField = ({
     id, label, helper, valueKey, externalValue, isLoading, source, externalError,
@@ -244,11 +244,11 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
       {/* Agent Input */}
       <div>
         <label htmlFor={id} className="block text-sm font-medium text-foreground mb-1">
-          {label} (₹)
+          {label} (AED)
         </label>
         <p className="text-xs text-muted-foreground mb-1.5">{helper}</p>
         <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₹</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">AED</span>
           <input
             id={id}
             type="number"
@@ -257,7 +257,7 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
             disabled={isReadOnly}
             placeholder="0.00"
             className={`
-              w-full h-10 pl-6 pr-3 rounded-md border text-sm tabular-nums bg-card
+              w-full h-10 pl-12 pr-3 rounded-md border text-sm tabular-nums bg-card
               focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
               disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
               transition-all duration-150

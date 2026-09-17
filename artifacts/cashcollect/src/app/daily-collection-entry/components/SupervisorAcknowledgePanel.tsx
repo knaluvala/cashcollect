@@ -110,7 +110,7 @@ export default function SupervisorAcknowledgePanel({
   }, [fetchItems]);
 
   const fmt = (n: number) =>
-    "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 0 });
+    "AED " + n.toLocaleString("en-AE", { minimumFractionDigits: 0 });
 
   const routeLabel = useMemo(() => {
     const routes = [...new Set(items.map((i) => i.routeCode))].join(", ");

@@ -111,7 +111,7 @@ export default function SummaryReport({ data, isLoading }: Props) {
   };
 
   const fmt = (n: number) =>
-    "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 0 });
+    "AED " + n.toLocaleString("en-AE", { minimumFractionDigits: 0 });
 
   const SortIcon = ({ col }: { col: keyof SummaryRow }) => {
     if (sortKey !== col)

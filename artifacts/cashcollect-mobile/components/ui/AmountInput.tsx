@@ -44,7 +44,7 @@ export function AmountInput({
         ]}
       >
         <Text style={[styles.currency, { color: colors.mutedForeground }]}>
-          ₹
+          AED
         </Text>
         <TextInput
           style={[

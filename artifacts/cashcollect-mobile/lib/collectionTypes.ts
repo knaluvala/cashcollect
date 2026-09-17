@@ -26,6 +26,6 @@ export type ParlorEntry = {
 
 export type SupervisorPendingItem = ParlorEntry;
 
-export function formatINR(value: number) {
-  return `₹${Number(value || 0).toLocaleString("en-IN")}`;
+export function formatAED(value: number) {
+  return `AED ${Number(value || 0).toLocaleString("en-AE")}`;
 }

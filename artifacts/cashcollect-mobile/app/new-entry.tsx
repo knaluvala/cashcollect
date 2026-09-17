@@ -22,7 +22,7 @@ import { addOfflineCollection } from "@/lib/offlineQueue";
 import {
   ParlorEntry,
   CollectionStatus,
-  formatINR,
+  formatAED,
 } from "@/lib/collectionTypes";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { AmountInput } from "@/components/ui/AmountInput";
@@ -388,7 +388,7 @@ export default function NewEntryScreen() {
 
     Alert.alert(
       "Submit to Supervisor",
-      `Submit collection of ${formatINR(total)} for ${selectedParlor.parlorName}? This cannot be edited after submission.`,
+      `Submit collection of ${formatAED(total)} for ${selectedParlor.parlorName}? This cannot be edited after submission.`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -641,7 +641,7 @@ export default function NewEntryScreen() {
                     Total Collection
                   </Text>
                   <Text style={[s.totalAmount, { color: colors.primary }]}>
-                    {formatINR(total)}
+                    {formatAED(total)}
                   </Text>
                 </View>
               )}
@@ -1010,7 +1010,7 @@ function AmountRow({
         ]}
       >
         <Text style={[amtStyles.rupee, { color: colors.mutedForeground }]}>
-          ₹
+          AED
         </Text>
         <TextInput
           style={[

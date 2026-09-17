@@ -57,8 +57,8 @@ type SummaryReportRow = {
   grandTotal: number;
 };
 
-function formatINR(value: number) {
-  return `₹${Number(value || 0).toLocaleString("en-IN")}`;
+function formatAED(value: number) {
+  return `AED ${Number(value || 0).toLocaleString("en-AE")}`;
 }
 
 type ReportTab = "detailed" | "summary";
@@ -557,17 +557,17 @@ export default function ReportsScreen() {
   />
   <KPIStatCard
     label="Cash"
-    value={formatINR(totals.cash)}
+    value={formatAED(totals.cash)}
     valueColor="#065f46"
   />
   <KPIStatCard
     label="Coupons"
-    value={formatINR(totals.coupon)}
+    value={formatAED(totals.coupon)}
     valueColor="#1d4ed8"
   />
   <KPIStatCard
     label="Card"
-    value={formatINR(totals.cc)}
+    value={formatAED(totals.cc)}
     valueColor="#6d28d9"
   />
 </View>
@@ -708,22 +708,22 @@ function DetailedRow({ row, colors }: { row: DetailedReportRow; colors: any }) {
       <View style={[detailStyles.amounts, { borderTopColor: colors.border }]}>
         <AmountBox
           label="Cash"
-          value={formatINR(row.cashAmount)}
+          value={formatAED(row.cashAmount)}
           color="#065f46"
         />
         <AmountBox
           label="Coupons"
-          value={formatINR(row.couponAmount)}
+          value={formatAED(row.couponAmount)}
           color="#1d4ed8"
         />
         <AmountBox
           label="Card"
-          value={formatINR(row.ccAmount)}
+          value={formatAED(row.ccAmount)}
           color="#6d28d9"
         />
         <AmountBox
           label="Total"
-          value={formatINR(row.total)}
+          value={formatAED(row.total)}
           color={colors.foreground}
           bold
         />
@@ -799,7 +799,7 @@ function SummaryRow({ row, colors }: { row: SummaryReportRow; colors: any }) {
         </View>
         <View style={{ alignItems: "flex-end" }}>
           <Text style={[summaryStyles.grandTotal, { color: colors.primary }]}>
-            {formatINR(row.grandTotal)}
+            {formatAED(row.grandTotal)}
           </Text>
           <Text
             style={[
@@ -815,17 +815,17 @@ function SummaryRow({ row, colors }: { row: SummaryReportRow; colors: any }) {
       <View style={[summaryStyles.amounts, { borderTopColor: colors.border }]}>
         <SummaryAmount
           label="Cash"
-          value={formatINR(row.totalCash)}
+          value={formatAED(row.totalCash)}
           color="#065f46"
         />
         <SummaryAmount
           label="Coupons"
-          value={formatINR(row.totalCoupon)}
+          value={formatAED(row.totalCoupon)}
           color="#1d4ed8"
         />
         <SummaryAmount
           label="Card"
-          value={formatINR(row.totalCC)}
+          value={formatAED(row.totalCC)}
           color="#6d28d9"
         />
       </View>

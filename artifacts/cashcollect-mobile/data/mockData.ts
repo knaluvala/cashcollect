@@ -606,6 +606,6 @@ export const DEMO_ACCOUNTS = [
   },
 ];
 
-export function formatINR(amount: number): string {
-  return "₹" + amount.toLocaleString("en-IN");
+export function formatAED(amount: number): string {
+  return "AED " + amount.toLocaleString("en-AE");
 }

@@ -36,8 +36,8 @@ function numVal(value: unknown) {
   return Number.isNaN(n) ? 0 : n;
 }
 
-function formatINR(value: number) {
-  return `₹${Number(value || 0).toLocaleString("en-IN")}`;
+function formatAED(value: number) {
+  return `AED ${Number(value || 0).toLocaleString("en-AE")}`;
 }
 
 export default function DashboardScreen() {
@@ -223,22 +223,22 @@ export default function DashboardScreen() {
             </Text>
             <AmountRow
               label="Cash"
-              value={formatINR(totals.cash)}
+              value={formatAED(totals.cash)}
               colors={colors}
             />
             <AmountRow
               label="Coupons"
-              value={formatINR(totals.coupon)}
+              value={formatAED(totals.coupon)}
               colors={colors}
             />
             <AmountRow
               label="Card"
-              value={formatINR(totals.card)}
+              value={formatAED(totals.card)}
               colors={colors}
             />
             <AmountRow
               label="Total"
-              value={formatINR(totals.grandTotal)}
+              value={formatAED(totals.grandTotal)}
               colors={colors}
               bold
             />
@@ -344,7 +344,7 @@ export default function DashboardScreen() {
                   <Text
                     style={[styles.recentAmount, { color: colors.foreground }]}
                   >
-                    {formatINR(
+                    {formatAED(
                       item.cashAmount + item.couponAmount + item.ccAmount,
                     )}
                   </Text>

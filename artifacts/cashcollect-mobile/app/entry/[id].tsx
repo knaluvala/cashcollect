@@ -17,7 +17,7 @@ import { useColors } from "@/hooks/useColors";
 import {
   ParlorEntry,
   CollectionStatus,
-  formatINR,
+  formatAED,
 } from "@/lib/collectionTypes";
 import { apiFetch } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
@@ -298,7 +298,7 @@ export default function CollectionEntryScreen() {
         </View>
 
         <AmountField
-          label="Cash Amount (₹)"
+          label="Cash Amount (AED)"
           hint="Physical currency collected"
           value={cash}
           onChange={setCash}
@@ -306,7 +306,7 @@ export default function CollectionEntryScreen() {
           colors={colors}
         />
         <AmountField
-          label="Coupon Amount (₹)"
+          label="Coupon Amount (AED)"
           hint="Physical coupons redeemed"
           value={coupon}
           onChange={setCoupon}
@@ -314,7 +314,7 @@ export default function CollectionEntryScreen() {
           colors={colors}
         />
         <AmountField
-          label="Credit Card Total (₹)"
+          label="Credit Card Total (AED)"
           hint="POS / card transaction total"
           value={cc}
           onChange={setCC}
@@ -328,7 +328,7 @@ export default function CollectionEntryScreen() {
             Total Collection
           </Text>
           <Text style={[styles.totalAmount, { color: colors.primary }]}>
-            {formatINR(total)}
+            {formatAED(total)}
           </Text>
         </View>
       </View>
@@ -431,7 +431,7 @@ function AmountField({
         ]}
       >
         <Text style={[styles.rupeeSymbol, { color: colors.mutedForeground }]}>
-          ₹
+          AED
         </Text>
         <TextInput
           style={[styles.amountInput, { color: colors.foreground }]}

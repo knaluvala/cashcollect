@@ -27,8 +27,8 @@ export default function ParlorList({
   const totalCC = parlors.reduce((s, p) => s + (p.ccAmount ?? 0), 0);
 
   const fmt = (n: number) =>
-    "₹" +
-    n.toLocaleString("en-IN", {
+    "AED " +
+    n.toLocaleString("en-AE", {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     });
@@ -117,15 +117,15 @@ export default function ParlorList({
                 {hasData && (
                   <div className="flex items-center gap-2 mt-1.5 ml-5">
                     <span className="text-[11px] text-emerald-700 font-semibold tabular-nums">
-                      ₹{(parlor.cashAmount ?? 0).toLocaleString("en-IN")}
+                      AED {(parlor.cashAmount ?? 0).toLocaleString("en-AE")}
                     </span>
                     <span className="text-[10px] text-muted-foreground">+</span>
                     <span className="text-[11px] text-blue-700 font-semibold tabular-nums">
-                      ₹{(parlor.couponAmount ?? 0).toLocaleString("en-IN")}
+                      AED {(parlor.couponAmount ?? 0).toLocaleString("en-AE")}
                     </span>
                     <span className="text-[10px] text-muted-foreground">+</span>
                     <span className="text-[11px] text-purple-700 font-semibold tabular-nums">
-                      ₹{(parlor.ccAmount ?? 0).toLocaleString("en-IN")}
+                      AED {(parlor.ccAmount ?? 0).toLocaleString("en-AE")}
                     </span>
                   </div>
                 )}
