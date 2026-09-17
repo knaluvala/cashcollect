@@ -170,7 +170,7 @@ export default function SettingsContent() {
   const [appearance, setAppearance] = useState({
     language: "en",
     dateFormat: "DD/MM/YYYY",
-    currency: "INR",
+    currency: "USD",
   });
   const [externalConfig, setExternalConfig] = useState({
     enabled: false,
@@ -798,8 +798,9 @@ export default function SettingsContent() {
                       }
                       className="px-3 py-2 rounded-lg border border-border bg-background text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 w-full"
                     >
-                      <option value="INR">INR (₹)</option>
                       <option value="USD">USD ($)</option>
+                      <option value="SAR">SAR (ر.س)</option>
+                      <option value="AED">AED (د.إ)</option>
                     </select>
                   </Field>
                 </div>
