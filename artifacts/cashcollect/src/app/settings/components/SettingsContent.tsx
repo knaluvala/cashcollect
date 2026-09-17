@@ -744,54 +744,6 @@ export default function SettingsContent() {
                   </div>
                 </div>
               </SectionCard>
-
-              <SectionCard
-                title="Active Sessions"
-                description="Devices currently signed in to your account"
-              >
-                <div className="space-y-3">
-                  {[
-                    {
-                      device: "Chrome on Windows",
-                      location: "Bengaluru, IN",
-                      time: "Now — Current session",
-                      active: true,
-                    },
-                    {
-                      device: "CashCollect Mobile (Android)",
-                      location: "Bengaluru, IN",
-                      time: "2 hours ago",
-                      active: false,
-                    },
-                  ].map((s) => (
-                    <div
-                      key={s.device}
-                      className="flex items-center justify-between py-2 border-b border-border last:border-0 gap-2"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {s.device}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          {s.location} · {s.time}
-                        </p>
-                      </div>
-                      {s.active ? (
-                        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
-                          Active
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => toast.success("Session revoked")}
-                          className="text-xs text-red-600 hover:underline shrink-0"
-                        >
-                          Revoke
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </SectionCard>
             </>
           )}
 
