@@ -23,7 +23,7 @@ interface CustomTooltipProps {
 function CustomTooltip({ active, payload, label }: CustomTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
   const fmt = (n: number) =>
-    '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 0 });
+    'AED ' + n.toLocaleString('en-AE', { minimumFractionDigits: 0 });
 
   return (
     <div className="bg-card border border-border rounded-lg shadow-lg px-3 py-2.5 text-sm min-w-[180px]">
@@ -94,8 +94,8 @@ export default function SummaryBarChart({ data }: Props) {
           tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
           axisLine={false}
           tickLine={false}
-          tickFormatter={(v) => '₹' + (v / 1000).toFixed(0) + 'k'}
-          width={48}
+          tickFormatter={(v) => 'AED ' + (v / 1000).toFixed(0) + 'k'}
+          width={64}
         />
         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--muted)', opacity: 0.5 }} />
         <Legend

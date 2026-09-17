@@ -22,7 +22,7 @@ import {
   ParlorEntry,
   SupervisorPendingItem,
   CollectionStatus,
-  formatINR,
+  formatAED,
 } from "@/lib/collectionTypes";
 import { AppCard } from "@/components/ui/AppCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -466,7 +466,7 @@ function TotalChip({
           fontFamily: "DMSans_700Bold",
         }}
       >
-        {formatINR(amount)}
+        {formatAED(amount)}
       </Text>
       <Text
         style={{
@@ -534,23 +534,23 @@ function ParlorItem({
       {parlor.cashAmount !== null && (
         <View style={[styles.parlorAmounts, { borderTopColor: colors.border }]}>
           <AmountChip
-            label="₹"
-            value={formatINR(parlor.cashAmount ?? 0)}
+            label="AED"
+            value={formatAED(parlor.cashAmount ?? 0)}
             color="#065f46"
           />
           <AmountChip
             label="+"
-            value={formatINR(parlor.couponAmount ?? 0)}
+            value={formatAED(parlor.couponAmount ?? 0)}
             color="#1d4ed8"
           />
           <AmountChip
             label="+"
-            value={formatINR(parlor.ccAmount ?? 0)}
+            value={formatAED(parlor.ccAmount ?? 0)}
             color="#6d28d9"
           />
           <View style={{ flex: 1 }} />
           <Text style={[styles.totalAmount, { color: colors.primary }]}>
-            {formatINR(total)}
+            {formatAED(total)}
           </Text>
         </View>
       )}
@@ -642,22 +642,22 @@ function SupervisorItem({
       <View style={[styles.supAmounts, { borderTopColor: colors.border }]}>
         <SupAmount
           label="Cash"
-          value={formatINR(item.cashAmount)}
+          value={formatAED(item.cashAmount)}
           color="#065f46"
         />
         <SupAmount
           label="Coupons"
-          value={formatINR(item.couponAmount)}
+          value={formatAED(item.couponAmount)}
           color="#1d4ed8"
         />
         <SupAmount
           label="Card"
-          value={formatINR(item.ccAmount)}
+          value={formatAED(item.ccAmount)}
           color="#6d28d9"
         />
         <SupAmount
           label="Total"
-          value={formatINR(item.cashAmount + item.couponAmount + item.ccAmount)}
+          value={formatAED(item.cashAmount + item.couponAmount + item.ccAmount)}
           color={colors.foreground}
           bold
         />

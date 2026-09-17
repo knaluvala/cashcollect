@@ -35,7 +35,7 @@ const MOCK_NOTIFICATIONS: Notification[] = [
     id: 'n3',
     type: 'alert',
     title: 'Collection Mismatch Flagged',
-    body: 'Cash amount for Forum Value Mall (PRL-007) differs from expected by ₹450. Supervisor review required.',
+    body: 'Cash amount for Forum Value Mall (PRL-007) differs from expected by AED 450. Supervisor review required.',
     time: '5 hours ago',
     read: false,
     parlor: 'Forum Value Mall',

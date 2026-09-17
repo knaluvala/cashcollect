@@ -118,7 +118,7 @@ export default function NewEntryModal({
   const total = cashVal + couponVal + ccVal;
 
   const fmt = (n: number) =>
-    "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: 2 });
+    "AED " + n.toLocaleString("en-AE", { minimumFractionDigits: 2 });
 
   const filtered = parlors.filter((p) => {
     const q = search.toLowerCase();
@@ -543,11 +543,11 @@ export default function NewEntryModal({
                       {/* Agent Input */}
                       <div>
                         <label className="block text-xs font-medium text-foreground mb-1">
-                          Cash (₹)
+                          Cash (AED)
                         </label>
                         <div className="relative">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
-                            ₹
+                            AED
                           </span>
                           <input
                             type="number"
@@ -556,7 +556,7 @@ export default function NewEntryModal({
                             disabled={isReadOnly}
                             placeholder="0.00"
                             className={`
-                              w-full h-9 pl-5 pr-2 rounded-md border text-sm tabular-nums bg-card
+                              w-full h-9 pl-10 pr-2 rounded-md border text-sm tabular-nums bg-card
                               focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
                               disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
                               ${errors.cashAmount ? "border-red-400" : "border-input"}
@@ -601,11 +601,11 @@ export default function NewEntryModal({
                       {/* Agent Input */}
                       <div>
                         <label className="block text-xs font-medium text-foreground mb-1">
-                          Coupons (₹)
+                          Coupons (AED)
                         </label>
                         <div className="relative">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
-                            ₹
+                            AED
                           </span>
                           <input
                             type="number"
@@ -614,7 +614,7 @@ export default function NewEntryModal({
                             disabled={isReadOnly}
                             placeholder="0.00"
                             className={`
-                              w-full h-9 pl-5 pr-2 rounded-md border text-sm tabular-nums bg-card
+                              w-full h-9 pl-10 pr-2 rounded-md border text-sm tabular-nums bg-card
                               focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
                               disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
                               ${errors.couponAmount ? "border-red-400" : "border-input"}
@@ -659,11 +659,11 @@ export default function NewEntryModal({
                       {/* Agent Input */}
                       <div>
                         <label className="block text-xs font-medium text-foreground mb-1">
-                          Credit Card (₹)
+                          Credit Card (AED)
                         </label>
                         <div className="relative">
                           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
-                            ₹
+                            AED
                           </span>
                           <input
                             type="number"
@@ -672,7 +672,7 @@ export default function NewEntryModal({
                             disabled={isReadOnly}
                             placeholder="0.00"
                             className={`
-                              w-full h-9 pl-5 pr-2 rounded-md border text-sm tabular-nums bg-card
+                              w-full h-9 pl-10 pr-2 rounded-md border text-sm tabular-nums bg-card
                               focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
                               disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
                               ${errors.ccAmount ? "border-red-400" : "border-input"}
