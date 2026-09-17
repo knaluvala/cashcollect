@@ -22,11 +22,7 @@ export default function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [showRecovery, setShowRecovery] = useState(false);
-  const [recoveryToken, setRecoveryToken] = useState("");
-  const [recoveryError, setRecoveryError] = useState<string | null>(null);
-  const [recoverySuccess, setRecoverySuccess] = useState<string | null>(null);
-  const [isRecovering, setIsRecovering] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   const {
     register,
@@ -67,35 +63,6 @@ export default function LoginForm() {
 
   const onSubmit = async (data: LoginFormValues) => {
     loginWithCredentials(data.identifier, data.password);
-  };
-
-  const recoverInitialAdmin = async () => {
-    if (!recoveryToken.trim()) {
-      setRecoveryError("Enter the administrator recovery token.");
-      return;
-    }
-
-    setIsRecovering(true);
-    setRecoveryError(null);
-    setRecoverySuccess(null);
-    try {
-      const response = await fetch(`${API_BASE}/auth/recover-initial-admin`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recoveryToken }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        setRecoveryError(result.error || "Administrator recovery could not be completed.");
-        return;
-      }
-      setRecoveryToken("");
-      setRecoverySuccess(result.message || "Administrator password reset.");
-    } catch {
-      setRecoveryError("Cannot reach server. Please try again.");
-    } finally {
-      setIsRecovering(false);
-    }
   };
 
   return (
@@ -251,48 +218,18 @@ export default function LoginForm() {
               </label>
               <button
                 type="button"
-                onClick={() => {
-                  setShowRecovery((visible) => !visible);
-                  setRecoveryError(null);
-                  setRecoverySuccess(null);
-                }}
+                onClick={() => setShowForgotPassword((visible) => !visible)}
                 className="text-sm text-primary hover:underline font-medium"
               >
-                Administrator recovery
+                Forgot password?
               </button>
             </div>
 
-            {showRecovery && (
-              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 space-y-2.5">
-                <p className="text-xs leading-relaxed text-amber-900">
-                  Use this only to restore the initial administrator account. Enter the one-time recovery token stored in the server environment.
+            {showForgotPassword && (
+              <div className="rounded-md border border-border bg-muted/50 p-3">
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Contact your administrator or supervisor to reset your password from User Management.
                 </p>
-                <label htmlFor="recovery-token" className="sr-only">
-                  Administrator recovery token
-                </label>
-                <input
-                  id="recovery-token"
-                  type="password"
-                  autoComplete="off"
-                  value={recoveryToken}
-                  onChange={(event) => setRecoveryToken(event.target.value)}
-                  placeholder="Recovery token"
-                  className="w-full h-9 px-3 rounded-md border border-amber-300 bg-background text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-                />
-                {recoveryError && (
-                  <p className="text-xs text-red-700">{recoveryError}</p>
-                )}
-                {recoverySuccess && (
-                  <p className="text-xs text-emerald-700">{recoverySuccess}</p>
-                )}
-                <button
-                  type="button"
-                  onClick={recoverInitialAdmin}
-                  disabled={isRecovering}
-                  className="h-8 px-3 rounded-md border border-amber-400 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-60"
-                >
-                  {isRecovering ? "Resetting…" : "Reset initial administrator"}
-                </button>
               </div>
             )}
 
