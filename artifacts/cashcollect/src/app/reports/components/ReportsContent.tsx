@@ -98,7 +98,7 @@ function downloadCsv(filename: string, rows: (string | number)[][]) {
 }
 
 export default function ReportsContent() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [activeTab, setActiveTab] = useState<"detailed" | "summary">(
     "detailed",
   );
@@ -114,32 +114,21 @@ export default function ReportsContent() {
   const [data, setData] = useState<DBCollection[]>([]);
   const [collectors, setCollectors] = useState<UserLov[]>([]);
   const [parlors, setParlors] = useState<ParlorLov[]>([]);
-
-  /*  const scopeAgentCodes = useMemo<string[] | null>(() => {
-    if (!user || user.role === "superadmin") return null;
-    if (user.role === "agent" && user.agentCode) return [user.agentCode];
-    if (user.role === "supervisor" && user.supervisorCode) {
-      const sup = user.supervisorCode;
-      return COLLECTORS.filter(
-        (c) => getAgentSupervisor(c.code).code === sup,
-      ).map((c) => c.code);
-    }
-    return null;
-  }, [user]);
-
-  // const scopedCollectors = useMemo(() => {
-  //   if (!scopeAgentCodes) return COLLECTORS;
-  //   return COLLECTORS.filter((c) => scopeAgentCodes.includes(c.code));
-  // }, [scopeAgentCodes]); 
-  */
+  const [supervisorAgentCodes, setSupervisorAgentCodes] = useState<
+    string[] | null
+  >(null);
 
   const scopedCollectors = useMemo(() => {
     if (!user || user.role === "superadmin") return collectors;
     if (user.role === "agent" && user.agentCode) {
       return collectors.filter((c) => c.agentCode === user.agentCode);
     }
+    if (user.role === "supervisor") {
+      if (!supervisorAgentCodes) return [];
+      return collectors.filter((c) => supervisorAgentCodes.includes(c.agentCode));
+    }
     return collectors;
-  }, [user, collectors]);
+  }, [user, collectors, supervisorAgentCodes]);
 
   const headerSubtitle = useMemo(() => {
     if (!user || user.role === "superadmin")
@@ -189,6 +178,25 @@ export default function ReportsContent() {
       setParlors(parlorsData.parlors || []);
     } catch {
       toast.error("Failed to load report filters");
+    }
+  };
+
+  const fetchSupervisorAgentCodes = async () => {
+    if (!user || user.role !== "supervisor" || !user.agentCode) return;
+    try {
+      const res = await fetch(`${API_BASE}/routes`);
+      const data = await res.json();
+      const routesData: { supervisorCode?: string; agentCode?: string }[] =
+        data.routes || [];
+      setSupervisorAgentCodes(
+        routesData
+          .filter((r) => r.supervisorCode === user.agentCode)
+          .map((r) => r.agentCode)
+          .filter((code): code is string => Boolean(code)),
+      );
+    } catch {
+      setSupervisorAgentCodes([]);
+      toast.error("Failed to load assigned agents");
     }
   };
 
@@ -347,6 +355,7 @@ export default function ReportsContent() {
       if (filters.status) params.set("status", filters.status);
       const res = await fetch(
         `${API_BASE}/collections/reports?${params.toString()}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const result = await res.json();
@@ -362,7 +371,9 @@ export default function ReportsContent() {
 
   useEffect(() => {
     fetchLovData();
-  }, []);
+    fetchSupervisorAgentCodes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   // Fetch on filter change and initial load
   useEffect(() => {
