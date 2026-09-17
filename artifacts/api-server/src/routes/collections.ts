@@ -189,19 +189,68 @@ router.put("/collections/:id", async (req, res) => {
   res.json(updated[0]);
 });
 
+// Resolves which agentCodes the authenticated user is allowed to see.
+// Returns null for unrestricted access (superadmin), or an array of allowed
+// agentCodes (possibly empty) for agent/supervisor.
+async function resolveAllowedAgentCodes(
+  user: { role: string; agentCode: string },
+): Promise<string[] | null> {
+  const role =
+    user.role.trim().toLowerCase() === "admin"
+      ? "superadmin"
+      : user.role.trim().toLowerCase();
+
+  if (role === "superadmin") {
+    return null;
+  }
+
+  if (role === "supervisor") {
+    const supervisorRoutes = await db
+      .select()
+      .from(routesTable)
+      .where(eq(routesTable.supervisorCode, user.agentCode));
+    return supervisorRoutes.map((r) => r.agentCode).filter(Boolean);
+  }
+
+  // agent (and any other/unknown role) can only see their own collections
+  return [user.agentCode];
+}
+
 // GET /api/collections/list — all collections for a date (+ optional agent)
-router.get("/collections/list", async (req, res) => {
+router.get("/collections/list", authenticate, async (req, res) => {
   const date = req.query.date as string;
-  const agentCode = req.query.agentCode as string | undefined;
+  const requestedAgentCode = req.query.agentCode as string | undefined;
 
   if (!date) {
     res.status(400).json({ error: "date is required" });
     return;
   }
 
+  if (!req.user) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  const allowedAgentCodes = await resolveAllowedAgentCodes(req.user);
+
+  if (allowedAgentCodes !== null) {
+    if (requestedAgentCode && !allowedAgentCodes.includes(requestedAgentCode)) {
+      res.status(403).json({ error: "You do not have access to this agent's collections" });
+      return;
+    }
+    if (allowedAgentCodes.length === 0) {
+      res.json({ collections: [] });
+      return;
+    }
+  }
+
   const conditions = [eq(collectionsTable.collectionDate, date)];
-  if (agentCode) {
-    conditions.push(eq(collectionsTable.agentCode, agentCode));
+  if (requestedAgentCode) {
+    conditions.push(eq(collectionsTable.agentCode, requestedAgentCode));
+  } else if (allowedAgentCodes !== null) {
+    conditions.push(
+      or(...allowedAgentCodes.map((code) => eq(collectionsTable.agentCode, code)))!,
+    );
   }
 
   const rows = await db
@@ -213,34 +262,52 @@ router.get("/collections/list", async (req, res) => {
 });
 
 // GET /api/collections/reports — collections within a date range
-router.get("/collections/reports", async (req, res) => {
+router.get("/collections/reports", authenticate, async (req, res) => {
   const dateFrom = req.query.dateFrom as string;
   const dateTo = req.query.dateTo as string;
-  const agentCode = req.query.agentCode as string | undefined;
+  const requestedAgentCode = req.query.agentCode as string | undefined;
   const parlorCode = req.query.parlorCode as string | undefined;
   const status = req.query.status as string | undefined;
-  const supervisorCode = req.query.supervisorCode as string | undefined;
 
   if (!dateFrom || !dateTo) {
     res.status(400).json({ error: "dateFrom and dateTo are required" });
     return;
   }
 
+  if (!req.user) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+
+  const allowedAgentCodes = await resolveAllowedAgentCodes(req.user);
+
+  if (allowedAgentCodes !== null) {
+    if (requestedAgentCode && !allowedAgentCodes.includes(requestedAgentCode)) {
+      res.status(403).json({ error: "You do not have access to this agent's reports" });
+      return;
+    }
+    if (allowedAgentCodes.length === 0) {
+      res.json({ collections: [] });
+      return;
+    }
+  }
+
   const conditions = [
     gte(collectionsTable.collectionDate, dateFrom),
     lte(collectionsTable.collectionDate, dateTo),
   ];
-  if (agentCode) {
-    conditions.push(eq(collectionsTable.agentCode, agentCode));
+  if (requestedAgentCode) {
+    conditions.push(eq(collectionsTable.agentCode, requestedAgentCode));
+  } else if (allowedAgentCodes !== null) {
+    conditions.push(
+      or(...allowedAgentCodes.map((code) => eq(collectionsTable.agentCode, code)))!,
+    );
   }
   if (parlorCode) {
     conditions.push(eq(collectionsTable.parlorCode, parlorCode));
   }
   if (status) {
     conditions.push(eq(collectionsTable.status, status));
-  }
-  if (supervisorCode) {
-    conditions.push(eq(collectionsTable.status, "submitted"));
   }
 
   const rows = await db
@@ -668,43 +735,53 @@ router.post("/collections/:id/submit", async (req, res) => {
   res.json(updated[0]);
 });
 
-// GET /api/collections/supervisor?date=YYYY-MM-DD&supervisorCode=SUP-012
-router.get("/collections/supervisor", async (req, res) => {
-  const date = req.query.date as string;
-  const supervisorCode = req.query.supervisorCode as string;
+// GET /api/collections/supervisor?date=YYYY-MM-DD — collections for the
+// authenticated supervisor's assigned agents
+router.get(
+  "/collections/supervisor",
+  authenticate,
+  requireRole("supervisor", "superadmin"),
+  async (req, res) => {
+    const date = req.query.date as string;
 
-  if (!date || !supervisorCode) {
-    res.status(400).json({ error: "date and supervisorCode are required" });
-    return;
-  }
+    if (!date) {
+      res.status(400).json({ error: "date is required" });
+      return;
+    }
 
-  const supervisorRoutes = await db
-    .select()
-    .from(routesTable)
-    .where(eq(routesTable.supervisorCode, supervisorCode));
+    if (!req.user) {
+      res.status(401).json({ error: "Authentication required" });
+      return;
+    }
 
-  const agentCodes = supervisorRoutes.map((r) => r.agentCode).filter(Boolean);
+    const supervisorRoutes = await db
+      .select()
+      .from(routesTable)
+      .where(eq(routesTable.supervisorCode, req.user.agentCode));
 
-  if (agentCodes.length === 0) {
-    res.json({ collections: [] });
-    return;
-  }
+    const agentCodes = supervisorRoutes.map((r) => r.agentCode).filter(Boolean);
 
-  const rows = await db
-    .select()
-    .from(collectionsTable)
-    .where(
-      and(
-        eq(collectionsTable.collectionDate, date),
-        or(...agentCodes.map((code) => eq(collectionsTable.agentCode, code))),
-        or(
-          eq(collectionsTable.status, "submitted"),
-          eq(collectionsTable.status, "acknowledged"),
+    if (agentCodes.length === 0) {
+      res.json({ collections: [] });
+      return;
+    }
+
+    const rows = await db
+      .select()
+      .from(collectionsTable)
+      .where(
+        and(
+          eq(collectionsTable.collectionDate, date),
+          or(...agentCodes.map((code) => eq(collectionsTable.agentCode, code))),
+          or(
+            eq(collectionsTable.status, "submitted"),
+            eq(collectionsTable.status, "acknowledged"),
+          ),
         ),
-      ),
-    );
+      );
 
-  res.json({ collections: rows });
-});
+    res.json({ collections: rows });
+  },
+);
 
 export default router;
