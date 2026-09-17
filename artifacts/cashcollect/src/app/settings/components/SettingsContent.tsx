@@ -176,16 +176,17 @@ export default function SettingsContent() {
   const [credentialConfigured, setCredentialConfigured] = useState(false);
 
   async function fetchUser() {
-    if (!user?.email) {
+    const token = localStorage.getItem("@cashcollect_web_token");
+    if (!token) {
       setError("No authenticated user found. Please log in again.");
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `${API_BASE}/users/me?email=${encodeURIComponent(user.email)}`,
-      );
+      const res = await fetch(`${API_BASE}/users/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Failed to load user profile");
@@ -204,7 +205,7 @@ export default function SettingsContent() {
   useEffect(() => {
     fetchUser();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.email]);
+  }, [user?.id]);
 
   useEffect(() => {
     if (user?.role !== "superadmin" || !user) return;
@@ -420,13 +421,13 @@ export default function SettingsContent() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <h4 className="text-sm font-semibold text-foreground">
-                        {user?.name ?? "User"}
+                        {dbUser?.name ?? user?.name ?? "User"}
                       </h4>
                       <RoleBadge role={user?.role ?? role} />
                       <StatusBadge status={dbUser?.status ?? "active"} />
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                      {user?.email ?? "N/A"}
+                      {dbUser?.email ?? user?.email ?? "N/A"}
                     </p>
                   </div>
                 </div>

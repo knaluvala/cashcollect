@@ -32,9 +32,7 @@ export const insertUserSchema = createInsertSchema(usersTable, {
   profilePhoto: z.string().max(500).default(""),
 }).omit({ id: true, createdAt: true, updatedAt: true, lastLogin: true });
 
-export const updateUserSchema = insertUserSchema.partial().omit({
-  email: true,
-});
+export const updateUserSchema = insertUserSchema.partial();
 
 export type User = typeof usersTable.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;

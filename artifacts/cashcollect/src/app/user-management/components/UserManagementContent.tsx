@@ -208,13 +208,9 @@ export default function UserManagementContent() {
           return;
         }
         setUsers((prev) =>
-          prev.map((u) =>
-            u.id === editingUser.id
-              ? { ...u, ...form, updatedAt: result.updatedAt }
-              : u,
-          ),
+          prev.map((u) => (u.id === editingUser.id ? { ...u, ...result } : u)),
         );
-        toast.success(`Updated ${form.name}`);
+        toast.success(`Updated ${result.name}`);
       } catch {
         toast.error("Network error: could not update user");
         setIsSaving(false);
