@@ -63,7 +63,7 @@ interface DBCollection {
 }
 
 export default function DailyCollectionContent() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
 
   const role = user?.role ?? "agent";
   const agentCode = user?.agentCode;
@@ -155,6 +155,7 @@ export default function DailyCollectionContent() {
       }
       const res = await fetch(
         `${API_BASE}/collections/list?${params.toString()}`,
+        { headers: token ? { Authorization: `Bearer ${token}` } : {} },
       );
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
@@ -164,24 +165,25 @@ export default function DailyCollectionContent() {
 
       const collMap = new Map(collections.map((c) => [c.parlorCode, c]));
 
-      const merged: ParlorEntry[] = baseParlors
-        .filter((p) => collMap.has(p.parlorCode))
-        .map((p) => {
-          const c = collMap.get(p.parlorCode)!;
-          return {
-            ...p,
-            status: c.status,
-            cashAmount: numVal(c.cashAmount),
-            couponAmount: numVal(c.couponAmount),
-            ccAmount: numVal(c.ccAmount),
-            notes: c.notes,
-            submittedAt: c.submittedAt ? fmtDBDate(c.submittedAt) : null,
-            acknowledgedAt: c.acknowledgedAt
-              ? fmtDBDate(c.acknowledgedAt)
-              : null,
-            acknowledgedBy: c.acknowledgedBy,
-          };
-        });
+      const merged: ParlorEntry[] = baseParlors.map((p) => {
+        const c = collMap.get(p.parlorCode);
+        if (!c) {
+          return { ...p, status: "pending" as CollectionStatus };
+        }
+        return {
+          ...p,
+          status: c.status,
+          cashAmount: numVal(c.cashAmount),
+          couponAmount: numVal(c.couponAmount),
+          ccAmount: numVal(c.ccAmount),
+          notes: c.notes,
+          submittedAt: c.submittedAt ? fmtDBDate(c.submittedAt) : null,
+          acknowledgedAt: c.acknowledgedAt
+            ? fmtDBDate(c.acknowledgedAt)
+            : null,
+          acknowledgedBy: c.acknowledgedBy,
+        };
+      });
       setParlors(merged);
       toast.success(
         `Refreshed ${collections.length} collections for ${selectedDate}`,

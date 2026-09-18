@@ -7,6 +7,7 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import { SupervisorPendingItem } from "./types";
 
 import { API_BASE } from "@/lib/apiBase";
+import { useAuth } from "@/context/AuthContext";
 
 interface Props {
   supervisorCode?: string;
@@ -58,6 +59,7 @@ export default function SupervisorAcknowledgePanel({
   selectedDate,
   onCreateNew,
 }: Props) {
+  const { token } = useAuth();
   const [items, setItems] = useState<SupervisorPendingItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [acknowledging, setAcknowledging] = useState<string | null>(null);
@@ -65,13 +67,10 @@ export default function SupervisorAcknowledgePanel({
   const fetchItems = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams();
       const date = selectedDate ?? new Date().toISOString().split("T")[0];
-      //params.set("dateFrom", date);
-      //params.set("dateTo", date);
-      const res = await fetch(
-        `${API_BASE}/collections/supervisor?date=${date}&supervisorCode=${supervisorCode}`,
-      );
+      const res = await fetch(`${API_BASE}/collections/supervisor?date=${date}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const result = await res.json();
       const collections: DBCollection[] = result.collections ?? [];
@@ -103,7 +102,7 @@ export default function SupervisorAcknowledgePanel({
     } finally {
       setIsLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, token]);
 
   useEffect(() => {
     fetchItems();
