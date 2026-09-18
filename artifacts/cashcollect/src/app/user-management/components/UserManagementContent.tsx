@@ -26,7 +26,7 @@ import * as XLSX from "@e965/xlsx";
 
 import { API_BASE } from "@/lib/apiBase";
 
-type UserRole = "agent" | "supervisor";
+type UserRole = "agent" | "supervisor" | "superadmin";
 type UserStatus = "active" | "inactive";
 
 interface AppUser {
@@ -668,13 +668,19 @@ export default function UserManagementContent() {
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
-                        u.role === "supervisor"
-                          ? "bg-purple-100 text-purple-700"
-                          : "bg-blue-100 text-blue-700"
+                        u.role === "superadmin"
+                          ? "bg-amber-100 text-amber-700"
+                          : u.role === "supervisor"
+                            ? "bg-purple-100 text-purple-700"
+                            : "bg-blue-100 text-blue-700"
                       }`}
                     >
                       <Shield size={10} />
-                      {u.role === "supervisor" ? "Supervisor" : "Agent"}
+                      {u.role === "superadmin"
+                        ? "Super Admin"
+                        : u.role === "supervisor"
+                          ? "Supervisor"
+                          : "Agent"}
                     </span>
                   </td>
                   {/* Route */}
