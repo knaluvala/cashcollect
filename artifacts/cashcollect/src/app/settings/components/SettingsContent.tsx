@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTheme } from "next-themes";
 import { useAuth } from "@/context/AuthContext";
 import { API_BASE } from "@/lib/apiBase";
 
@@ -114,6 +115,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function SettingsContent() {
   const { user } = useAuth();
+  const { theme, setTheme, resolvedTheme } = useTheme();
   const [tab, setTab] = useState<SettingsTab>("profile");
 
   const [dbUser, setDbUser] = useState<DbUser | null>(null);
@@ -652,19 +654,29 @@ export default function SettingsContent() {
                   <div>
                     <p className="text-sm font-medium text-foreground">Theme</p>
                     <p className="text-xs text-muted-foreground">
-                      Light theme is currently active
+                      {theme === "system"
+                        ? `Following system setting (currently ${resolvedTheme === "dark" ? "dark" : "light"})`
+                        : `${resolvedTheme === "dark" ? "Dark" : "Light"} theme is currently active`}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {(["Light", "Dark", "System"] as const).map((t) => (
+                    {(
+                      [
+                        { key: "light", label: "Light" },
+                        { key: "dark", label: "Dark" },
+                        { key: "system", label: "System" },
+                      ] as const
+                    ).map(({ key, label }) => (
                       <button
-                        key={t}
-                        className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${t === "Light" ? "bg-card border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"}`}
-                        onClick={() =>
-                          t !== "Light" && toast.info("Dark mode coming soon")
-                        }
+                        key={key}
+                        className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all ${
+                          theme === key
+                            ? "bg-card border-primary text-primary"
+                            : "border-border text-muted-foreground hover:text-foreground hover:bg-muted"
+                        }`}
+                        onClick={() => setTheme(key)}
                       >
-                        {t}
+                        {label}
                       </button>
                     ))}
                   </div>

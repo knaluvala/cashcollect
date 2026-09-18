@@ -224,19 +224,19 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
   }) => (
     <div className="space-y-3">
       {/* External System Value */}
-      <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2">
+      <div className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-2">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-500">External System</span>
-          <Database size={12} className="text-slate-400" />
+          <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">External System</span>
+          <Database size={12} className="text-muted-foreground" />
         </div>
         {isLoading ? (
-          <div className="h-6 bg-slate-200 rounded animate-pulse" />
+          <div className="h-6 bg-muted rounded animate-pulse" />
         ) : externalError ? (
-          <p className="text-xs text-amber-700 leading-snug">{externalError}</p>
+          <p className="text-xs text-amber-600 dark:text-amber-400 leading-snug">{externalError}</p>
         ) : (
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-slate-700">{fmt(externalValue)}</span>
-            <span className="text-[10px] text-slate-400">{source ?? "External source"}</span>
+            <span className="text-sm font-semibold text-foreground">{fmt(externalValue)}</span>
+            <span className="text-[10px] text-muted-foreground">{source ?? "External source"}</span>
           </div>
         )}
       </div>
