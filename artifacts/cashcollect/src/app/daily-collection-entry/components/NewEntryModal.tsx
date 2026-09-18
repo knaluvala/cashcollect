@@ -520,21 +520,21 @@ export default function NewEntryModal({
                     {/* Cash */}
                     <div className="space-y-2">
                       {/* External System Value */}
-                      <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5">
+                      <div className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-1.5">
                         <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
                             External System
                           </span>
-                          <Database size={10} className="text-slate-400" />
+                          <Database size={10} className="text-muted-foreground" />
                         </div>
                         {isLoadingExternal ? (
-                          <div className="h-5 bg-slate-200 rounded animate-pulse" />
+                          <div className="h-5 bg-muted rounded animate-pulse" />
                         ) : (
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-700">
+                            <span className="text-xs font-semibold text-foreground">
                               {fmt(externalData?.cashAmount ?? 0)}
                             </span>
-                            <span className="text-[9px] text-slate-400">
+                            <span className="text-[9px] text-muted-foreground">
                               {externalData?.source ?? "External source"}
                             </span>
                           </div>
@@ -578,21 +578,21 @@ export default function NewEntryModal({
                     {/* Coupons */}
                     <div className="space-y-2">
                       {/* External System Value */}
-                      <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5">
+                      <div className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-1.5">
                         <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
                             External System
                           </span>
-                          <Database size={10} className="text-slate-400" />
+                          <Database size={10} className="text-muted-foreground" />
                         </div>
                         {isLoadingExternal ? (
-                          <div className="h-5 bg-slate-200 rounded animate-pulse" />
+                          <div className="h-5 bg-muted rounded animate-pulse" />
                         ) : (
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-700">
+                            <span className="text-xs font-semibold text-foreground">
                               {fmt(externalData?.couponAmount ?? 0)}
                             </span>
-                            <span className="text-[9px] text-slate-400">
+                            <span className="text-[9px] text-muted-foreground">
                               {externalData?.source ?? "External source"}
                             </span>
                           </div>
@@ -636,21 +636,21 @@ export default function NewEntryModal({
                     {/* Credit Card */}
                     <div className="space-y-2">
                       {/* External System Value */}
-                      <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1.5">
+                      <div className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-1.5">
                         <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+                          <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
                             External System
                           </span>
-                          <Database size={10} className="text-slate-400" />
+                          <Database size={10} className="text-muted-foreground" />
                         </div>
                         {isLoadingExternal ? (
-                          <div className="h-5 bg-slate-200 rounded animate-pulse" />
+                          <div className="h-5 bg-muted rounded animate-pulse" />
                         ) : (
                           <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-slate-700">
+                            <span className="text-xs font-semibold text-foreground">
                               {fmt(externalData?.ccAmount ?? 0)}
                             </span>
-                            <span className="text-[9px] text-slate-400">
+                            <span className="text-[9px] text-muted-foreground">
                               {externalData?.source ?? "External source"}
                             </span>
                           </div>

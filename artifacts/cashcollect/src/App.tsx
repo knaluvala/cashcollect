@@ -1,6 +1,7 @@
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
+import { ThemeProvider, useTheme } from "next-themes";
 
 import LoginPage from "@/app/sign-up-login-screen/page";
 import DailyCollectionPage from "@/app/daily-collection-entry/page";
@@ -82,16 +83,36 @@ function Router() {
   );
 }
 
+/** Keeps the sonner Toaster's own theme in sync with the app theme */
+function ThemedToaster() {
+  const { resolvedTheme } = useTheme();
+  return (
+    <Toaster
+      position="bottom-right"
+      richColors
+      closeButton
+      theme={resolvedTheme === "dark" ? "dark" : "light"}
+    />
+  );
+}
+
 function App() {
   return (
-    <AuthProvider>
-      <QueryClientProvider client={queryClient}>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster position="bottom-right" richColors closeButton />
-      </QueryClientProvider>
-    </AuthProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      storageKey="cashcollect-theme"
+    >
+      <AuthProvider>
+        <QueryClientProvider client={queryClient}>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <ThemedToaster />
+        </QueryClientProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

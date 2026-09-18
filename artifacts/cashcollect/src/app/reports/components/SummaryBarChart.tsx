@@ -81,23 +81,23 @@ export default function SummaryBarChart({ data }: Props) {
         </defs>
         <CartesianGrid
           strokeDasharray="3 3"
-          stroke="var(--border)"
+          stroke="hsl(var(--border))"
           vertical={false}
         />
         <XAxis
           dataKey="name"
-          tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+          tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
           axisLine={false}
           tickLine={false}
           tickFormatter={(v) => 'AED ' + (v / 1000).toFixed(0) + 'k'}
           width={64}
         />
-        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--muted)', opacity: 0.5 }} />
+        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.5 }} />
         <Legend
           wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
           iconType="square"

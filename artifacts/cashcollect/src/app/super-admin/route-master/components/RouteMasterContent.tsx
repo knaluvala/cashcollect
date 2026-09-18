@@ -416,8 +416,8 @@ export default function RouteMasterContent() {
                 !routes.some((r) => r.parlors.some((rp) => rp.code === p.code)),
             ).length,
             icon: null,
-            color: "text-amber-600",
-            bg: "bg-amber-50",
+            color: "text-amber-600 dark:text-amber-400",
+            bg: "bg-amber-500/10",
           },
         ].map((s) => {
           const Icon = s.icon;
