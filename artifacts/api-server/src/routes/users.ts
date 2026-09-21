@@ -1,4 +1,4 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { eq, like, or } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
@@ -8,7 +8,7 @@ import {
 } from "@workspace/db/schema";
 import bcrypt from "bcryptjs";
 import { z } from "zod/v4";
-import { authenticate } from "../middlewares/authenticate";
+import { authenticate, requireRole } from "../middlewares/authenticate";
 
 const router: IRouter = Router();
 
@@ -25,8 +25,28 @@ function sanitizeUser(user: typeof usersTable.$inferSelect) {
   return safeUser;
 }
 
+function parseIdParam(value: string | string[] | undefined): number {
+  return typeof value === "string" ? parseInt(value, 10) : NaN;
+}
+
+// Allows creating the very first user (the initial superadmin) without
+// authentication, since no token can exist yet on a fresh install. Once at
+// least one user exists, this endpoint requires an authenticated superadmin.
+async function requireSuperadminUnlessBootstrap(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  const existing = await db.select({ id: usersTable.id }).from(usersTable).limit(1);
+  if (existing.length === 0) {
+    next();
+    return;
+  }
+  authenticate(req, res, () => requireRole("superadmin")(req, res, next));
+}
+
 // GET /api/users — list all users with optional search
-router.get("/users", async (req, res) => {
+router.get("/users", authenticate, async (req, res) => {
   const search = (req.query.search as string | undefined) ?? "";
 
   let rows;
@@ -79,7 +99,7 @@ router.get("/users/me", authenticate, async (req, res) => {
 });
 
 // POST /api/users — create a new user
-router.post("/users", async (req, res) => {
+router.post("/users", requireSuperadminUnlessBootstrap, async (req, res) => {
   const body = req.body;
   const parsed = createUserSchema.safeParse(body);
   if (!parsed.success) {
@@ -120,8 +140,8 @@ router.post("/users", async (req, res) => {
 });
 
 // PUT /api/users/:id — update existing user
-router.put("/users/:id", async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+router.put("/users/:id", authenticate, requireRole("superadmin"), async (req, res) => {
+  const id = parseIdParam(req.params.id);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;
@@ -174,8 +194,8 @@ router.put("/users/:id", async (req, res) => {
 });
 
 // POST /api/users/:id/reset-password — super admin resets user password
-router.post("/users/:id/reset-password", async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+router.post("/users/:id/reset-password", authenticate, requireRole("superadmin"), async (req, res) => {
+  const id = parseIdParam(req.params.id);
 
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -219,7 +239,7 @@ router.post("/users/:id/reset-password", async (req, res) => {
 });
 
 // DELETE /api/users/:id — delete a user
-router.delete("/users/:id", async (req, res) => {
+router.delete("/users/:id", authenticate, requireRole("superadmin"), async (req, res) => {
   if (req.get("X-User-Delete-Confirmed") !== "true") {
     res.status(428).json({
       error: "User deletion requires explicit confirmation.",
@@ -227,7 +247,7 @@ router.delete("/users/:id", async (req, res) => {
     return;
   }
 
-  const id = parseInt(req.params.id, 10);
+  const id = parseIdParam(req.params.id);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;

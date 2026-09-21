@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { API_BASE } from "@/lib/apiBase";
+import { useAuth } from "@/context/AuthContext";
 
 interface Parlor {
   code: string;
@@ -53,6 +54,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export default function RouteMasterContent() {
+  const { token } = useAuth();
   const [routes, setRoutes] = useState<RouteApi[]>([]);
   const [parlors, setParlors] = useState<Parlor[]>([]);
   const [agents, setAgents] = useState<UserLov[]>([]);
@@ -111,7 +113,9 @@ export default function RouteMasterContent() {
 
   const fetchUsersForLov = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/users`);
+      const res = await fetch(`${API_BASE}/users`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await res.json();
       const users: UserLov[] = data.users || [];
 
@@ -124,7 +128,7 @@ export default function RouteMasterContent() {
     } catch {
       toast.error("Failed to load users for route assignment");
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     fetchRoutes();

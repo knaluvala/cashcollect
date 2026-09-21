@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import * as XLSX from "@e965/xlsx";
 
 import { API_BASE } from "@/lib/apiBase";
+import { useAuth } from "@/context/AuthContext";
 
 type UserRole = "agent" | "supervisor" | "superadmin";
 type UserStatus = "active" | "inactive";
@@ -72,6 +73,10 @@ function formatDate(dateStr: string): string {
 }
 
 export default function UserManagementContent() {
+  const { token } = useAuth();
+  const authHeaders: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
   const [users, setUsers] = useState<AppUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -102,6 +107,7 @@ export default function UserManagementContent() {
       try {
         const res = await fetch(
           `${API_BASE}/users?search=${encodeURIComponent(search)}`,
+          { headers: authHeaders },
         );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -119,7 +125,8 @@ export default function UserManagementContent() {
     return () => {
       cancelled = true;
     };
-  }, [search]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, token]);
 
   const filtered = users
     .filter((u) => {
@@ -196,7 +203,7 @@ export default function UserManagementContent() {
       try {
         const res = await fetch(`${API_BASE}/users/${editingUser.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           body: JSON.stringify(form),
         });
         const result = await res.json();
@@ -221,7 +228,7 @@ export default function UserManagementContent() {
         const { confirmPassword, ...newUserPayload } = form;
         const res = await fetch(`${API_BASE}/users`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           body: JSON.stringify({ ...newUserPayload, status: "active" }),
         });
         const result = await res.json();
@@ -256,7 +263,7 @@ export default function UserManagementContent() {
     try {
       const res = await fetch(`${API_BASE}/users/${u.id}`, {
         method: "DELETE",
-        headers: { "X-User-Delete-Confirmed": "true" },
+        headers: { "X-User-Delete-Confirmed": "true", ...authHeaders },
       });
       if (!res.ok) {
         const data = await res.json();
@@ -296,7 +303,7 @@ export default function UserManagementContent() {
         `${API_BASE}/users/${resetUser.id}/reset-password`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           body: JSON.stringify({ newPassword: resetPassword }),
         },
       );
@@ -325,7 +332,7 @@ export default function UserManagementContent() {
     try {
       const res = await fetch(`${API_BASE}/users/${u.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({ status: newStatus }),
       });
       const result = await res.json();
@@ -386,7 +393,7 @@ export default function UserManagementContent() {
           try {
             const res = await fetch(`${API_BASE}/users`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: { "Content-Type": "application/json", ...authHeaders },
               body: JSON.stringify(u),
             });
             if (res.ok) {

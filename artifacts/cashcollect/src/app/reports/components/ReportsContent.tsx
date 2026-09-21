@@ -162,7 +162,9 @@ export default function ReportsContent() {
   const fetchLovData = async () => {
     try {
       const [usersRes, parlorsRes] = await Promise.all([
-        fetch(`${API_BASE}/users`),
+        fetch(`${API_BASE}/users`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }),
         fetch(`${API_BASE}/parlors`),
       ]);
 
@@ -373,7 +375,7 @@ export default function ReportsContent() {
     fetchLovData();
     fetchSupervisorAgentCodes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, token]);
 
   // Fetch on filter change and initial load
   useEffect(() => {
