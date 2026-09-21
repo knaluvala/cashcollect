@@ -173,14 +173,19 @@ export default function SettingsContent() {
   }
 
   async function changePassword() {
-    if (!passwords.current) return toast.error("Enter your current password");
+    if (!passwords.current) {
+      toast.error("Enter your current password");
+      return;
+    }
 
     if (passwords.newPass.length < 8) {
-      return toast.error("New password must be at least 8 characters");
+      toast.error("New password must be at least 8 characters");
+      return;
     }
 
     if (passwords.newPass !== passwords.confirm) {
-      return toast.error("Passwords do not match");
+      toast.error("Passwords do not match");
+      return;
     }
 
     try {
