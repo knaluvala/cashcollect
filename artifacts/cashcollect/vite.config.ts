@@ -61,6 +61,11 @@ export default defineConfig({
           },
         ],
       },
+      workbox: {
+        // Default is 2 MiB; the main bundle exceeds that, which fails the
+        // build (vite-plugin-pwa treats it as an error, not a warning).
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+      },
     }),
     tailwindcss(),
   ],
