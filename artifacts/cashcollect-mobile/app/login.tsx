@@ -18,20 +18,11 @@ import { useAuth } from "@/context/AuthContext";
 import { AppCard } from "@/components/ui/AppCard";
 import { PrimaryButton } from "@/components/ui/PrimaryButton";
 
-type RoleTab = "agent" | "supervisor" | "superadmin";
-
-const ROLE_LABELS: Record<RoleTab, string> = {
-  agent: "Agent",
-  supervisor: "Supervisor",
-  superadmin: "Super Admin",
-};
-
 export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { login } = useAuth();
 
-  const [activeRole, setActiveRole] = useState<RoleTab>("agent");
   const [userCode, setUserCode] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -99,40 +90,17 @@ export default function LoginScreen() {
        <AppCard style={s.loginCardInner}>
         <Text style={s.cardTitle}>Sign in</Text>
         <Text style={s.cardSubtitle}>
-          Select your role and enter your credentials
+          Enter your credentials to continue
         </Text>
 
-        {/* Role tabs */}
-        <View style={s.roleTabs}>
-          {(["agent", "supervisor", "superadmin"] as RoleTab[]).map((role) => (
-            <TouchableOpacity
-              key={role}
-              style={[s.roleTab, activeRole === role && s.roleTabActive]}
-              onPress={() => {
-                setActiveRole(role);
-                Haptics.selectionAsync();
-              }}
-            >
-              <Text
-                style={[
-                  s.roleTabText,
-                  activeRole === role && s.roleTabTextActive,
-                ]}
-              >
-                {ROLE_LABELS[role]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Email */}
+        {/* User code / email */}
         <View style={s.fieldGroup}>
-          <Text style={s.label}>User Code</Text>
+          <Text style={s.label}>User Code or Email</Text>
           <TextInput
             style={s.input}
             value={userCode}
             onChangeText={setUserCode}
-            placeholder="Enter your user code"
+            placeholder="Enter your user code or email"
             placeholderTextColor={colors.mutedForeground}
             autoCapitalize="none"
             keyboardType="default"
@@ -173,6 +141,18 @@ export default function LoginScreen() {
   loading={isLoading}
   style={s.signInBtn}
 />
+
+        <TouchableOpacity
+          style={s.forgotPasswordBtn}
+          onPress={() =>
+            Alert.alert(
+              "Forgot Password",
+              "Please contact your administrator to reset your password.",
+            )
+          }
+        >
+          <Text style={s.forgotPasswordText}>Forgot password?</Text>
+        </TouchableOpacity>
       </AppCard>
       </View>
 
@@ -258,38 +238,6 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number) {
       fontFamily: "DMSans_400Regular",
       marginBottom: 20,
     },
-    roleTabs: {
-      flexDirection: "row",
-      backgroundColor: colors.muted,
-      borderRadius: colors.radius,
-      padding: 3,
-      marginBottom: 20,
-    },
-    roleTab: {
-      flex: 1,
-      paddingVertical: 8,
-      alignItems: "center",
-      borderRadius: colors.radius - 2,
-    },
-    roleTabActive: {
-      backgroundColor: colors.card,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.08,
-      shadowRadius: 2,
-      elevation: 2,
-    },
-    roleTabText: {
-      fontSize: 13,
-      fontWeight: "500" as const,
-      color: colors.mutedForeground,
-      fontFamily: "DMSans_500Medium",
-    },
-    roleTabTextActive: {
-      color: colors.foreground,
-      fontWeight: "600" as const,
-      fontFamily: "DMSans_600SemiBold",
-    },
     fieldGroup: {
       marginBottom: 16,
     },
@@ -330,7 +278,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number) {
       paddingVertical: 14,
       alignItems: "center",
       marginTop: 4,
-      marginBottom: 24,
+      marginBottom: 4,
     },
     signInBtnDisabled: {
       opacity: 0.6,
@@ -340,6 +288,17 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number) {
       fontSize: 16,
       fontWeight: "600" as const,
       fontFamily: "DMSans_600SemiBold",
+    },
+    forgotPasswordBtn: {
+      alignItems: "center",
+      paddingVertical: 12,
+      marginBottom: 20,
+    },
+    forgotPasswordText: {
+      fontSize: 13,
+      fontWeight: "500" as const,
+      color: colors.primary,
+      fontFamily: "DMSans_500Medium",
     },
   });
 }

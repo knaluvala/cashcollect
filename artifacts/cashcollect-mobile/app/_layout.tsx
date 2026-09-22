@@ -6,7 +6,7 @@ import {
   useFonts,
 } from "@expo-google-fonts/dm-sans";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack, router } from "expo-router";
+import { Stack, router, usePathname } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -25,7 +25,11 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   useOfflineSync();
+  const pathname = usePathname();
+
   useEffect(() => {
+    if (pathname === "/login") return;
+
     const timer = setInterval(async () => {
       const token = await AsyncStorage.getItem("@cashcollect_mobile_token");
 
@@ -35,7 +39,7 @@ function RootLayoutNav() {
     }, 5000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [pathname]);
   return (
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
