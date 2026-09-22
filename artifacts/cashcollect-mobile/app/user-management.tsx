@@ -15,9 +15,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
-import { apiFetch } from "@/lib/api";
+import {
+  listUsers,
+  createUser as apiCreateUser,
+  updateUser as apiUpdateUser,
+  deleteUser as apiDeleteUser,
+  resetUserPassword,
+} from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { hasPermission } from "@/lib/permissions";
+import { USER_STATUS_CONFIG } from "@/constants/statusColors";
 
 type UserRole = "agent" | "supervisor" | "superadmin";
 type UserStatus = "active" | "inactive";
@@ -50,6 +57,7 @@ export default function UserManagementScreen() {
   const [formRole, setFormRole] = useState<"agent" | "supervisor">("agent");
   const [formRouteCode, setFormRouteCode] = useState("");
   const [formAgentCode, setFormAgentCode] = useState("");
+  const [formPassword, setFormPassword] = useState("");
   const [resetUser, setResetUser] = useState<AppUser | null>(null);
   const [resetPassword, setResetPassword] = useState("");
   const [resetConfirmPassword, setResetConfirmPassword] = useState("");
@@ -62,16 +70,8 @@ export default function UserManagementScreen() {
     }
 
     try {
-      const res = await apiFetch(
-        `/api/users?search=${encodeURIComponent(search)}`,
-      );
-
-      if (!res.ok) {
-        throw new Error(`Users API failed: ${res.status}`);
-      }
-
-      const data = await res.json();
-      setUsers(Array.isArray(data.users) ? data.users : []);
+      const data = await listUsers({ search });
+      setUsers(Array.isArray(data.users) ? (data.users as AppUser[]) : []);
     } catch (error) {
       Alert.alert(
         "Failed to load users",
@@ -91,6 +91,7 @@ export default function UserManagementScreen() {
     setFormRole("agent");
     setFormRouteCode("");
     setFormAgentCode("");
+    setFormPassword("");
   }
 
   function openCreateForm() {
@@ -129,28 +130,33 @@ export default function UserManagementScreen() {
       return;
     }
 
-    try {
-      const payload = {
-        name: formName.trim(),
-        email: formEmail.trim(),
-        role: formRole,
-        routeCode: formRouteCode.trim().toUpperCase(),
-        agentCode: formAgentCode.trim().toUpperCase(),
-        status: "active",
-      };
-
-      const res = await apiFetch(
-        editingUser ? `/api/users/${editingUser.id}` : "/api/users",
-        {
-          method: editingUser ? "PUT" : "POST",
-          body: JSON.stringify(payload),
-        },
+    if (!editingUser && formPassword.length < 8) {
+      Alert.alert(
+        "Invalid password",
+        "Password must contain at least 8 characters.",
       );
+      return;
+    }
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Save user failed");
+    try {
+      if (editingUser) {
+        await apiUpdateUser(editingUser.id, {
+          name: formName.trim(),
+          email: formEmail.trim(),
+          role: formRole,
+          routeCode: formRouteCode.trim().toUpperCase(),
+          agentCode: formAgentCode.trim().toUpperCase(),
+        });
+      } else {
+        await apiCreateUser({
+          name: formName.trim(),
+          email: formEmail.trim(),
+          role: formRole,
+          routeCode: formRouteCode.trim().toUpperCase(),
+          agentCode: formAgentCode.trim().toUpperCase(),
+          status: "active",
+          password: formPassword,
+        });
       }
 
       resetForm();
@@ -177,15 +183,9 @@ export default function UserManagementScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              const res = await apiFetch(`/api/users/${user.id}`, {
-                method: "DELETE",
+              await apiDeleteUser(user.id, {
+                headers: { "X-User-Delete-Confirmed": "true" },
               });
-
-              const data = await res.json();
-
-              if (!res.ok) {
-                throw new Error(data.error || "Delete user failed");
-              }
 
               await loadUsers();
               Haptics.notificationAsync(
@@ -208,18 +208,7 @@ export default function UserManagementScreen() {
       user.status === "active" ? "inactive" : "active";
 
     try {
-      const res = await apiFetch(`/api/users/${user.id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          status: newStatus,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to update status");
-      }
+      await apiUpdateUser(user.id, { status: newStatus });
 
       await loadUsers();
 
@@ -252,18 +241,7 @@ export default function UserManagementScreen() {
     }
 
     try {
-      const res = await apiFetch(`/api/users/${resetUser.id}/reset-password`, {
-        method: "POST",
-        body: JSON.stringify({
-          newPassword: resetPassword,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Password reset failed");
-      }
+      await resetUserPassword(resetUser.id, { newPassword: resetPassword });
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -506,6 +484,20 @@ export default function UserManagementScreen() {
             autoCapitalize="characters"
           />
 
+          {!editingUser && (
+            <TextInput
+              style={[
+                s.input,
+                { borderColor: colors.border, color: colors.foreground },
+              ]}
+              placeholder="Password (min 8 characters)"
+              placeholderTextColor={colors.mutedForeground}
+              value={formPassword}
+              onChangeText={setFormPassword}
+              secureTextEntry
+            />
+          )}
+
           <View style={s.formActions}>
             <TouchableOpacity
               style={[s.cancelBtn, { borderColor: colors.border }]}
@@ -727,14 +719,14 @@ export default function UserManagementScreen() {
                   s.statusBadge,
                   {
                     backgroundColor:
-                      user.status === "active" ? "#dcfce7" : "#e5e7eb",
+                      USER_STATUS_CONFIG[user.status].bg,
                   },
                 ]}
               >
                 <Text
                   style={[
                     s.statusText,
-                    { color: user.status === "active" ? "#166534" : "#374151" },
+                    { color: USER_STATUS_CONFIG[user.status].text },
                   ]}
                 >
                   {user.status}
@@ -871,7 +863,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, bottomPad: number) {
       alignItems: "center",
       gap: 12,
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 14,
     },
     iconBox: {
@@ -917,12 +909,12 @@ function makeStyles(colors: ReturnType<typeof useColors>, bottomPad: number) {
     statsRow: {
       flexDirection: "row",
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       paddingVertical: 14,
     },
     formCard: {
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 14,
       gap: 10,
     },
@@ -1019,7 +1011,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, bottomPad: number) {
     emptyBox: {
       alignItems: "center",
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 24,
       gap: 8,
     },
@@ -1035,7 +1027,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, bottomPad: number) {
     },
     userCard: {
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 14,
       gap: 10,
     },

@@ -15,7 +15,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
-import { apiFetch } from "@/lib/api";
+import {
+  listRoutes,
+  listParlors,
+  createRoute as apiCreateRoute,
+  updateRoute as apiUpdateRoute,
+  deleteRoute as apiDeleteRoute,
+  addRouteParlor,
+  removeRouteParlor,
+} from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
 import { hasPermission } from "@/lib/permissions";
 
@@ -104,13 +112,7 @@ export default function RouteMasterScreen() {
     }
 
     try {
-      const res = await apiFetch("/api/routes");
-
-      if (!res.ok) {
-        throw new Error(`Routes API failed: ${res.status}`);
-      }
-
-      const data = await res.json();
+      const data = await listRoutes();
       const routeList: RouteRow[] = Array.isArray(data.routes)
         ? data.routes
         : [];
@@ -134,15 +136,9 @@ export default function RouteMasterScreen() {
 
   async function loadParlors() {
     try {
-      const res = await apiFetch("/api/parlors");
-
-      if (!res.ok) {
-        throw new Error(`Parlors API failed: ${res.status}`);
-      }
-
-      const data = await res.json();
+      const data = await listParlors();
       const parlorList: ParlorRow[] = Array.isArray(data.parlors)
-        ? data.parlors.map((p: any) => ({
+        ? data.parlors.map((p) => ({
             code: p.parlorCode,
             name: p.parlorName,
             type: p.parlorType,
@@ -165,23 +161,14 @@ export default function RouteMasterScreen() {
     }
 
     try {
-      const res = await apiFetch("/api/routes", {
-        method: "POST",
-        body: JSON.stringify({
-          routeCode: newRouteCode.trim().toUpperCase(),
-          description: newDescription.trim() || "—",
-          assignedAgent: newAgentName.trim() || "—",
-          agentCode: newAgentCode.trim() || "—",
-          supervisorName: newSupervisorName.trim() || "—",
-          supervisorCode: newSupervisorCode.trim() || "—",
-        }),
+      const data = await apiCreateRoute({
+        routeCode: newRouteCode.trim().toUpperCase(),
+        description: newDescription.trim() || "—",
+        assignedAgent: newAgentName.trim() || "—",
+        agentCode: newAgentCode.trim() || "—",
+        supervisorName: newSupervisorName.trim() || "—",
+        supervisorCode: newSupervisorCode.trim() || "—",
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to create route");
-      }
 
       setShowCreateForm(false);
       setNewRouteCode("");
@@ -211,23 +198,14 @@ export default function RouteMasterScreen() {
     }
 
     try {
-      const res = await apiFetch(`/api/routes/${editingRouteId}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          routeCode: newRouteCode.trim().toUpperCase(),
-          description: newDescription.trim() || "—",
-          assignedAgent: newAgentName.trim() || "—",
-          agentCode: newAgentCode.trim() || "—",
-          supervisorName: newSupervisorName.trim() || "—",
-          supervisorCode: newSupervisorCode.trim() || "—",
-        }),
+      await apiUpdateRoute(editingRouteId, {
+        routeCode: newRouteCode.trim().toUpperCase(),
+        description: newDescription.trim() || "—",
+        assignedAgent: newAgentName.trim() || "—",
+        agentCode: newAgentCode.trim() || "—",
+        supervisorName: newSupervisorName.trim() || "—",
+        supervisorCode: newSupervisorCode.trim() || "—",
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to update route");
-      }
 
       setShowCreateForm(false);
       setEditingRouteId(null);
@@ -270,15 +248,9 @@ export default function RouteMasterScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              const res = await apiFetch(`/api/routes/${route.id}`, {
-                method: "DELETE",
+              await apiDeleteRoute(route.id, {
+                headers: { "X-Route-Delete-Confirmed": "true" },
               });
-
-              const data = await res.json();
-
-              if (!res.ok) {
-                throw new Error(data.error || "Failed to delete route");
-              }
 
               setSelectedRouteId(null);
               await loadRoutes();
@@ -301,16 +273,7 @@ export default function RouteMasterScreen() {
     if (!selectedRoute) return;
 
     try {
-      const res = await apiFetch(`/api/routes/${selectedRoute.id}/parlors`, {
-        method: "POST",
-        body: JSON.stringify({ parlorCode: parlor.code }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to assign parlor");
-      }
+      await addRouteParlor(selectedRoute.id, { parlorCode: parlor.code });
 
       await loadRoutes();
       setParlorSearch("");
@@ -327,16 +290,7 @@ export default function RouteMasterScreen() {
     if (!selectedRoute) return;
 
     try {
-      const res = await apiFetch(
-        `/api/routes/${selectedRoute.id}/parlors/${parlorCode}`,
-        { method: "DELETE" },
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to remove parlor");
-      }
+      await removeRouteParlor(selectedRoute.id, parlorCode);
 
       await loadRoutes();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -923,7 +877,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, bottomPad: number) {
       alignItems: "center",
       gap: 12,
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 14,
     },
     iconBox: {
@@ -969,12 +923,12 @@ function makeStyles(colors: ReturnType<typeof useColors>, bottomPad: number) {
     statsRow: {
       flexDirection: "row",
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       paddingVertical: 14,
     },
     formCard: {
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 14,
       gap: 10,
     },
@@ -1034,7 +988,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, bottomPad: number) {
     emptyBox: {
       alignItems: "center",
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 24,
       gap: 8,
     },
@@ -1071,7 +1025,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, bottomPad: number) {
     },
     routeCard: {
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       padding: 14,
       gap: 10,
     },
@@ -1130,7 +1084,7 @@ function makeStyles(colors: ReturnType<typeof useColors>, bottomPad: number) {
     },
     parlorList: {
       borderWidth: 1,
-      borderRadius: 14,
+      borderRadius: 12,
       overflow: "hidden",
     },
     emptyParlorText: {

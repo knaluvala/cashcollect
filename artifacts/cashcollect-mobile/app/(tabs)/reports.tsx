@@ -16,13 +16,17 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useEffect } from "react";
-import { apiFetch } from "@/lib/api";
+import { getCollectionsReports } from "@workspace/api-client-react";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { FormSection } from "@/components/ui/FormSection";
 import { LovField } from "@/components/ui/LovField";
 import { KPIStatCard } from "@/components/ui/KPIStatCard";
+import {
+  STATUS_CONFIG as SHARED_STATUS_CONFIG,
+  PARLOR_TYPE_CONFIG,
+} from "@/constants/statusColors";
 
 type DetailedReportRow = {
   id: number;
@@ -68,17 +72,11 @@ const STATUS_CONFIG: Record<
   string,
   { label: string; bg: string; text: string }
 > = {
-  entered: { label: "Draft", bg: "#dbeafe", text: "#1d4ed8" },
-  submitted: { label: "Submitted", bg: "#ede9fe", text: "#6d28d9" },
-  acknowledged: { label: "Acknowledged", bg: "#d1fae5", text: "#065f46" },
+  ...SHARED_STATUS_CONFIG,
+  entered: { ...SHARED_STATUS_CONFIG.entered, label: "Draft" },
 };
 
-const PARLOR_TYPE_COLORS: Record<string, { bg: string; text: string }> = {
-  Mall: { bg: "#dbeafe", text: "#1d4ed8" },
-  Standalone: { bg: "#f1f5f9", text: "#475569" },
-  Event: { bg: "#ffedd5", text: "#c2410c" },
-  Kiosk: { bg: "#ede9fe", text: "#6d28d9" },
-};
+const PARLOR_TYPE_COLORS = PARLOR_TYPE_CONFIG;
 
 export default function ReportsScreen() {
   const colors = useColors();
@@ -105,14 +103,14 @@ export default function ReportsScreen() {
       if (agentFilter && row.agentCode !== agentFilter) return false;
       return true;
     });
-  }, [statusFilter, agentFilter]);
+  }, [detailedRows, statusFilter, agentFilter]);
 
   const filteredSummary = useMemo(() => {
     return summaryRows.filter((row) => {
       if (agentFilter && row.agentCode !== agentFilter) return false;
       return true;
     });
-  }, [agentFilter]);
+  }, [summaryRows, agentFilter]);
 
   const totals = useMemo(
     () => ({
@@ -173,16 +171,17 @@ export default function ReportsScreen() {
     }
 
     try {
-      const fileUri = `${FileSystem.Paths.cache.uri}cashcollect-reports-${dateFrom}-to-${dateTo}.csv`;
+      const file = new FileSystem.File(
+        FileSystem.Paths.cache,
+        `cashcollect-reports-${dateFrom}-to-${dateTo}.csv`,
+      );
 
-      await FileSystem.writeAsStringAsync(fileUri, csv, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      file.write(csv);
 
       const available = await Sharing.isAvailableAsync();
 
       if (available) {
-        await Sharing.shareAsync(fileUri, {
+        await Sharing.shareAsync(file.uri, {
           mimeType: "text/csv",
           dialogTitle: "Export CashCollect Report",
         });
@@ -205,15 +204,7 @@ export default function ReportsScreen() {
 
     async function loadReports() {
       try {
-        const res = await apiFetch(
-          `/api/collections/reports?dateFrom=${dateFrom}&dateTo=${dateTo}`,
-        );
-
-        if (!res.ok) {
-          throw new Error(`Reports API failed: ${res.status}`);
-        }
-
-        const data = await res.json();
+        const data = await getCollectionsReports({ dateFrom, dateTo });
         const collections = Array.isArray(data.collections)
           ? data.collections
           : [];
@@ -324,6 +315,18 @@ export default function ReportsScreen() {
             </Text>
           </View>
 
+          <TouchableOpacity
+            style={s.refreshBtn}
+            onPress={handleRefresh}
+            disabled={isRefreshing}
+          >
+            <Feather
+              name="refresh-cw"
+              size={16}
+              color={colors.foreground}
+            />
+          </TouchableOpacity>
+
           <TouchableOpacity style={s.exportBtn} onPress={exportReportsCsv}>
             <Feather name="download" size={16} color="#fff" />
             <Text style={s.exportBtnText}>CSV</Text>
@@ -425,24 +428,44 @@ export default function ReportsScreen() {
           </TouchableOpacity>
         ))}
       </View>
-    </View>
-  </FormSection>
-</View>
 
-      <View style={s.dateRow}>
-      <FormSection title="Date From" icon="calendar" style={{ marginBottom: 12 }}>
-  <DatePickerField
-    value={dateFrom}
-    onChange={setDateFrom}
-  />
-</FormSection>
-
-<FormSection title="Date To" icon="calendar" style={{ marginBottom: 12 }}>
-  <DatePickerField
-    value={dateTo}
-    onChange={setDateTo}
-  />
-</FormSection>
+      <View style={s.filterChipRow}>
+        {(
+          [
+            { key: "", label: "All Statuses" },
+            { key: "entered", label: "Draft" },
+            { key: "submitted", label: "Submitted" },
+            { key: "acknowledged", label: "Acknowledged" },
+          ] as { key: StatusFilter; label: string }[]
+        ).map((item) => (
+          <TouchableOpacity
+            key={item.key || "all"}
+            style={[
+              filterStyles.chip,
+              { borderColor: colors.border, backgroundColor: colors.card },
+              statusFilter === item.key && {
+                backgroundColor: colors.primary,
+                borderColor: colors.primary,
+              },
+            ]}
+            onPress={() => {
+              setStatusFilter(item.key);
+              Haptics.selectionAsync();
+            }}
+          >
+            <Text
+              style={[
+                filterStyles.chipText,
+                {
+                  color:
+                    statusFilter === item.key ? "#fff" : colors.mutedForeground,
+                },
+              ]}
+            >
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       <View style={s.quickDateRow}>
@@ -473,6 +496,9 @@ export default function ReportsScreen() {
           </TouchableOpacity>
         ))}
       </View>
+    </View>
+  </FormSection>
+</View>
 
       {/* Tabs */}
       <View style={[s.tabBar, { borderBottomColor: colors.border }]}>
@@ -558,7 +584,7 @@ export default function ReportsScreen() {
   <KPIStatCard
     label="Cash"
     value={formatAED(totals.cash)}
-    valueColor="#065f46"
+    valueColor="#047857"
   />
   <KPIStatCard
     label="Coupons"
@@ -569,6 +595,11 @@ export default function ReportsScreen() {
     label="Card"
     value={formatAED(totals.cc)}
     valueColor="#6d28d9"
+  />
+  <KPIStatCard
+    label="Grand Total"
+    value={formatAED(totals.total)}
+    valueColor={colors.foreground}
   />
 </View>
           </View>
@@ -582,6 +613,14 @@ export default function ReportsScreen() {
             contentContainerStyle={s.listContent}
             ListEmptyComponent={<EmptyState colors={colors} />}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
           />
         </>
       ) : (
@@ -709,7 +748,7 @@ function DetailedRow({ row, colors }: { row: DetailedReportRow; colors: any }) {
         <AmountBox
           label="Cash"
           value={formatAED(row.cashAmount)}
-          color="#065f46"
+          color="#047857"
         />
         <AmountBox
           label="Coupons"
@@ -816,7 +855,7 @@ function SummaryRow({ row, colors }: { row: SummaryReportRow; colors: any }) {
         <SummaryAmount
           label="Cash"
           value={formatAED(row.totalCash)}
-          color="#065f46"
+          color="#047857"
         />
         <SummaryAmount
           label="Coupons"
@@ -950,6 +989,16 @@ function makeStyles(
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
+    },
+    refreshBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      alignItems: "center",
+      justifyContent: "center",
     },
     reportKpiGrid: {
       flexDirection: "row",

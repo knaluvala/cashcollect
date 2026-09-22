@@ -13,8 +13,9 @@ import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import { apiFetch } from "@/lib/api";
+import { getCollectionsReports } from "@workspace/api-client-react";
 import { hasPermission } from "@/lib/permissions";
+import { STATUS_CONFIG } from "@/constants/statusColors";
 type DashboardCollection = {
   id: number;
   status: "pending" | "entered" | "submitted" | "acknowledged";
@@ -56,15 +57,11 @@ export default function DashboardScreen() {
 
     try {
       const today = todayStr();
-      const res = await apiFetch(
-        `/api/collections/reports?dateFrom=${today}&dateTo=${today}`,
-      );
+      const result = await getCollectionsReports({
+        dateFrom: today,
+        dateTo: today,
+      });
 
-      if (!res.ok) {
-        throw new Error(`Dashboard API failed: ${res.status}`);
-      }
-
-      const result = await res.json();
       const rows: DashboardCollection[] = Array.isArray(result.collections)
         ? result.collections.map((row: any) => ({
             id: Number(row.id),
@@ -134,34 +131,40 @@ export default function DashboardScreen() {
     }
   }, [loadDashboard]);
 
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
+
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={{
-        paddingTop: insets.top + 16,
-        paddingBottom: Platform.OS === "web" ? 110 : insets.bottom + 110,
-      }}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefreshing}
-          onRefresh={handleRefresh}
-          tintColor={colors.primary}
-          colors={[colors.primary]}
-        />
-      }
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.header}>
-        <View>
-          <Text style={[styles.title, { color: colors.foreground }]}>
-            Dashboard
-          </Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            Welcome, {user?.name ?? "User"}
-          </Text>
-        </View>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.header,
+          { backgroundColor: colors.card, borderBottomColor: colors.border, paddingTop: topPad + 8 },
+        ]}
+      >
+        <Text style={[styles.title, { color: colors.foreground }]}>
+          Dashboard
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+          Welcome, {user?.name ?? "User"}
+        </Text>
       </View>
 
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={{
+          paddingTop: 16,
+          paddingBottom: Platform.OS === "web" ? 110 : insets.bottom + 110,
+        }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
       {isLoading ? (
         <View
           style={[
@@ -194,21 +197,25 @@ export default function DashboardScreen() {
               label="Today"
               value={totals.total.toString()}
               colors={colors}
+              valueColor={colors.foreground}
             />
             <KpiCard
               label="Pending"
               value={totals.pending.toString()}
               colors={colors}
+              valueColor={STATUS_CONFIG.pending.text}
             />
             <KpiCard
               label="Submitted"
               value={totals.submitted.toString()}
               colors={colors}
+              valueColor={STATUS_CONFIG.submitted.text}
             />
             <KpiCard
               label="Ack'd"
               value={totals.acknowledged.toString()}
               colors={colors}
+              valueColor={STATUS_CONFIG.acknowledged.text}
             />
           </View>
 
@@ -225,16 +232,19 @@ export default function DashboardScreen() {
               label="Cash"
               value={formatAED(totals.cash)}
               colors={colors}
+              valueColor="#047857"
             />
             <AmountRow
               label="Coupons"
               value={formatAED(totals.coupon)}
               colors={colors}
+              valueColor="#1d4ed8"
             />
             <AmountRow
               label="Card"
               value={formatAED(totals.card)}
               colors={colors}
+              valueColor="#6d28d9"
             />
             <AmountRow
               label="Total"
@@ -317,44 +327,73 @@ export default function DashboardScreen() {
                 No collections found for today.
               </Text>
             ) : (
-              recentCollections.map((item) => (
-                <View
-                  key={item.id}
-                  style={[
-                    styles.recentRow,
-                    { borderBottomColor: colors.border },
-                  ]}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[styles.recentTitle, { color: colors.foreground }]}
-                    >
-                      {item.parlorName || item.parlorCode}
-                    </Text>
-                    <Text
-                      style={[
-                        styles.recentSub,
-                        { color: colors.mutedForeground },
-                      ]}
-                    >
-                      {item.agentName} · {item.status}
-                    </Text>
-                  </View>
-
-                  <Text
-                    style={[styles.recentAmount, { color: colors.foreground }]}
+              recentCollections.map((item) => {
+                const statusCfg = STATUS_CONFIG[item.status];
+                return (
+                  <View
+                    key={item.id}
+                    style={[
+                      styles.recentRow,
+                      { borderBottomColor: colors.border },
+                    ]}
                   >
-                    {formatAED(
-                      item.cashAmount + item.couponAmount + item.ccAmount,
-                    )}
-                  </Text>
-                </View>
-              ))
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          styles.recentTitle,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        {item.parlorName || item.parlorCode}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.recentSub,
+                          { color: colors.mutedForeground },
+                        ]}
+                      >
+                        {item.agentName}
+                      </Text>
+                    </View>
+
+                    <View style={{ alignItems: "flex-end", gap: 4 }}>
+                      <Text
+                        style={[
+                          styles.recentAmount,
+                          { color: colors.foreground },
+                        ]}
+                      >
+                        {formatAED(
+                          item.cashAmount + item.couponAmount + item.ccAmount,
+                        )}
+                      </Text>
+                      {statusCfg && (
+                        <View
+                          style={[
+                            styles.recentStatusBadge,
+                            { backgroundColor: statusCfg.bg },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.recentStatusText,
+                              { color: statusCfg.text },
+                            ]}
+                          >
+                            {statusCfg.label}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
             )}
           </View>
         </>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -390,10 +429,12 @@ function KpiCard({
   label,
   value,
   colors,
+  valueColor,
 }: {
   label: string;
   value: string;
   colors: ReturnType<typeof useColors>;
+  valueColor?: string;
 }) {
   return (
     <View
@@ -402,7 +443,12 @@ function KpiCard({
         { backgroundColor: colors.card, borderColor: colors.border },
       ]}
     >
-      <Text style={[styles.kpiValue, { color: colors.foreground }]}>
+      <Text
+        style={[
+          styles.kpiValue,
+          { color: valueColor ?? colors.foreground },
+        ]}
+      >
         {value}
       </Text>
       <Text style={[styles.kpiLabel, { color: colors.mutedForeground }]}>
@@ -417,11 +463,13 @@ function AmountRow({
   value,
   colors,
   bold,
+  valueColor,
 }: {
   label: string;
   value: string;
   colors: ReturnType<typeof useColors>;
   bold?: boolean;
+  valueColor?: string;
 }) {
   return (
     <View style={[styles.amountRow, { borderBottomColor: colors.border }]}>
@@ -437,7 +485,7 @@ function AmountRow({
       <Text
         style={[
           styles.amountValue,
-          { color: colors.foreground },
+          { color: valueColor ?? colors.foreground },
           bold && { fontFamily: "DMSans_700Bold" },
         ]}
       >
@@ -448,21 +496,26 @@ function AmountRow({
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     paddingHorizontal: 20,
   },
   title: {
     fontFamily: "DMSans_700Bold",
-    fontSize: 28,
+    fontSize: 20,
   },
   subtitle: {
     fontFamily: "DMSans_400Regular",
-    fontSize: 14,
-    marginTop: 4,
+    fontSize: 13,
+    marginTop: 2,
   },
   header: {
-    marginBottom: 18,
+    borderBottomWidth: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
   kpiGrid: {
     flexDirection: "row",
@@ -473,7 +526,7 @@ const styles = StyleSheet.create({
   kpiCard: {
     width: "48%",
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: 12,
     padding: 16,
   },
   kpiValue: {
@@ -487,7 +540,7 @@ const styles = StyleSheet.create({
   },
   card: {
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
@@ -554,5 +607,15 @@ const styles = StyleSheet.create({
   recentAmount: {
     fontFamily: "DMSans_700Bold",
     fontSize: 14,
+  },
+  recentStatusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  recentStatusText: {
+    fontSize: 10,
+    fontWeight: "700" as const,
+    fontFamily: "DMSans_700Bold",
   },
 });

@@ -15,9 +15,9 @@ export type ParlorEntry = {
   supervisorName?: string;
   date?: string;
   status: CollectionStatus;
-  cashAmount: number;
-  couponAmount: number;
-  ccAmount: number;
+  cashAmount: number | null;
+  couponAmount: number | null;
+  ccAmount: number | null;
   notes?: string;
   submittedAt?: string | null;
   acknowledgedAt?: string | null;

@@ -10,6 +10,20 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: collections
+    description: Cash collection operations
+  - name: parlors
+    description: Parlor management
+  - name: routes
+    description: Route management
+  - name: users
+    description: User management
+  - name: external
+    description: External collection source operations
+security:
+  - bearerAuth: []
 paths:
   /healthz:
     get:
@@ -17,6 +31,7 @@ paths:
       tags: [health]
       summary: Health check
       description: Returns server health status
+      security: []
       responses:
         "200":
           description: Healthy
@@ -24,7 +39,764 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Sign in with a user code/email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/refresh:
+    post:
+      operationId: refreshSession
+      tags: [auth]
+      summary: Refresh the current session and issue a new token
+      responses:
+        "200":
+          description: Session refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /collections:
+    get:
+      operationId: getCollectionByDateAndParlor
+      tags: [collections]
+      summary: Get the collection for a specific date and parlor
+      security: []
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: parlorCode
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Collection found (or null)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collection:
+                    oneOf:
+                      - $ref: "#/components/schemas/Collection"
+                      - type: "null"
+                required: [collection]
+    post:
+      operationId: createCollection
+      tags: [collections]
+      summary: Create a new collection entry
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectionInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+        "409":
+          description: Already exists for this date and parlor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /collections/{id}:
+    get:
+      operationId: getCollectionById
+      tags: [collections]
+      summary: Get a single collection by id
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Collection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateCollection
+      tags: [collections]
+      summary: Update an existing draft collection
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectionUpdateInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+        "409":
+          description: Cannot edit a submitted or acknowledged collection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /collections/{id}/submit:
+    post:
+      operationId: submitCollection
+      tags: [collections]
+      summary: Submit a collection to the supervisor
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+        "409":
+          description: Already submitted or acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /collections/{id}/acknowledge:
+    post:
+      operationId: acknowledgeCollection
+      tags: [collections]
+      summary: Supervisor acknowledges a submitted collection
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcknowledgeCollectionInput"
+      responses:
+        "200":
+          description: Acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Collection"
+        "409":
+          description: Only submitted collections can be acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /collections/list:
+    get:
+      operationId: listCollections
+      tags: [collections]
+      summary: List collections for a date, scoped to the caller's access
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: agentCode
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Collections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collections:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Collection"
+                required: [collections]
+
+  /collections/reports:
+    get:
+      operationId: getCollectionsReports
+      tags: [collections]
+      summary: List collections within a date range, scoped to the caller's access
+      parameters:
+        - name: dateFrom
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: agentCode
+          in: query
+          schema:
+            type: string
+        - name: parlorCode
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/CollectionStatus"
+      responses:
+        "200":
+          description: Collections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collections:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Collection"
+                required: [collections]
+
+  /collections/supervisor:
+    get:
+      operationId: getSupervisorCollections
+      tags: [collections]
+      summary: List submitted/acknowledged collections for the supervisor's agents
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Collections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collections:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Collection"
+                required: [collections]
+
+  /parlors:
+    get:
+      operationId: listParlors
+      tags: [parlors]
+      summary: List parlors, optionally filtered by search text
+      security: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Parlors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  parlors:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Parlor"
+                required: [parlors]
+    post:
+      operationId: createParlor
+      tags: [parlors]
+      summary: Create a new parlor
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParlorInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Parlor"
+        "409":
+          description: Parlor code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /parlors/{id}:
+    put:
+      operationId: updateParlor
+      tags: [parlors]
+      summary: Update an existing parlor
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ParlorUpdateInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Parlor"
+    delete:
+      operationId: deleteParlor
+      tags: [parlors]
+      summary: Delete a parlor
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: X-Parlor-Delete-Confirmed
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["true"]
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "428":
+          description: Deletion requires explicit confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /routes:
+    get:
+      operationId: listRoutes
+      tags: [routes]
+      summary: List routes (with assigned parlors), optionally filtered by search text
+      security: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Routes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  routes:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RouteWithParlors"
+                required: [routes]
+    post:
+      operationId: createRoute
+      tags: [routes]
+      summary: Create a new route
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouteInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Route"
+        "409":
+          description: Route code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /routes/{id}:
+    put:
+      operationId: updateRoute
+      tags: [routes]
+      summary: Update an existing route
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RouteUpdateInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Route"
+    delete:
+      operationId: deleteRoute
+      tags: [routes]
+      summary: Delete a route and its parlor assignments
+      security: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: X-Route-Delete-Confirmed
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["true"]
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "428":
+          description: Deletion requires explicit confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /routes/{routeId}/parlors:
+    post:
+      operationId: addRouteParlor
+      tags: [routes]
+      summary: Assign a parlor to a route
+      security: []
+      parameters:
+        - name: routeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddRouteParlorInput"
+      responses:
+        "201":
+          description: Assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RouteParlor"
+        "409":
+          description: Parlor already assigned to this route
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /routes/{routeId}/parlors/{parlorCode}:
+    delete:
+      operationId: removeRouteParlor
+      tags: [routes]
+      summary: Remove a parlor from a route
+      security: []
+      parameters:
+        - name: routeId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: parlorCode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /users:
+    get:
+      operationId: listUsers
+      tags: [users]
+      summary: List users, optionally filtered by search text
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+                required: [users]
+    post:
+      operationId: createUser
+      tags: [users]
+      summary: Create a new user (bootstraps the first superadmin if no users exist)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "409":
+          description: Email or user code already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{id}:
+    put:
+      operationId: updateUser
+      tags: [users]
+      summary: Update an existing user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [users]
+      summary: Delete a user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: X-User-Delete-Confirmed
+          in: header
+          required: true
+          schema:
+            type: string
+            enum: ["true"]
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "428":
+          description: Deletion requires explicit confirmation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /users/{id}/reset-password:
+    post:
+      operationId: resetUserPassword
+      tags: [users]
+      summary: Reset a user's password (superadmin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResetUserPasswordInput"
+      responses:
+        "200":
+          description: Password reset
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user:
+                    $ref: "#/components/schemas/User"
+                required: [success, user]
+
+  /external/parlor-summary/{parlorCode}/{date}:
+    get:
+      operationId: getExternalParlorSummary
+      tags: [external]
+      summary: Get the external system's collection summary for a parlor and date
+      security: []
+      parameters:
+        - name: parlorCode
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: External summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExternalSummary"
+        "503":
+          description: External collection source is not configured or misconfigured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: External collection source is unavailable or returned invalid data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     HealthStatus:
       type: object
@@ -34,3 +806,435 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          description: A message string, or a list of validation issues
+      required: [error]
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required: [success]
+
+    Role:
+      type: string
+      enum: [agent, supervisor, superadmin]
+
+    CollectionStatus:
+      type: string
+      enum: [entered, submitted, acknowledged]
+
+    ParlorType:
+      type: string
+      enum: [Mall, Standalone, Event, Kiosk, Cart]
+
+    AcknowledgeCollectionInput:
+      type: object
+      properties:
+        acknowledgedBy:
+          type: string
+
+    AddRouteParlorInput:
+      type: object
+      properties:
+        parlorCode:
+          type: string
+      required: [parlorCode]
+
+    ResetUserPasswordInput:
+      type: object
+      properties:
+        newPassword:
+          type: string
+          minLength: 8
+      required: [newPassword]
+
+    LoginRequest:
+      type: object
+      properties:
+        userCode:
+          type: string
+        password:
+          type: string
+      required: [userCode, password]
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required: [token, user]
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          $ref: "#/components/schemas/Role"
+        routeCode:
+          type: string
+        agentCode:
+          type: string
+        status:
+          type: string
+        mobile:
+          type: string
+        department:
+          type: string
+        profilePhoto:
+          type: string
+        lastLogin:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          nullable: true
+      required:
+        - id
+        - name
+        - email
+        - role
+        - routeCode
+        - agentCode
+        - status
+        - mobile
+        - department
+        - profilePhoto
+
+    UserInput:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/Role"
+        routeCode:
+          type: string
+        agentCode:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        mobile:
+          type: string
+        department:
+          type: string
+        profilePhoto:
+          type: string
+        password:
+          type: string
+          minLength: 8
+      required: [name, email, agentCode, password]
+
+    UserUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/Role"
+        routeCode:
+          type: string
+        agentCode:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        mobile:
+          type: string
+        department:
+          type: string
+        profilePhoto:
+          type: string
+
+    Collection:
+      type: object
+      properties:
+        id:
+          type: integer
+        parlorCode:
+          type: string
+        parlorName:
+          type: string
+        parlorType:
+          type: string
+        routeCode:
+          type: string
+        agentCode:
+          type: string
+        agentName:
+          type: string
+        collectionDate:
+          type: string
+          format: date
+        cashAmount:
+          type: string
+          description: Decimal amount as a numeric string
+        couponAmount:
+          type: string
+          description: Decimal amount as a numeric string
+        ccAmount:
+          type: string
+          description: Decimal amount as a numeric string
+        notes:
+          type: string
+          nullable: true
+        status:
+          $ref: "#/components/schemas/CollectionStatus"
+        submittedAt:
+          type: string
+          nullable: true
+        acknowledgedAt:
+          type: string
+          nullable: true
+        acknowledgedBy:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          nullable: true
+      required:
+        - id
+        - parlorCode
+        - parlorName
+        - parlorType
+        - routeCode
+        - agentCode
+        - agentName
+        - collectionDate
+        - cashAmount
+        - couponAmount
+        - ccAmount
+        - status
+
+    CollectionInput:
+      type: object
+      properties:
+        parlorCode:
+          type: string
+        parlorName:
+          type: string
+        parlorType:
+          type: string
+        routeCode:
+          type: string
+        agentCode:
+          type: string
+        agentName:
+          type: string
+        collectionDate:
+          type: string
+          format: date
+        cashAmount:
+          type: number
+        couponAmount:
+          type: number
+        ccAmount:
+          type: number
+        notes:
+          type: string
+        status:
+          $ref: "#/components/schemas/CollectionStatus"
+      required:
+        - parlorCode
+        - parlorName
+        - parlorType
+        - routeCode
+        - agentCode
+        - agentName
+        - collectionDate
+
+    CollectionUpdateInput:
+      type: object
+      properties:
+        cashAmount:
+          type: number
+        couponAmount:
+          type: number
+        ccAmount:
+          type: number
+        notes:
+          type: string
+        status:
+          $ref: "#/components/schemas/CollectionStatus"
+        submittedAt:
+          type: string
+        acknowledgedAt:
+          type: string
+        acknowledgedBy:
+          type: string
+
+    Parlor:
+      type: object
+      properties:
+        id:
+          type: integer
+        parlorCode:
+          type: string
+        parlorName:
+          type: string
+        parlorType:
+          type: string
+        createdAt:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          nullable: true
+      required: [id, parlorCode, parlorName, parlorType]
+
+    ParlorInput:
+      type: object
+      properties:
+        parlorCode:
+          type: string
+        parlorName:
+          type: string
+        parlorType:
+          $ref: "#/components/schemas/ParlorType"
+      required: [parlorCode, parlorName, parlorType]
+
+    ParlorUpdateInput:
+      type: object
+      properties:
+        parlorCode:
+          type: string
+        parlorName:
+          type: string
+        parlorType:
+          $ref: "#/components/schemas/ParlorType"
+
+    RouteParlorRef:
+      type: object
+      properties:
+        code:
+          type: string
+      required: [code]
+
+    Route:
+      type: object
+      properties:
+        id:
+          type: integer
+        routeCode:
+          type: string
+        description:
+          type: string
+        assignedAgent:
+          type: string
+        agentCode:
+          type: string
+        supervisorName:
+          type: string
+        supervisorCode:
+          type: string
+        createdAt:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          nullable: true
+      required:
+        - id
+        - routeCode
+        - description
+        - assignedAgent
+        - agentCode
+        - supervisorName
+        - supervisorCode
+
+    RouteWithParlors:
+      allOf:
+        - $ref: "#/components/schemas/Route"
+        - type: object
+          properties:
+            parlors:
+              type: array
+              items:
+                $ref: "#/components/schemas/RouteParlorRef"
+          required: [parlors]
+
+    RouteInput:
+      type: object
+      properties:
+        routeCode:
+          type: string
+        description:
+          type: string
+        assignedAgent:
+          type: string
+        agentCode:
+          type: string
+        supervisorName:
+          type: string
+        supervisorCode:
+          type: string
+      required: [routeCode]
+
+    RouteUpdateInput:
+      type: object
+      properties:
+        routeCode:
+          type: string
+        description:
+          type: string
+        assignedAgent:
+          type: string
+        agentCode:
+          type: string
+        supervisorName:
+          type: string
+        supervisorCode:
+          type: string
+
+    RouteParlor:
+      type: object
+      properties:
+        id:
+          type: integer
+        routeId:
+          type: integer
+        parlorCode:
+          type: string
+        createdAt:
+          type: string
+          nullable: true
+      required: [id, routeId, parlorCode]
+
+    ExternalSummary:
+      type: object
+      properties:
+        cashAmount:
+          type: number
+        couponAmount:
+          type: number
+        ccAmount:
+          type: number
+        source:
+          type: string
+        fetchedAt:
+          type: string
+      required: [cashAmount, couponAmount, ccAmount, source, fetchedAt]

@@ -62,21 +62,6 @@ export default function LoginScreen() {
     }
   }
 
-  function autofill(role: RoleTab) {
-    const demoByRole: Record<RoleTab, { code: string; password: string }> = {
-      agent: { code: "AGT-042", password: "Agent@2026" },
-      supervisor: { code: "SUP-012", password: "Super@2026" },
-      superadmin: { code: "ADM-001", password: "Admin@2026" },
-    };
-
-    const account = demoByRole[role];
-
-    setUserCode(account.code);
-    setPassword(account.password);
-    setActiveRole(role);
-    loginWithAccount(account.code, account.password);
-  }
-
   async function handleLogin() {
     loginWithAccount(userCode, password);
   }
@@ -147,7 +132,7 @@ export default function LoginScreen() {
             style={s.input}
             value={userCode}
             onChangeText={setUserCode}
-            placeholder="AGT-042 / SUP-012 / ADM-001"
+            placeholder="Enter your user code"
             placeholderTextColor={colors.mutedForeground}
             autoCapitalize="none"
             keyboardType="default"
@@ -188,46 +173,6 @@ export default function LoginScreen() {
   loading={isLoading}
   style={s.signInBtn}
 />
-
-        {/* Demo accounts */}
-        <View style={s.demoSection}>
-          <Text style={s.demoTitle}>DEMO ACCOUNTS — TAP TO AUTOFILL</Text>
-          {[
-            {
-              role: "agent" as RoleTab,
-              label: "Agent",
-              code: "AGT-042",
-              password: "Agent@2026",
-            },
-            {
-              role: "supervisor" as RoleTab,
-              label: "Supervisor",
-              code: "SUP-012",
-              password: "Super@2026",
-            },
-            {
-              role: "superadmin" as RoleTab,
-              label: "Super Admin",
-              code: "ADM-001",
-              password: "Admin@2026",
-            },
-          ].map((acc) => (
-            <TouchableOpacity
-              key={acc.role}
-              style={s.demoRow}
-              onPress={() => autofill(acc.role)}
-              activeOpacity={0.7}
-            >
-              <View style={s.demoLeft}>
-                <Text style={s.demoLabel}>{acc.label}</Text>
-                <Text style={s.demoEmail}>{acc.code}</Text>
-              </View>
-              <View style={s.demoBadge}>
-                <Text style={s.demoBadgeText}>{acc.password}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
       </AppCard>
       </View>
 
@@ -395,56 +340,6 @@ function makeStyles(colors: ReturnType<typeof useColors>, topPad: number) {
       fontSize: 16,
       fontWeight: "600" as const,
       fontFamily: "DMSans_600SemiBold",
-    },
-    demoSection: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: colors.radius,
-      padding: 12,
-      backgroundColor: colors.muted,
-    },
-    demoTitle: {
-      fontSize: 10,
-      fontWeight: "700" as const,
-      color: colors.mutedForeground,
-      letterSpacing: 0.5,
-      fontFamily: "DMSans_700Bold",
-      marginBottom: 10,
-    },
-    demoRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingVertical: 10,
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-    },
-    demoLeft: {
-      flex: 1,
-    },
-    demoLabel: {
-      fontSize: 13,
-      fontWeight: "600" as const,
-      color: colors.foreground,
-      fontFamily: "DMSans_600SemiBold",
-    },
-    demoEmail: {
-      fontSize: 12,
-      color: colors.mutedForeground,
-      fontFamily: "DMSans_400Regular",
-      marginTop: 1,
-    },
-    demoBadge: {
-      backgroundColor: colors.secondary,
-      borderRadius: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-    },
-    demoBadgeText: {
-      fontSize: 11,
-      color: colors.secondaryForeground,
-      fontFamily: "DMSans_500Medium",
-      fontWeight: "500" as const,
     },
   });
 }

@@ -19,25 +19,15 @@ import {
   CollectionStatus,
   formatAED,
 } from "@/lib/collectionTypes";
-import { apiFetch } from "@/lib/api";
+import {
+  getCollectionById,
+  updateCollection,
+  submitCollection,
+} from "@workspace/api-client-react";
 import { useAuth } from "@/context/AuthContext";
-
-const STATUS_CONFIG: Record<
-  CollectionStatus,
-  { label: string; bg: string; text: string }
-> = {
-  pending: { label: "Pending", bg: "#fef9c3", text: "#854d0e" },
-  entered: { label: "Entered", bg: "#dbeafe", text: "#1d4ed8" },
-  submitted: { label: "Submitted", bg: "#ede9fe", text: "#6d28d9" },
-  acknowledged: { label: "Acknowledged", bg: "#d1fae5", text: "#065f46" },
-};
-
-const PARLOR_TYPE_CONFIG: Record<string, { bg: string; text: string }> = {
-  Mall: { bg: "#dbeafe", text: "#1d4ed8" },
-  Standalone: { bg: "#f1f5f9", text: "#475569" },
-  Event: { bg: "#ffedd5", text: "#c2410c" },
-  Kiosk: { bg: "#ede9fe", text: "#6d28d9" },
-};
+import { STATUS_CONFIG, PARLOR_TYPE_CONFIG } from "@/constants/statusColors";
+import { ExternalReferenceBox } from "@/components/ui/ExternalReferenceBox";
+import { useExternalParlorSummary } from "@/hooks/useExternalParlorSummary";
 
 export default function CollectionEntryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -54,6 +44,11 @@ export default function CollectionEntryScreen() {
   const [status, setStatus] = useState<CollectionStatus>(
     parlor?.status ?? "pending",
   );
+  const {
+    data: externalData,
+    isLoading: isLoadingExternal,
+    error: externalError,
+  } = useExternalParlorSummary(parlor?.parlorCode, parlor?.date);
   useEffect(() => {
     async function loadEntry() {
       if (!id) return;
@@ -61,20 +56,14 @@ export default function CollectionEntryScreen() {
       setIsLoading(true);
 
       try {
-        const res = await apiFetch(`/api/collections/${id}`);
-        const result = await res.json();
-
-        if (!res.ok) {
-          throw new Error(result.error ?? "Failed to load collection");
-        }
-
-        const c = result.collection ?? result;
+        const c = await getCollectionById(Number(id));
 
         const mapped: ParlorEntry = {
           id: String(c.id),
           parlorCode: c.parlorCode,
           parlorName: c.parlorName,
           parlorType: c.parlorType,
+          date: c.collectionDate,
           status: c.status,
           cashAmount: Number(c.cashAmount ?? 0),
           couponAmount: Number(c.couponAmount ?? 0),
@@ -138,22 +127,13 @@ export default function CollectionEntryScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      const res = await apiFetch(`/api/collections/${parlor.id}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          cashAmount: cashNum,
-          couponAmount: couponNum,
-          ccAmount: ccNum,
-          notes,
-          status: "entered",
-        }),
+      await updateCollection(Number(parlor.id), {
+        cashAmount: cashNum,
+        couponAmount: couponNum,
+        ccAmount: ccNum,
+        notes,
+        status: "entered",
       });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        throw new Error(result.error ?? "Failed to save draft");
-      }
 
       setStatus("entered");
       Alert.alert("Saved", "Collection entry saved as draft.");
@@ -186,18 +166,7 @@ export default function CollectionEntryScreen() {
             try {
               await handleSaveDraft();
 
-              const res = await apiFetch(
-                `/api/collections/${parlor.id}/submit`,
-                {
-                  method: "POST",
-                },
-              );
-
-              const result = await res.json();
-
-              if (!res.ok) {
-                throw new Error(result.error ?? "Failed to submit collection");
-              }
+              await submitCollection(Number(parlor.id));
 
               Haptics.notificationAsync(
                 Haptics.NotificationFeedbackType.Success,
@@ -263,9 +232,14 @@ export default function CollectionEntryScreen() {
         </View>
 
         {status === "submitted" && (
-          <View style={[styles.lockBanner, { backgroundColor: "#ede9fe" }]}>
-            <Feather name="lock" size={13} color="#6d28d9" />
-            <Text style={[styles.lockText, { color: "#6d28d9" }]}>
+          <View
+            style={[
+              styles.lockBanner,
+              { backgroundColor: STATUS_CONFIG.submitted.bg },
+            ]}
+          >
+            <Feather name="lock" size={13} color={STATUS_CONFIG.submitted.text} />
+            <Text style={[styles.lockText, { color: STATUS_CONFIG.submitted.text }]}>
               Submitted {parlor.submittedAt}. Awaiting supervisor
               acknowledgment.
             </Text>
@@ -273,9 +247,20 @@ export default function CollectionEntryScreen() {
         )}
 
         {status === "acknowledged" && (
-          <View style={[styles.lockBanner, { backgroundColor: "#d1fae5" }]}>
-            <Feather name="check-circle" size={13} color="#065f46" />
-            <Text style={[styles.lockText, { color: "#065f46" }]}>
+          <View
+            style={[
+              styles.lockBanner,
+              { backgroundColor: STATUS_CONFIG.acknowledged.bg },
+            ]}
+          >
+            <Feather
+              name="check-circle"
+              size={13}
+              color={STATUS_CONFIG.acknowledged.text}
+            />
+            <Text
+              style={[styles.lockText, { color: STATUS_CONFIG.acknowledged.text }]}
+            >
               Acknowledged {parlor.acknowledgedAt} by {parlor.acknowledgedBy}.
               No further edits allowed.
             </Text>
@@ -297,6 +282,12 @@ export default function CollectionEntryScreen() {
           </Text>
         </View>
 
+        <ExternalReferenceBox
+          value={externalData?.cashAmount ?? null}
+          source={externalData?.source}
+          isLoading={isLoadingExternal}
+          error={externalError}
+        />
         <AmountField
           label="Cash Amount (AED)"
           hint="Physical currency collected"
@@ -305,6 +296,12 @@ export default function CollectionEntryScreen() {
           locked={isLocked}
           colors={colors}
         />
+        <ExternalReferenceBox
+          value={externalData?.couponAmount ?? null}
+          source={externalData?.source}
+          isLoading={isLoadingExternal}
+          error={externalError}
+        />
         <AmountField
           label="Coupon Amount (AED)"
           hint="Physical coupons redeemed"
@@ -312,6 +309,12 @@ export default function CollectionEntryScreen() {
           onChange={setCoupon}
           locked={isLocked}
           colors={colors}
+        />
+        <ExternalReferenceBox
+          value={externalData?.ccAmount ?? null}
+          source={externalData?.source}
+          isLoading={isLoadingExternal}
+          error={externalError}
         />
         <AmountField
           label="Credit Card Total (AED)"

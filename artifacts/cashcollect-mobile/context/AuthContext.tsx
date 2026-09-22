@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { apiFetch } from "@/lib/api";
+import {
+  login as apiLogin,
+  refreshSession as apiRefreshSession,
+  ApiError,
+  type User as ApiUser,
+} from "@workspace/api-client-react";
+import {
+  AUTH_TOKEN_STORAGE_KEY,
+  AUTH_USER_STORAGE_KEY,
+} from "@/lib/apiClientConfig";
 
 export type UserRole = "agent" | "supervisor" | "superadmin";
 
@@ -38,17 +47,14 @@ const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
 });
 
-const AUTH_USER_STORAGE_KEY = "@cashcollect_mobile_user";
-const AUTH_TOKEN_STORAGE_KEY = "@cashcollect_mobile_token";
-
-function mapApiUser(apiUser: any): AuthUser {
+function mapApiUser(apiUser: ApiUser): AuthUser {
   return {
     id: apiUser.id,
-    role: apiUser.role,
+    role: apiUser.role as UserRole,
     name: apiUser.name,
     email: apiUser.email,
     code: apiUser.agentCode,
-    route: apiUser.routeCode,
+    route: apiUser.routeCode ?? "",
     agentCode: apiUser.role === "agent" ? apiUser.agentCode : undefined,
     supervisorCode:
       apiUser.role === "supervisor" ? apiUser.agentCode : undefined,
@@ -100,19 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string,
   ): Promise<LoginResult> {
     try {
-      const res = await apiFetch("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ userCode, password }),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        return {
-          success: false,
-          error: result.error ?? "Invalid credentials",
-        };
-      }
+      const result = await apiLogin({ userCode, password });
 
       const mappedUser = mapApiUser(result.user);
 
@@ -127,6 +121,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { success: true };
     } catch (error) {
+      if (error instanceof ApiError) {
+        const message =
+          (error.data as { error?: string } | null)?.error ??
+          "Invalid credentials";
+        return { success: false, error: message };
+      }
       return {
         success: false,
         error:
@@ -145,19 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      const res = await apiFetch("/api/auth/refresh", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${storedToken}`,
-        },
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        await logout();
-        return false;
-      }
+      const result = await apiRefreshSession();
 
       const mappedUser = mapApiUser(result.user);
 
@@ -172,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return true;
     } catch {
+      await logout();
       return false;
     }
   }

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "cashcollect-mobile-web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@workspace/cashcollect-mobile", "exec", "expo", "start", "--web"],
+      "port": 8081
+    }
+  ]
+}

@@ -15,7 +15,11 @@ import { Feather, MaterialIcons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
-import { apiFetch } from "@/lib/api";
+import {
+  listCollections,
+  getSupervisorCollections,
+  acknowledgeCollection,
+} from "@workspace/api-client-react";
 import { syncOfflineCollections } from "@/lib/offlineSync";
 import { hasPermission } from "@/lib/permissions";
 import {
@@ -27,23 +31,7 @@ import {
 import { AppCard } from "@/components/ui/AppCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { KPIStatCard } from "@/components/ui/KPIStatCard";
-
-const STATUS_CONFIG: Record<
-  CollectionStatus,
-  { label: string; bg: string; text: string }
-> = {
-  pending: { label: "Pending", bg: "#fef9c3", text: "#854d0e" },
-  entered: { label: "Entered", bg: "#dbeafe", text: "#1d4ed8" },
-  submitted: { label: "Submitted", bg: "#ede9fe", text: "#6d28d9" },
-  acknowledged: { label: "Acknowledged", bg: "#d1fae5", text: "#065f46" },
-};
-
-const PARLOR_TYPE_CONFIG: Record<string, { bg: string; text: string }> = {
-  Mall: { bg: "#dbeafe", text: "#1d4ed8" },
-  Standalone: { bg: "#f1f5f9", text: "#475569" },
-  Event: { bg: "#ffedd5", text: "#c2410c" },
-  Kiosk: { bg: "#ede9fe", text: "#6d28d9" },
-};
+import { STATUS_CONFIG, PARLOR_TYPE_CONFIG } from "@/constants/statusColors";
 
 function todayStr() {
   return new Date().toISOString().split("T")[0];
@@ -112,17 +100,7 @@ export default function CollectionScreen() {
       const date = todayStr();
 
       if (viewMode === "supervisor" && user.supervisorCode) {
-        const res = await apiFetch(
-          `/api/collections/supervisor?date=${date}&supervisorCode=${user.supervisorCode}`,
-        );
-
-        const result = await res.json();
-
-        if (!res.ok) {
-          throw new Error(
-            result.error ?? "Failed to load supervisor collections",
-          );
-        }
+        const result = await getSupervisorCollections({ date });
 
         const mapped: SupervisorPendingItem[] = (result.collections ?? []).map(
           (c: any) => ({
@@ -146,15 +124,10 @@ export default function CollectionScreen() {
       }
 
       if (user.agentCode) {
-        const res = await apiFetch(
-          `/api/collections/list?date=${date}&agentCode=${user.agentCode}`,
-        );
-
-        const result = await res.json();
-
-        if (!res.ok) {
-          throw new Error(result.error ?? "Failed to load collections");
-        }
+        const result = await listCollections({
+          date,
+          agentCode: user.agentCode,
+        });
 
         const mapped: ParlorEntry[] = (result.collections ?? []).map(
           (c: any) => ({
@@ -218,18 +191,9 @@ export default function CollectionScreen() {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      const res = await apiFetch(`/api/collections/${itemId}/acknowledge`, {
-        method: "POST",
-        body: JSON.stringify({
-          acknowledgedBy: user?.name ?? "Supervisor",
-        }),
+      await acknowledgeCollection(Number(itemId), {
+        acknowledgedBy: user?.name ?? "Supervisor",
       });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        throw new Error(result.error ?? "Failed to acknowledge");
-      }
 
       setSupervisorItems((prev) =>
         prev.map((item) =>
@@ -324,36 +288,51 @@ export default function CollectionScreen() {
         </View>
 
         {viewMode === "agent" && (
-         <>
-         <View style={s.kpiGrid}>
-           <KPIStatCard label="Assigned" value={parlors.length} />
-           <KPIStatCard label="Pending" value={statusCounts.pending} valueColor="#854d0e" />
-           <KPIStatCard label="Entered" value={statusCounts.entered} valueColor="#1d4ed8" />
-           <KPIStatCard label="Ack'd" value={statusCounts.acknowledged} valueColor="#065f46" />
-         </View>
-       </>
+          <View style={s.statsRow}>
+            <View style={s.statsRowItem}>
+              <Text style={s.statsRowTotal}>{parlors.length}</Text>
+              <Text style={s.statsRowLabel}>Parlors Assigned</Text>
+            </View>
+            <View style={s.statsRowDivider} />
+            <StatDot color="#fbbf24" count={statusCounts.pending} label="Pending" textColor="#b45309" />
+            <StatDot color="#60a5fa" count={statusCounts.entered} label="Entered" textColor="#1d4ed8" />
+            <StatDot color="#a78bfa" count={statusCounts.submitted} label="Submitted" textColor="#6d28d9" />
+            <StatDot color="#34d399" count={statusCounts.acknowledged} label="Ack'd" textColor="#047857" />
+          </View>
+        )}
+
+        {viewMode === "agent" && statusCounts.pending > 0 && (
+          <View style={s.pendingWarning}>
+            <Feather name="alert-circle" size={13} color="#b91c1c" />
+            <Text style={s.pendingWarningText}>
+              {statusCounts.pending} parlor{statusCounts.pending > 1 ? "s" : ""} not yet collected
+            </Text>
+          </View>
         )}
 
         {viewMode === "agent" && (
           <View style={s.totalsBar}>
-            <TotalChip
-              label="Cash"
-              amount={totalCash}
-              color="#065f46"
-              colors={colors}
-            />
-            <TotalChip
-              label="Coupons"
-              amount={totalCoupon}
-              color="#1d4ed8"
-              colors={colors}
-            />
-            <TotalChip
-              label="Card"
-              amount={totalCC}
-              color="#6d28d9"
-              colors={colors}
-            />
+            <Text style={s.totalsBarLabel}>TODAY'S TOTALS</Text>
+            <View style={s.totalsBarRow}>
+              <TotalChip
+                label="Cash"
+                amount={totalCash}
+                color="#047857"
+                colors={colors}
+              />
+              <TotalChip
+                label="Coupons"
+                amount={totalCoupon}
+                color="#1d4ed8"
+                colors={colors}
+              />
+              <TotalChip
+                label="Card"
+                amount={totalCC}
+                color="#6d28d9"
+                colors={colors}
+              />
+            </View>
           </View>
         )}
       </View>
@@ -445,6 +424,50 @@ export default function CollectionScreen() {
   );
 }
 
+function StatDot({
+  color,
+  count,
+  label,
+  textColor,
+}: {
+  color: string;
+  count: number;
+  label: string;
+  textColor: string;
+}) {
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+      <View
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: 4,
+          backgroundColor: color,
+        }}
+      />
+      <Text
+        style={{
+          fontSize: 12,
+          fontWeight: "700" as const,
+          color: textColor,
+          fontFamily: "DMSans_700Bold",
+        }}
+      >
+        {count}
+      </Text>
+      <Text
+        style={{
+          fontSize: 11,
+          color: "#64748b",
+          fontFamily: "DMSans_400Regular",
+        }}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 function TotalChip({
   label,
   amount,
@@ -505,15 +528,21 @@ function ParlorItem({
      <AppCard style={styles.parlorCard}>
       <View style={styles.parlorCardTop}>
         <View style={styles.parlorInfo}>
-          <Text
-            style={[styles.parlorName, { color: colors.foreground }]}
-            numberOfLines={1}
-          >
-            {parlor.parlorName}
-          </Text>
+          <View style={styles.parlorNameRow}>
+            <Feather name="home" size={13} color={colors.mutedForeground} />
+            <Text
+              style={[styles.parlorName, { color: colors.foreground }]}
+              numberOfLines={1}
+            >
+              {parlor.parlorName}
+            </Text>
+          </View>
           <View style={styles.parlorMeta}>
             <Text
-              style={[styles.parlorCode, { color: colors.mutedForeground }]}
+              style={[
+                styles.parlorCode,
+                { color: colors.mutedForeground, fontFamily: "DMSans_400Regular" },
+              ]}
             >
               {parlor.parlorCode}
             </Text>
@@ -536,7 +565,7 @@ function ParlorItem({
           <AmountChip
             label="AED"
             value={formatAED(parlor.cashAmount ?? 0)}
-            color="#065f46"
+            color="#047857"
           />
           <AmountChip
             label="+"
@@ -642,22 +671,26 @@ function SupervisorItem({
       <View style={[styles.supAmounts, { borderTopColor: colors.border }]}>
         <SupAmount
           label="Cash"
-          value={formatAED(item.cashAmount)}
+          value={formatAED(item.cashAmount ?? 0)}
           color="#065f46"
         />
         <SupAmount
           label="Coupons"
-          value={formatAED(item.couponAmount)}
+          value={formatAED(item.couponAmount ?? 0)}
           color="#1d4ed8"
         />
         <SupAmount
           label="Card"
-          value={formatAED(item.ccAmount)}
+          value={formatAED(item.ccAmount ?? 0)}
           color="#6d28d9"
         />
         <SupAmount
           label="Total"
-          value={formatAED(item.cashAmount + item.couponAmount + item.ccAmount)}
+          value={formatAED(
+            (item.cashAmount ?? 0) +
+              (item.couponAmount ?? 0) +
+              (item.ccAmount ?? 0),
+          )}
           color={colors.foreground}
           bold
         />
@@ -724,6 +757,47 @@ function makeStyles(
       flexDirection: "row",
       gap: 10,
       marginBottom: 10,
+    },
+    statsRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingVertical: 8,
+      marginBottom: 8,
+      flexWrap: "wrap",
+    },
+    statsRowItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+    },
+    statsRowTotal: {
+      fontSize: 12,
+      fontWeight: "700" as const,
+      color: colors.foreground,
+      fontFamily: "DMSans_700Bold",
+    },
+    statsRowLabel: {
+      fontSize: 11,
+      color: colors.mutedForeground,
+      fontFamily: "DMSans_400Regular",
+    },
+    statsRowDivider: {
+      width: 1,
+      height: 14,
+      backgroundColor: colors.border,
+    },
+    pendingWarning: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginBottom: 8,
+    },
+    pendingWarningText: {
+      fontSize: 12,
+      fontWeight: "600" as const,
+      color: "#b91c1c",
+      fontFamily: "DMSans_600SemiBold",
     },
     headerTop: {
       flexDirection: "row",
@@ -825,13 +899,23 @@ function makeStyles(
       backgroundColor: colors.border,
     },
     totalsBar: {
-      flexDirection: "row",
-      backgroundColor: colors.card,
+      backgroundColor: colors.muted,
       borderRadius: 12,
       borderWidth: 1,
       borderColor: colors.border,
       paddingVertical: 10,
-      paddingHorizontal: 8,
+      paddingHorizontal: 10,
+    },
+    totalsBarLabel: {
+      fontSize: 10,
+      fontWeight: "700" as const,
+      letterSpacing: 0.5,
+      color: colors.mutedForeground,
+      fontFamily: "DMSans_700Bold",
+      marginBottom: 6,
+    },
+    totalsBarRow: {
+      flexDirection: "row",
     },
     listContent: {
       padding: 12,
@@ -891,11 +975,17 @@ const styles = StyleSheet.create({
   parlorInfo: {
     flex: 1,
   },
+  parlorNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
   parlorName: {
     fontSize: 15,
     fontWeight: "600" as const,
     fontFamily: "DMSans_600SemiBold",
-    marginBottom: 4,
+    flexShrink: 1,
   },
   parlorMeta: {
     flexDirection: "row",

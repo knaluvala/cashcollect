@@ -14,7 +14,7 @@ import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { hasPermission } from "@/lib/permissions";
-import { apiFetch } from "@/lib/api";
+import { listParlors } from "@workspace/api-client-react";
 
 interface ParlorRow {
   code: string;
@@ -42,19 +42,13 @@ export default function ParlorMasterScreen() {
     setLoadError("");
 
     try {
-      const res = await apiFetch("/api/parlors");
-
-      if (!res.ok) {
-        throw new Error(`Parlors API failed: ${res.status}`);
-      }
-
-      const result = await res.json();
+      const result = await listParlors();
       const rows: ParlorRow[] = Array.isArray(result.parlors)
-        ? result.parlors.map((p: any) => ({
+        ? result.parlors.map((p) => ({
             code: p.parlorCode ?? "",
             name: p.parlorName ?? "",
             type: p.parlorType ?? "",
-            route: p.routeCode ?? "",
+            route: "",
             status: "valid" as const,
           }))
         : [];
@@ -218,12 +212,12 @@ export default function ParlorMasterScreen() {
             <StatChip
               label="Valid"
               value={validCount.toString()}
-              color="#065f46"
+              color="#047857"
             />
             <StatChip
               label="Errors"
               value={errorCount.toString()}
-              color={errorCount > 0 ? "#ef4444" : "#065f46"}
+              color={errorCount > 0 ? "#ef4444" : "#047857"}
             />
           </View>
 
@@ -350,15 +344,15 @@ export default function ParlorMasterScreen() {
             { backgroundColor: "#d1fae5", borderColor: "#a7f3d0" },
           ]}
         >
-          <Feather name="check-circle" size={36} color="#065f46" />
+          <Feather name="check-circle" size={36} color="#047857" />
           <Text style={styles.successTitle}>Upload Successful</Text>
-          <Text style={[styles.successDesc, { color: "#065f46" }]}>
+          <Text style={[styles.successDesc, { color: "#047857" }]}>
             {validCount} parlors have been updated in the system.
           </Text>
           <TouchableOpacity
             style={[
               styles.uploadBtn,
-              { backgroundColor: "#065f46", marginTop: 16 },
+              { backgroundColor: "#047857", marginTop: 16 },
             ]}
             onPress={handleReset}
             activeOpacity={0.8}
@@ -575,7 +569,7 @@ const styles = StyleSheet.create({
   successCard: {
     margin: 16,
     padding: 32,
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: "center",
     gap: 8,
@@ -583,7 +577,7 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 18,
     fontWeight: "700" as const,
-    color: "#065f46",
+    color: "#047857",
     fontFamily: "DMSans_700Bold",
   },
   successDesc: {

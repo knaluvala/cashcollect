@@ -17,7 +17,14 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
-import { apiFetch } from "@/lib/api";
+import {
+  listParlors,
+  getCollectionByDateAndParlor,
+  createCollection,
+  updateCollection,
+  submitCollection,
+  ApiError,
+} from "@workspace/api-client-react";
 import { addOfflineCollection } from "@/lib/offlineQueue";
 import {
   ParlorEntry,
@@ -26,23 +33,9 @@ import {
 } from "@/lib/collectionTypes";
 import { DatePickerField } from "@/components/ui/DatePickerField";
 import { AmountInput } from "@/components/ui/AmountInput";
-
-const STATUS_CONFIG: Record<
-  CollectionStatus,
-  { label: string; bg: string; text: string }
-> = {
-  pending: { label: "Pending", bg: "#fef9c3", text: "#854d0e" },
-  entered: { label: "Entered", bg: "#dbeafe", text: "#1d4ed8" },
-  submitted: { label: "Submitted", bg: "#ede9fe", text: "#6d28d9" },
-  acknowledged: { label: "Acknowledged", bg: "#d1fae5", text: "#065f46" },
-};
-
-const PARLOR_TYPE_CONFIG: Record<string, { bg: string; text: string }> = {
-  Mall: { bg: "#dbeafe", text: "#1d4ed8" },
-  Standalone: { bg: "#f1f5f9", text: "#475569" },
-  Event: { bg: "#ffedd5", text: "#c2410c" },
-  Kiosk: { bg: "#ede9fe", text: "#6d28d9" },
-};
+import { ExternalReferenceBox } from "@/components/ui/ExternalReferenceBox";
+import { STATUS_CONFIG, PARLOR_TYPE_CONFIG } from "@/constants/statusColors";
+import { useExternalParlorSummary } from "@/hooks/useExternalParlorSummary";
 
 export default function NewEntryScreen() {
   const colors = useColors();
@@ -66,6 +59,14 @@ export default function NewEntryScreen() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
+  const {
+    data: externalData,
+    isLoading: isLoadingExternal,
+    error: externalError,
+  } = useExternalParlorSummary(
+    selectedParlor?.parlorCode,
+    collectionDate,
+  );
   const [savedCollectionId, setSavedCollectionId] = useState<number | null>(
     null,
   );
@@ -75,14 +76,9 @@ export default function NewEntryScreen() {
       setIsLoadingParlors(true);
 
       try {
-        const res = await apiFetch("/api/parlors");
-        const result = await res.json();
+        const result = await listParlors();
 
-        if (!res.ok) {
-          throw new Error(result.error ?? "Failed to load parlors");
-        }
-
-        const mapped: ParlorEntry[] = (result.parlors ?? []).map((p: any) => ({
+        const mapped: ParlorEntry[] = (result.parlors ?? []).map((p) => ({
           id: p.parlorCode,
           parlorCode: p.parlorCode,
           parlorName: p.parlorName,
@@ -123,7 +119,7 @@ export default function NewEntryScreen() {
         p.parlorCode.toLowerCase().includes(q) ||
         p.parlorType.toLowerCase().includes(q),
     );
-  }, [search]);
+  }, [parlors, search]);
 
   function selectParlor(parlor: ParlorEntry) {
     Haptics.selectionAsync();
@@ -148,15 +144,10 @@ export default function NewEntryScreen() {
   const canSubmit = !isReadOnly;
 
   async function findExistingCollectionId(parlorCode: string, date: string) {
-    const res = await apiFetch(
-      `/api/collections?date=${date}&parlorCode=${parlorCode}`,
-    );
-
-    const result = await res.json();
-
-    if (!res.ok) {
-      throw new Error(result.error ?? "Failed to check existing collection");
-    }
+    const result = await getCollectionByDateAndParlor({
+      date,
+      parlorCode,
+    });
 
     return result.collection?.id ?? null;
   }
@@ -183,15 +174,12 @@ export default function NewEntryScreen() {
     };
 
     try {
-      const res = await apiFetch("/api/collections", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      let result;
 
-      const result = await res.json();
-
-      if (!res.ok) {
-        if (res.status === 409) {
+      try {
+        result = await createCollection(payload as any);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 409) {
           const existingId = await findExistingCollectionId(
             selectedParlor.parlorCode,
             collectionDate,
@@ -201,24 +189,13 @@ export default function NewEntryScreen() {
             throw new Error("Existing collection could not be found");
           }
 
-          const updateRes = await apiFetch(`/api/collections/${existingId}`, {
-            method: "PUT",
-            body: JSON.stringify({
-              cashAmount: cashNum,
-              couponAmount: couponNum,
-              ccAmount: ccNum,
-              notes,
-              status: "entered",
-            }),
+          await updateCollection(existingId, {
+            cashAmount: cashNum,
+            couponAmount: couponNum,
+            ccAmount: ccNum,
+            notes,
+            status: "entered",
           });
-
-          const updateResult = await updateRes.json();
-
-          if (!updateRes.ok) {
-            throw new Error(
-              updateResult.error ?? "Failed to update existing draft",
-            );
-          }
 
           setSavedCollectionId(existingId);
           setSaved(true);
@@ -230,7 +207,7 @@ export default function NewEntryScreen() {
           return;
         }
 
-        throw new Error(result.error ?? "Failed to save draft");
+        throw error;
       }
 
       setSavedCollectionId(result.id);
@@ -286,42 +263,27 @@ export default function NewEntryScreen() {
       }
 
       if (!collectionId) {
-        const saveRes = await apiFetch("/api/collections", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-
-        const saveResult = await saveRes.json();
-
-        if (!saveRes.ok) {
-          if (saveRes.status === 409) {
+        try {
+          const saveResult = await createCollection(payload as any);
+          collectionId = saveResult.id;
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 409) {
             collectionId = await findExistingCollectionId(
               selectedParlor.parlorCode,
               collectionDate,
             );
           } else {
-            throw new Error(saveResult.error ?? "Failed to save collection");
+            throw error;
           }
-        } else {
-          collectionId = saveResult.id;
         }
       } else {
-        const updateRes = await apiFetch(`/api/collections/${collectionId}`, {
-          method: "PUT",
-          body: JSON.stringify({
-            cashAmount: cashNum,
-            couponAmount: couponNum,
-            ccAmount: ccNum,
-            notes,
-            status: "entered",
-          }),
+        await updateCollection(collectionId, {
+          cashAmount: cashNum,
+          couponAmount: couponNum,
+          ccAmount: ccNum,
+          notes,
+          status: "entered",
         });
-
-        const updateResult = await updateRes.json();
-
-        if (!updateRes.ok) {
-          throw new Error(updateResult.error ?? "Failed to update collection");
-        }
       }
 
       if (!collectionId) {
@@ -330,18 +292,7 @@ export default function NewEntryScreen() {
 
       setSavedCollectionId(collectionId);
 
-      const submitRes = await apiFetch(
-        `/api/collections/${collectionId}/submit`,
-        {
-          method: "POST",
-        },
-      );
-
-      const submitResult = await submitRes.json();
-
-      if (!submitRes.ok) {
-        throw new Error(submitResult.error ?? "Failed to submit collection");
-      }
+      await submitCollection(collectionId);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -537,13 +488,8 @@ export default function NewEntryScreen() {
                   s.lockBanner,
                   {
                     backgroundColor:
-                      selectedParlor.status === "acknowledged"
-                        ? "#d1fae5"
-                        : "#ede9fe",
-                    borderColor:
-                      selectedParlor.status === "acknowledged"
-                        ? "#a7f3d0"
-                        : "#c4b5fd",
+                      STATUS_CONFIG[selectedParlor.status]?.bg ?? colors.muted,
+                    borderColor: colors.border,
                   },
                 ]}
               >
@@ -554,21 +500,12 @@ export default function NewEntryScreen() {
                       : "lock"
                   }
                   size={14}
-                  color={
-                    selectedParlor.status === "acknowledged"
-                      ? "#065f46"
-                      : "#6d28d9"
-                  }
+                  color={STATUS_CONFIG[selectedParlor.status]?.text}
                 />
                 <Text
                   style={[
                     s.lockText,
-                    {
-                      color:
-                        selectedParlor.status === "acknowledged"
-                          ? "#065f46"
-                          : "#6d28d9",
-                    },
+                    { color: STATUS_CONFIG[selectedParlor.status]?.text },
                   ]}
                 >
                   {selectedParlor.status === "acknowledged"
@@ -598,19 +535,31 @@ export default function NewEntryScreen() {
                 </Text>
               </View>
 
-              <AmountInput
+              <ExternalReferenceBox
+  value={externalData?.cashAmount ?? null}
+  source={externalData?.source}
+  isLoading={isLoadingExternal}
+  error={externalError}
+/>
+<AmountInput
   label="Cash Amount"
   hint="Physical currency collected"
   value={cash}
   onChange={setCash}
   disabled={isReadOnly}
-  accentColor="#065f46"
+  accentColor="#047857"
 />
 
 <View
   style={[s.fieldDivider, { backgroundColor: colors.border }]}
 />
 
+<ExternalReferenceBox
+  value={externalData?.couponAmount ?? null}
+  source={externalData?.source}
+  isLoading={isLoadingExternal}
+  error={externalError}
+/>
 <AmountInput
   label="Coupon Amount"
   hint="Physical coupons redeemed"
@@ -624,6 +573,12 @@ export default function NewEntryScreen() {
   style={[s.fieldDivider, { backgroundColor: colors.border }]}
 />
 
+<ExternalReferenceBox
+  value={externalData?.ccAmount ?? null}
+  source={externalData?.source}
+  isLoading={isLoadingExternal}
+  error={externalError}
+/>
 <AmountInput
   label="Credit Card Total"
   hint="POS / Card transaction total"
