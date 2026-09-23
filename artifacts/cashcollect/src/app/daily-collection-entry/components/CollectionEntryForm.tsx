@@ -1,6 +1,6 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, UseFormRegister, RegisterOptions } from 'react-hook-form';
 import { Store, IndianRupee, FileText, Send, Save, CheckCircle, Clock, AlertCircle, Database } from 'lucide-react';
 import { toast } from 'sonner';
 import StatusBadge from '@/components/ui/StatusBadge';
@@ -41,6 +41,70 @@ function fmtDBDate(s: string) {
   if (!s) return '';
   const d = new Date(s);
   return d.toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+const fmtAmount = (n: number) => 'AED ' + n.toLocaleString('en-AE', { minimumFractionDigits: 2 });
+
+function AmountField({
+  id, label, helper, valueKey, externalValue, isLoading, source, externalError,
+  error, registerOptions, disabled, register,
+}: {
+  id: string; label: string; helper: string; valueKey: 'cashAmount' | 'couponAmount' | 'ccAmount';
+  externalValue: number; isLoading: boolean; source?: string; externalError: string | null;
+  error?: { message?: string };
+  registerOptions: RegisterOptions<CollectionFormValues, 'cashAmount' | 'couponAmount' | 'ccAmount'>;
+  disabled: boolean;
+  register: UseFormRegister<CollectionFormValues>;
+}) {
+  return (
+    <div className="space-y-3">
+      {/* External System Value */}
+      <div className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-2">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">External System</span>
+          <Database size={12} className="text-muted-foreground" />
+        </div>
+        {isLoading ? (
+          <div className="h-6 bg-muted rounded animate-pulse" />
+        ) : externalError ? (
+          <p className="text-xs text-amber-600 dark:text-amber-400 leading-snug">{externalError}</p>
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-foreground">{fmtAmount(externalValue)}</span>
+            <span className="text-[10px] text-muted-foreground">{source ?? "External source"}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Agent Input */}
+      <div>
+        <label htmlFor={id} className="block text-sm font-medium text-foreground mb-1">
+          {label} (AED)
+        </label>
+        <p className="text-xs text-muted-foreground mb-1.5">{helper}</p>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">AED</span>
+          <input
+            id={id}
+            type="number"
+            step="0.01"
+            min="0"
+            disabled={disabled}
+            placeholder="0.00"
+            className={`
+              w-full h-10 pl-12 pr-3 rounded-md border text-sm tabular-nums bg-card
+              focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
+              disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
+              transition-all duration-150
+              ${error ? 'border-red-400' : 'border-input'}
+            `}
+            {...register(valueKey, registerOptions)}
+          />
+        </div>
+        {error && <p className="mt-1 text-xs text-red-500">{error.message}</p>}
+      </div>
+    </div>
+  );
 }
 
 export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: Props) {
@@ -213,64 +277,6 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
 
   const fmt = (n: number) => 'AED ' + n.toLocaleString('en-AE', { minimumFractionDigits: 2 });
 
-  const AmountField = ({
-    id, label, helper, valueKey, externalValue, isLoading, source, externalError,
-    error, registerOptions,
-  }: {
-    id: string; label: string; helper: string; valueKey: 'cashAmount' | 'couponAmount' | 'ccAmount';
-    externalValue: number; isLoading: boolean; source?: string; externalError: string | null;
-    error?: { message?: string };
-    registerOptions: any;
-  }) => (
-    <div className="space-y-3">
-      {/* External System Value */}
-      <div className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-2">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">External System</span>
-          <Database size={12} className="text-muted-foreground" />
-        </div>
-        {isLoading ? (
-          <div className="h-6 bg-muted rounded animate-pulse" />
-        ) : externalError ? (
-          <p className="text-xs text-amber-600 dark:text-amber-400 leading-snug">{externalError}</p>
-        ) : (
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-foreground">{fmt(externalValue)}</span>
-            <span className="text-[10px] text-muted-foreground">{source ?? "External source"}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Agent Input */}
-      <div>
-        <label htmlFor={id} className="block text-sm font-medium text-foreground mb-1">
-          {label} (AED)
-        </label>
-        <p className="text-xs text-muted-foreground mb-1.5">{helper}</p>
-        <div className="relative">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">AED</span>
-          <input
-            id={id}
-            type="number"
-            step="0.01"
-            min="0"
-            disabled={isReadOnly}
-            placeholder="0.00"
-            className={`
-              w-full h-10 pl-12 pr-3 rounded-md border text-sm tabular-nums bg-card
-              focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring
-              disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed
-              transition-all duration-150
-              ${error ? 'border-red-400' : 'border-input'}
-            `}
-            {...register(valueKey, registerOptions)}
-          />
-        </div>
-        {error && <p className="mt-1 text-xs text-red-500">{error.message}</p>}
-      </div>
-    </div>
-  );
-
   return (
     <div className="max-w-2xl mx-auto p-6">
       {/* Parlor Header */}
@@ -344,6 +350,8 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
               source={externalData?.source}
               externalError={externalError}
               error={errors.cashAmount}
+              disabled={isReadOnly}
+              register={register}
               registerOptions={{
                 required: !isReadOnly ? 'Cash amount is required' : false,
                 min: { value: 0, message: 'Amount cannot be negative' },
@@ -359,6 +367,8 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
               source={externalData?.source}
               externalError={externalError}
               error={errors.couponAmount}
+              disabled={isReadOnly}
+              register={register}
               registerOptions={{
                 required: !isReadOnly ? 'Coupon amount is required' : false,
                 min: { value: 0, message: 'Amount cannot be negative' },
@@ -374,6 +384,8 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
               source={externalData?.source}
               externalError={externalError}
               error={errors.ccAmount}
+              disabled={isReadOnly}
+              register={register}
               registerOptions={{
                 required: !isReadOnly ? 'Credit card amount is required' : false,
                 min: { value: 0, message: 'Amount cannot be negative' },
