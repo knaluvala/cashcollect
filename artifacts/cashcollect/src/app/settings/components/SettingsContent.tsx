@@ -834,12 +834,17 @@ export default function SettingsContent() {
                             endpoint: e.target.value,
                           })
                         }
-                        placeholder="https://example.com/api/collection-summary"
+                        placeholder="https://example.com/api/collection-summary/parlorCode/date"
                         className="px-3 py-2 rounded-lg border border-border bg-background text-sm w-full"
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Include the path segment placeholder names below directly in the URL
+                        (e.g. .../parlorCode/date) — they'll be replaced with the actual parlor
+                        code and date at request time.
+                      </p>
                     </Field>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <Field label="Parlor Code Parameter">
+                      <Field label="Parlor Code Path Segment">
                         <input
                           value={externalConfig.parlorCodeParameter}
                           onChange={(e) =>
@@ -848,10 +853,11 @@ export default function SettingsContent() {
                               parlorCodeParameter: e.target.value,
                             })
                           }
+                          placeholder="parlorCode"
                           className="px-3 py-2 rounded-lg border border-border bg-background text-sm w-full"
                         />
                       </Field>
-                      <Field label="Date Parameter">
+                      <Field label="Date Path Segment">
                         <input
                           value={externalConfig.dateParameter}
                           onChange={(e) =>
@@ -860,6 +866,7 @@ export default function SettingsContent() {
                               dateParameter: e.target.value,
                             })
                           }
+                          placeholder="date"
                           className="px-3 py-2 rounded-lg border border-border bg-background text-sm w-full"
                         />
                       </Field>

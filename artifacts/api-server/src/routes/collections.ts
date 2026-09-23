@@ -633,8 +633,14 @@ router.get("/external/parlor-summary/:parlorCode/:date", async (req, res) => {
     return;
   }
 
-  endpoint.searchParams.set(config.parlorCodeParameter, parlorCode);
-  endpoint.searchParams.set(config.dateParameter, date);
+  endpoint.pathname = endpoint.pathname
+    .split("/")
+    .map((segment) => {
+      if (segment === config.parlorCodeParameter) return encodeURIComponent(parlorCode);
+      if (segment === config.dateParameter) return encodeURIComponent(date);
+      return segment;
+    })
+    .join("/");
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8_000);
