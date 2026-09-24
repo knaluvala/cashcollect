@@ -61,6 +61,7 @@ export default function RouteMasterContent() {
   const [supervisors, setSupervisors] = useState<UserLov[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<number | null>(null);
   const [routeToDelete, setRouteToDelete] = useState<RouteApi | null>(null);
+  const [parlorToRemove, setParlorToRemove] = useState<string | null>(null);
   const [addParlorOpen, setAddParlorOpen] = useState(false);
   const [newRouteOpen, setNewRouteOpen] = useState(false);
   const [parlorSearch, setParlorSearch] = useState("");
@@ -354,15 +355,17 @@ export default function RouteMasterContent() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button
-            onClick={downloadTemplate}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-xs sm:text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150"
+            disabled
+            title="Template download is disabled"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-xs sm:text-sm text-muted-foreground opacity-50 cursor-not-allowed"
           >
             <Download size={14} />
             Template
           </button>
           <button
-            onClick={() => fileRef.current?.click()}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-xs sm:text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150"
+            disabled
+            title="Bulk upload is disabled"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border bg-card text-xs sm:text-sm text-muted-foreground opacity-50 cursor-not-allowed"
           >
             <Upload size={14} />
             Upload
@@ -669,9 +672,7 @@ export default function RouteMasterContent() {
                             </td>
                             <td className="px-4 sm:px-5 py-3">
                               <button
-                                onClick={() =>
-                                  removeParlorFromRoute(parlor.code)
-                                }
+                                onClick={() => setParlorToRemove(parlor.code)}
                                 className="opacity-100 md:opacity-0 md:group-hover:opacity-100 flex items-center gap-1 px-2 py-1 rounded-md text-xs text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all"
                               >
                                 <Trash2 size={11} />
@@ -758,61 +759,42 @@ export default function RouteMasterContent() {
                     Add parlors in the Parlor Master first.
                   </p>
                 </div>
+              ) : availableParlors.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-2 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    {parlorSearch
+                      ? "No unassigned parlors match your search."
+                      : "All parlors are already assigned to a route."}
+                  </p>
+                </div>
               ) : (
                 <ul className="divide-y divide-border">
-                  {parlors
-                    .filter(
-                      (p) =>
-                        parlorSearch === "" ||
-                        p.code
-                          .toLowerCase()
-                          .includes(parlorSearch.toLowerCase()) ||
-                        p.name
-                          .toLowerCase()
-                          .includes(parlorSearch.toLowerCase()),
-                    )
-                    .map((p) => {
-                      const alreadyAssigned = assignedParlorCodes.has(p.code);
-                      return (
-                        <li key={p.code}>
-                          <button
-                            disabled={alreadyAssigned}
-                            onClick={() => {
-                              if (alreadyAssigned) return;
-                              addParlorToRoute(p);
-                              setAddParlorOpen(false);
-                              setParlorSearch("");
-                            }}
-                            className={`w-full text-left flex items-center justify-between px-4 sm:px-5 py-3 transition-colors ${
-                              alreadyAssigned
-                                ? "bg-muted/30 cursor-not-allowed opacity-60"
-                                : "hover:bg-muted/40"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-mono text-xs font-semibold text-muted-foreground">
-                                {p.code}
-                              </span>
-                              <span
-                                className={`text-xs sm:text-sm ${alreadyAssigned ? "text-muted-foreground" : "text-foreground"}`}
-                              >
-                                {p.name}
-                              </span>
-                              {alreadyAssigned && (
-                                <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
-                                  Already assigned
-                                </span>
-                              )}
-                            </div>
-                            <span
-                              className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${TYPE_COLORS[p.type]}`}
-                            >
-                              {p.type}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
+                  {availableParlors.map((p) => (
+                    <li key={p.code}>
+                      <button
+                        onClick={() => {
+                          addParlorToRoute(p);
+                          setAddParlorOpen(false);
+                          setParlorSearch("");
+                        }}
+                        className="w-full text-left flex items-center justify-between px-4 sm:px-5 py-3 transition-colors hover:bg-muted/40"
+                      >
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs font-semibold text-muted-foreground">
+                            {p.code}
+                          </span>
+                          <span className="text-xs sm:text-sm text-foreground">
+                            {p.name}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${TYPE_COLORS[p.type]}`}
+                        >
+                          {p.type}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
@@ -987,6 +969,65 @@ export default function RouteMasterContent() {
                 className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors"
               >
                 Delete route
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Parlor Confirmation */}
+      {parlorToRemove && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm"
+          role="presentation"
+        >
+          <div
+            className="bg-card rounded-xl shadow-xl w-full max-w-md border border-border"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="remove-parlor-title"
+            aria-describedby="remove-parlor-description"
+          >
+            <div className="px-4 sm:px-5 py-4 border-b border-border">
+              <h2
+                id="remove-parlor-title"
+                className="text-base font-semibold text-foreground"
+              >
+                Remove parlor from route?
+              </h2>
+            </div>
+            <div className="px-4 sm:px-5 py-4">
+              <p
+                id="remove-parlor-description"
+                className="text-sm text-muted-foreground"
+              >
+                Remove{" "}
+                <span className="font-semibold text-foreground">
+                  {parlorToRemove}
+                </span>{" "}
+                from{" "}
+                <span className="font-semibold text-foreground">
+                  {selectedRoute?.routeCode}
+                </span>
+                ? This action cannot be undone.
+              </p>
+            </div>
+            <div className="flex items-center justify-end gap-2 px-4 sm:px-5 py-4 border-t border-border">
+              <button
+                onClick={() => setParlorToRemove(null)}
+                className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted border border-border transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  const code = parlorToRemove;
+                  setParlorToRemove(null);
+                  await removeParlorFromRoute(code);
+                }}
+                className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-medium hover:bg-destructive/90 transition-colors"
+              >
+                Remove parlor
               </button>
             </div>
           </div>
