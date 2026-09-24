@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Search,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -133,6 +134,12 @@ export default function ParlorMasterUpload() {
   const [parlorToDelete, setParlorToDelete] = useState<SavedParlor | null>(
     null,
   );
+  const [editParlor, setEditParlor] = useState<SavedParlor | null>(null);
+  const [editForm, setEditForm] = useState({
+    parlorName: "",
+    parlorType: "Mall",
+  });
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const fetchExistingParlors = useCallback(async () => {
     setLoadingExisting(true);
@@ -292,6 +299,51 @@ export default function ParlorMasterUpload() {
     }
   };
 
+  const openEdit = (parlor: SavedParlor) => {
+    setEditParlor(parlor);
+    setEditForm({
+      parlorName: parlor.parlorName,
+      parlorType: parlor.parlorType,
+    });
+  };
+
+  const handleEditSave = async () => {
+    if (!editParlor) return;
+
+    if (!editForm.parlorName.trim()) {
+      toast.error("Parlor Name is required");
+      return;
+    }
+
+    setIsSavingEdit(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/parlors/${editParlor.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          parlorName: editForm.parlorName.trim(),
+          parlorType: editForm.parlorType,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(data.error || "Failed to update parlor");
+        return;
+      }
+
+      toast.success("Parlor updated successfully");
+      setEditParlor(null);
+      await fetchExistingParlors();
+    } catch {
+      toast.error("Failed to update parlor");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   const handleDelete = async (id: number) => {
     try {
       const res = await fetch(`${API_BASE}/parlors/${id}`, {
@@ -400,7 +452,7 @@ export default function ParlorMasterUpload() {
             onClick={() => setAddOpen(true)}
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
-            Add New Record
+            Add New Parlor
           </button>
           <button
             onClick={handleDownloadSample}
@@ -915,13 +967,22 @@ export default function ParlorMasterUpload() {
                             : "—"}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button
-                            onClick={() => setParlorToDelete(parlor)}
-                            className="text-red-600 hover:text-red-800 transition-colors"
-                            title="Delete"
-                          >
-                            <Trash2 size={14} />
-                          </button>
+                          <div className="flex items-center justify-end gap-3">
+                            <button
+                              onClick={() => openEdit(parlor)}
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              title="Edit"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              onClick={() => setParlorToDelete(parlor)}
+                              className="text-red-600 hover:text-red-800 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -940,6 +1001,92 @@ export default function ParlorMasterUpload() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editParlor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-foreground/40 backdrop-blur-sm">
+          <div className="bg-card rounded-xl shadow-xl w-full max-w-md border border-border">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-base font-semibold text-foreground">
+                Edit Parlor
+              </h2>
+              <button
+                onClick={() => setEditParlor(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Parlor Code
+                </label>
+                <input
+                  value={editParlor.parlorCode}
+                  disabled
+                  className="px-3 py-2 rounded-lg border border-border bg-muted text-sm text-muted-foreground cursor-not-allowed"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Parlor Name *
+                </label>
+                <input
+                  value={editForm.parlorName}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      parlorName: e.target.value,
+                    }))
+                  }
+                  placeholder="e.g. Dubai Mall Outlet"
+                  className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Parlor Type *
+                </label>
+                <select
+                  value={editForm.parlorType}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      parlorType: e.target.value,
+                    }))
+                  }
+                  className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  {VALID_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border">
+              <button
+                onClick={() => setEditParlor(null)}
+                className="px-4 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted border border-border transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSave}
+                disabled={isSavingEdit}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-60 transition-colors"
+              >
+                {isSavingEdit ? "Saving…" : "Save Changes"}
+              </button>
             </div>
           </div>
         </div>
