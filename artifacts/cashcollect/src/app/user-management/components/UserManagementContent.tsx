@@ -98,6 +98,27 @@ export default function UserManagementContent() {
 
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [routes, setRoutes] = useState<{ id: number; routeCode: string }[]>(
+    [],
+  );
+
+  // Fetch available routes for the Route Code selector
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const res = await fetch(`${API_BASE}/routes`);
+        const data = await res.json();
+        if (!cancelled) setRoutes(data.routes ?? []);
+      } catch {
+        if (!cancelled) setRoutes([]);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Fetch users on mount
   useEffect(() => {
@@ -904,14 +925,20 @@ export default function UserManagementContent() {
                       size={13}
                       className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
                     />
-                    <input
+                    <select
                       value={form.routeCode}
                       onChange={(e) =>
                         setForm((f) => ({ ...f, routeCode: e.target.value }))
                       }
-                      placeholder="RT-04"
-                      className={`w-full h-9 pl-7 pr-3 rounded-md border text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-150 ${formErrors.routeCode ? "border-red-400" : "border-input"}`}
-                    />
+                      className={`w-full h-9 pl-7 pr-3 rounded-md border text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-150 appearance-none ${formErrors.routeCode ? "border-red-400" : "border-input"}`}
+                    >
+                      <option value="">Select a route</option>
+                      {routes.map((r) => (
+                        <option key={r.id} value={r.routeCode}>
+                          {r.routeCode}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   {formErrors.routeCode && (
                     <p className="mt-0.5 text-[11px] text-red-500">
