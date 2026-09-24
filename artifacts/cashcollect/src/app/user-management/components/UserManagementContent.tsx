@@ -384,7 +384,9 @@ export default function UserManagementContent() {
         const rows: Record<string, string>[] = XLSX.utils.sheet_to_json(ws, {
           defval: "",
         });
-        const imported: Omit<AppUser, "id" | "createdAt">[] = rows
+        const imported: (Omit<AppUser, "id" | "createdAt"> & {
+          password: string;
+        })[] = rows
           .map((row) => ({
             name: row["Name"] || row["name"] || "",
             email: row["Email"] || row["email"] || "",
@@ -397,13 +399,17 @@ export default function UserManagementContent() {
               row["Route Code"] || row["routeCode"] || row["route"] || "",
             agentCode:
               row["User Code"] || row["agentCode"] || row["code"] || "",
+            password: row["Password"] || row["password"] || "",
             status: "active" as UserStatus,
           }))
-          .filter((u) => u.name && u.email && u.agentCode);
+          .filter(
+            (u) =>
+              u.name && u.email && u.agentCode && u.password.length >= 8,
+          );
 
         if (imported.length === 0) {
           toast.error(
-            "No valid rows found. Check columns: Name, Email, Role, Route Code, User Code",
+            "No valid rows found. Check columns: Name, Email, Role, Route Code, User Code, Password (min 8 characters)",
           );
           return;
         }
@@ -419,8 +425,13 @@ export default function UserManagementContent() {
             });
             if (res.ok) {
               const result = await res.json();
+              const { password: _password, ...userWithoutPassword } = u;
               setUsers((prev) => [
-                { ...u, id: result.id, createdAt: result.createdAt } as AppUser,
+                {
+                  ...userWithoutPassword,
+                  id: result.id,
+                  createdAt: result.createdAt,
+                },
                 ...prev,
               ]);
               created++;
@@ -448,14 +459,22 @@ export default function UserManagementContent() {
 
   function downloadTemplate() {
     const ws = XLSX.utils.aoa_to_sheet([
-      ["Name", "Email", "Role", "Route Code", "User Code"],
-      ["Rajan Kumar", "rajan@cashcollect.in", "agent", "RT-04", "AGT-001"],
+      ["Name", "Email", "Role", "Route Code", "User Code", "Password"],
+      [
+        "Rajan Kumar",
+        "rajan@cashcollect.in",
+        "agent",
+        "RT-04",
+        "AGT-001",
+        "Passw0rd1",
+      ],
       [
         "Meena Sharma",
         "meena@cashcollect.in",
         "supervisor",
         "RT-04 & RT-05",
         "SUP-001",
+        "Passw0rd2",
       ],
     ]);
     const wb = XLSX.utils.book_new();
