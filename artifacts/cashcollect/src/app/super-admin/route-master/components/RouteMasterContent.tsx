@@ -34,6 +34,8 @@ interface RouteApi {
   agentCode: string;
   supervisorName: string;
   supervisorCode: string;
+  countryId: number | null;
+  brandId: number | null;
   parlors: { code: string }[];
 }
 
@@ -43,6 +45,17 @@ interface UserLov {
   role: "agent" | "supervisor" | "superadmin";
   agentCode: string;
   status: string;
+}
+
+interface SavedCountry {
+  id: number;
+  name: string;
+}
+
+interface SavedBrand {
+  id: number;
+  name: string;
+  countryId: number;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -74,9 +87,13 @@ export default function RouteMasterContent() {
     agentCode: "",
     supervisorName: "",
     supervisorCode: "",
+    countryId: "",
+    brandId: "",
   });
   const [loading, setLoading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [countries, setCountries] = useState<SavedCountry[]>([]);
+  const [brands, setBrands] = useState<SavedBrand[]>([]);
 
   const fetchRoutes = useCallback(async () => {
     setLoading(true);
@@ -142,6 +159,32 @@ export default function RouteMasterContent() {
   useEffect(() => {
     fetchUsersForLov();
   }, [fetchUsersForLov]);
+
+  const fetchLovs = useCallback(async () => {
+    try {
+      const [countriesRes, brandsRes] = await Promise.all([
+        fetch(`${API_BASE}/countries`),
+        fetch(`${API_BASE}/brands`),
+      ]);
+      const countriesData = await countriesRes.json();
+      const brandsData = await brandsRes.json();
+      setCountries(countriesData.countries || []);
+      setBrands(brandsData.brands || []);
+    } catch {
+      toast.error("Failed to load countries/brands");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLovs();
+  }, [fetchLovs]);
+
+  const countryName = (id: number | null) =>
+    countries.find((c) => c.id === id)?.name ?? "—";
+  const brandName = (id: number | null) =>
+    brands.find((b) => b.id === id)?.name ?? "—";
+  const brandsForCountry = (countryId: string) =>
+    countryId ? brands.filter((b) => b.countryId === Number(countryId)) : [];
 
   const selectedRoute =
     routes.find((r) => r.id === selectedRouteId) ?? routes[0];
@@ -213,6 +256,14 @@ export default function RouteMasterContent() {
       toast.error("Route code is required");
       return;
     }
+    if (!newRoute.countryId) {
+      toast.error("Country is required");
+      return;
+    }
+    if (!newRoute.brandId) {
+      toast.error("Brand is required");
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/routes`, {
         method: "POST",
@@ -224,6 +275,8 @@ export default function RouteMasterContent() {
           agentCode: newRoute.agentCode.trim() || "—",
           supervisorName: newRoute.supervisorName.trim() || "—",
           supervisorCode: newRoute.supervisorCode.trim() || "—",
+          countryId: Number(newRoute.countryId),
+          brandId: Number(newRoute.brandId),
         }),
       });
       if (res.ok) {
@@ -239,6 +292,8 @@ export default function RouteMasterContent() {
           agentCode: "",
           supervisorName: "",
           supervisorCode: "",
+          countryId: "",
+          brandId: "",
         });
         await fetchRoutes();
       } else {
@@ -591,6 +646,10 @@ export default function RouteMasterContent() {
                           ({selectedRoute.supervisorCode})
                         </span>
                       </span>
+                      <span className="text-xs text-muted-foreground">
+                        {countryName(selectedRoute.countryId)} /{" "}
+                        {brandName(selectedRoute.brandId)}
+                      </span>
                     </div>
                   </div>
                   <button
@@ -847,6 +906,58 @@ export default function RouteMasterContent() {
                   />
                 </div>
               ))}
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Country *
+                </label>
+                <select
+                  value={newRoute.countryId}
+                  onChange={(e) =>
+                    setNewRoute((prev) => ({
+                      ...prev,
+                      countryId: e.target.value,
+                      brandId: "",
+                    }))
+                  }
+                  className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 w-full"
+                >
+                  <option value="">Select a country</option>
+                  {countries.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Brand *
+                </label>
+                <select
+                  value={newRoute.brandId}
+                  onChange={(e) =>
+                    setNewRoute((prev) => ({
+                      ...prev,
+                      brandId: e.target.value,
+                    }))
+                  }
+                  disabled={!newRoute.countryId}
+                  className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 w-full disabled:bg-muted disabled:cursor-not-allowed"
+                >
+                  <option value="">
+                    {newRoute.countryId
+                      ? "Select a brand"
+                      : "Select a country first"}
+                  </option>
+                  {brandsForCountry(newRoute.countryId).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-muted-foreground">

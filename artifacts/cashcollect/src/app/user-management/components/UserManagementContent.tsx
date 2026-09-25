@@ -38,6 +38,8 @@ interface AppUser {
   routeCode: string;
   agentCode: string;
   status: UserStatus;
+  countryId: number | null;
+  brandId: number | null;
   createdAt: string;
 }
 
@@ -49,6 +51,19 @@ interface NewUserForm {
   agentCode: string;
   password: string;
   confirmPassword: string;
+  countryId: string;
+  brandId: string;
+}
+
+interface SavedCountry {
+  id: number;
+  name: string;
+}
+
+interface SavedBrand {
+  id: number;
+  name: string;
+  countryId: number;
 }
 
 const EMPTY_FORM: NewUserForm = {
@@ -59,6 +74,8 @@ const EMPTY_FORM: NewUserForm = {
   agentCode: "",
   password: "",
   confirmPassword: "",
+  countryId: "",
+  brandId: "",
 };
 
 type SortKey = "name" | "role" | "routeCode" | "status" | "createdAt";
@@ -101,6 +118,8 @@ export default function UserManagementContent() {
   const [routes, setRoutes] = useState<{ id: number; routeCode: string }[]>(
     [],
   );
+  const [countries, setCountries] = useState<SavedCountry[]>([]);
+  const [brands, setBrands] = useState<SavedBrand[]>([]);
 
   // Fetch available routes for the Route Code selector
   useEffect(() => {
@@ -119,6 +138,41 @@ export default function UserManagementContent() {
       cancelled = true;
     };
   }, []);
+
+  // Fetch countries/brands for the Country/Brand selectors
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const [countriesRes, brandsRes] = await Promise.all([
+          fetch(`${API_BASE}/countries`),
+          fetch(`${API_BASE}/brands`),
+        ]);
+        const countriesData = await countriesRes.json();
+        const brandsData = await brandsRes.json();
+        if (!cancelled) {
+          setCountries(countriesData.countries ?? []);
+          setBrands(brandsData.brands ?? []);
+        }
+      } catch {
+        if (!cancelled) {
+          setCountries([]);
+          setBrands([]);
+        }
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const countryName = (id: number | null) =>
+    countries.find((c) => c.id === id)?.name ?? "—";
+  const brandName = (id: number | null) =>
+    brands.find((b) => b.id === id)?.name ?? "—";
+  const brandsForCountry = (countryId: string) =>
+    countryId ? brands.filter((b) => b.countryId === Number(countryId)) : [];
 
   // Fetch users on mount
   useEffect(() => {
@@ -192,6 +246,8 @@ export default function UserManagementContent() {
       agentCode: u.agentCode,
       password: "",
       confirmPassword: "",
+      countryId: u.countryId ? String(u.countryId) : "",
+      brandId: u.brandId ? String(u.brandId) : "",
     });
     setFormErrors({});
     setMenuOpenId(null);
@@ -206,6 +262,8 @@ export default function UserManagementContent() {
       errs.email = "Enter a valid email";
     if (!form.routeCode.trim()) errs.routeCode = "Route code is required";
     if (!form.agentCode.trim()) errs.agentCode = "User code is required";
+    if (!form.countryId) errs.countryId = "Country is required";
+    if (!form.brandId) errs.brandId = "Brand is required";
     if (!editingUser && form.password.length < 8) {
       errs.password = "Password must be at least 8 characters";
     }
@@ -225,7 +283,11 @@ export default function UserManagementContent() {
         const res = await fetch(`${API_BASE}/users/${editingUser.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json", ...authHeaders },
-          body: JSON.stringify(form),
+          body: JSON.stringify({
+            ...form,
+            countryId: Number(form.countryId),
+            brandId: Number(form.brandId),
+          }),
         });
         const result = await res.json();
         if (!res.ok) {
@@ -250,7 +312,12 @@ export default function UserManagementContent() {
         const res = await fetch(`${API_BASE}/users`, {
           method: "POST",
           headers: { "Content-Type": "application/json", ...authHeaders },
-          body: JSON.stringify({ ...newUserPayload, status: "active" }),
+          body: JSON.stringify({
+            ...newUserPayload,
+            countryId: Number(newUserPayload.countryId),
+            brandId: Number(newUserPayload.brandId),
+            status: "active",
+          }),
         });
         const result = await res.json();
         if (!res.ok) {
@@ -262,7 +329,13 @@ export default function UserManagementContent() {
         }
         const newUser: AppUser = {
           id: result.id,
-          ...form,
+          name: form.name,
+          email: form.email,
+          role: form.role,
+          routeCode: form.routeCode,
+          agentCode: form.agentCode,
+          countryId: Number(form.countryId),
+          brandId: Number(form.brandId),
           status: "active",
           createdAt: result.createdAt,
         };
@@ -401,6 +474,8 @@ export default function UserManagementContent() {
               row["User Code"] || row["agentCode"] || row["code"] || "",
             password: row["Password"] || row["password"] || "",
             status: "active" as UserStatus,
+            countryId: null,
+            brandId: null,
           }))
           .filter(
             (u) =>
@@ -683,6 +758,12 @@ export default function UserManagementContent() {
                     </span>
                   </th>
                 ))}
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Country
+                </th>
+                <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Brand
+                </th>
                 <th className="px-4 py-2.5 w-10" />
               </tr>
             </thead>
@@ -761,6 +842,14 @@ export default function UserManagementContent() {
                   {/* Created */}
                   <td className="px-4 py-3 text-muted-foreground text-xs">
                     {formatDate(u.createdAt)}
+                  </td>
+                  {/* Country */}
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
+                    {countryName(u.countryId)}
+                  </td>
+                  {/* Brand */}
+                  <td className="px-4 py-3 text-muted-foreground text-xs">
+                    {brandName(u.brandId)}
                   </td>
                   {/* Actions */}
                   <td className="px-4 py-3">
@@ -877,6 +966,67 @@ export default function UserManagementContent() {
                       {r === "agent" ? "Collection Agent" : "Supervisor"}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Country + Brand */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">
+                    Country <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={form.countryId}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        countryId: e.target.value,
+                        brandId: "",
+                      }))
+                    }
+                    className={`w-full h-9 px-3 rounded-md border text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-150 ${formErrors.countryId ? "border-red-400" : "border-input"}`}
+                  >
+                    <option value="">Select a country</option>
+                    {countries.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.countryId && (
+                    <p className="mt-0.5 text-[11px] text-red-500">
+                      {formErrors.countryId}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-foreground mb-1">
+                    Brand <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={form.brandId}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, brandId: e.target.value }))
+                    }
+                    disabled={!form.countryId}
+                    className={`w-full h-9 px-3 rounded-md border text-sm bg-card focus:outline-none focus:ring-2 focus:ring-ring focus:border-ring transition-all duration-150 disabled:bg-muted disabled:cursor-not-allowed ${formErrors.brandId ? "border-red-400" : "border-input"}`}
+                  >
+                    <option value="">
+                      {form.countryId
+                        ? "Select a brand"
+                        : "Select a country first"}
+                    </option>
+                    {brandsForCountry(form.countryId).map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.brandId && (
+                    <p className="mt-0.5 text-[11px] text-red-500">
+                      {formErrors.brandId}
+                    </p>
+                  )}
                 </div>
               </div>
 

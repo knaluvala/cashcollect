@@ -31,8 +31,21 @@ interface SavedParlor {
   parlorCode: string;
   parlorName: string;
   parlorType: string;
+  countryId: number | null;
+  brandId: number | null;
   createdAt: string;
   updatedAt: string;
+}
+
+interface SavedCountry {
+  id: number;
+  name: string;
+}
+
+interface SavedBrand {
+  id: number;
+  name: string;
+  countryId: number;
 }
 
 const VALID_TYPES = ["Mall", "Standalone", "Event", "Kiosk", "Cart"];
@@ -122,8 +135,13 @@ export default function ParlorMasterUpload() {
     parlorCode: "",
     parlorName: "",
     parlorType: "Mall",
+    countryId: "",
+    brandId: "",
   });
   const [isAdding, setIsAdding] = useState(false);
+
+  const [countries, setCountries] = useState<SavedCountry[]>([]);
+  const [brands, setBrands] = useState<SavedBrand[]>([]);
 
   const [existingParlors, setExistingParlors] = useState<SavedParlor[]>([]);
   const [existingSearch, setExistingSearch] = useState("");
@@ -138,8 +156,29 @@ export default function ParlorMasterUpload() {
   const [editForm, setEditForm] = useState({
     parlorName: "",
     parlorType: "Mall",
+    countryId: "",
+    brandId: "",
   });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const fetchLovs = useCallback(async () => {
+    try {
+      const [countriesRes, brandsRes] = await Promise.all([
+        fetch(`${API_BASE}/countries`),
+        fetch(`${API_BASE}/brands`),
+      ]);
+      const countriesData = await countriesRes.json();
+      const brandsData = await brandsRes.json();
+      setCountries(countriesData.countries || []);
+      setBrands(brandsData.brands || []);
+    } catch {
+      toast.error("Failed to load countries/brands");
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchLovs();
+  }, [fetchLovs]);
 
   const fetchExistingParlors = useCallback(async () => {
     setLoadingExisting(true);
@@ -268,6 +307,16 @@ export default function ParlorMasterUpload() {
       return;
     }
 
+    if (!newParlor.countryId) {
+      toast.error("Country is required");
+      return;
+    }
+
+    if (!newParlor.brandId) {
+      toast.error("Brand is required");
+      return;
+    }
+
     setIsAdding(true);
 
     try {
@@ -278,6 +327,8 @@ export default function ParlorMasterUpload() {
           parlorCode: newParlor.parlorCode.trim().toUpperCase(),
           parlorName: newParlor.parlorName.trim(),
           parlorType: newParlor.parlorType,
+          countryId: Number(newParlor.countryId),
+          brandId: Number(newParlor.brandId),
         }),
       });
 
@@ -290,7 +341,13 @@ export default function ParlorMasterUpload() {
 
       toast.success("Parlor added successfully");
       setAddOpen(false);
-      setNewParlor({ parlorCode: "", parlorName: "", parlorType: "Mall" });
+      setNewParlor({
+        parlorCode: "",
+        parlorName: "",
+        parlorType: "Mall",
+        countryId: "",
+        brandId: "",
+      });
       await fetchExistingParlors();
     } catch {
       toast.error("Failed to add parlor");
@@ -304,6 +361,8 @@ export default function ParlorMasterUpload() {
     setEditForm({
       parlorName: parlor.parlorName,
       parlorType: parlor.parlorType,
+      countryId: parlor.countryId ? String(parlor.countryId) : "",
+      brandId: parlor.brandId ? String(parlor.brandId) : "",
     });
   };
 
@@ -312,6 +371,16 @@ export default function ParlorMasterUpload() {
 
     if (!editForm.parlorName.trim()) {
       toast.error("Parlor Name is required");
+      return;
+    }
+
+    if (!editForm.countryId) {
+      toast.error("Country is required");
+      return;
+    }
+
+    if (!editForm.brandId) {
+      toast.error("Brand is required");
       return;
     }
 
@@ -324,6 +393,8 @@ export default function ParlorMasterUpload() {
         body: JSON.stringify({
           parlorName: editForm.parlorName.trim(),
           parlorType: editForm.parlorType,
+          countryId: Number(editForm.countryId),
+          brandId: Number(editForm.brandId),
         }),
       });
 
@@ -405,6 +476,15 @@ export default function ParlorMasterUpload() {
       ? av.localeCompare(bv)
       : bv.localeCompare(av);
   });
+
+  const countryName = (id: number | null) =>
+    countries.find((c) => c.id === id)?.name ?? "—";
+  const brandName = (id: number | null) =>
+    brands.find((b) => b.id === id)?.name ?? "—";
+  const brandsForCountry = (countryId: string) =>
+    countryId
+      ? brands.filter((b) => b.countryId === Number(countryId))
+      : [];
 
   const SortIcon = ({ col }: { col: SortKey }) => (
     <span className="inline-flex flex-col ml-1 opacity-50">
@@ -530,6 +610,58 @@ export default function ParlorMasterUpload() {
                     {VALID_TYPES.map((type) => (
                       <option key={type} value={type}>
                         {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Country *
+                  </label>
+                  <select
+                    value={newParlor.countryId}
+                    onChange={(e) =>
+                      setNewParlor((prev) => ({
+                        ...prev,
+                        countryId: e.target.value,
+                        brandId: "",
+                      }))
+                    }
+                    className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  >
+                    <option value="">Select a country</option>
+                    {countries.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Brand *
+                  </label>
+                  <select
+                    value={newParlor.brandId}
+                    onChange={(e) =>
+                      setNewParlor((prev) => ({
+                        ...prev,
+                        brandId: e.target.value,
+                      }))
+                    }
+                    disabled={!newParlor.countryId}
+                    className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:bg-muted disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {newParlor.countryId
+                        ? "Select a brand"
+                        : "Select a country first"}
+                    </option>
+                    {brandsForCountry(newParlor.countryId).map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
                       </option>
                     ))}
                   </select>
@@ -924,6 +1056,12 @@ export default function ParlorMasterUpload() {
                         <ExistingSortIcon col={col.key as ExistingSortKey} />
                       </th>
                     ))}
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Country
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Brand
+                    </th>
                     <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                       Actions
                     </th>
@@ -932,7 +1070,7 @@ export default function ParlorMasterUpload() {
                 <tbody className="divide-y divide-border">
                   {loadingExisting ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-10 text-center">
+                      <td colSpan={7} className="px-4 py-10 text-center">
                         <Loader2
                           size={20}
                           className="animate-spin mx-auto text-muted-foreground"
@@ -966,6 +1104,12 @@ export default function ParlorMasterUpload() {
                             ? new Date(parlor.createdAt).toLocaleDateString()
                             : "—"}
                         </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {countryName(parlor.countryId)}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">
+                          {brandName(parlor.brandId)}
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-3">
                             <button
@@ -990,7 +1134,7 @@ export default function ParlorMasterUpload() {
                   {!loadingExisting && filteredExisting.length === 0 && (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={7}
                         className="px-4 py-10 text-center text-sm text-muted-foreground"
                       >
                         {existingSearch
@@ -1067,6 +1211,58 @@ export default function ParlorMasterUpload() {
                   {VALID_TYPES.map((type) => (
                     <option key={type} value={type}>
                       {type}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Country *
+                </label>
+                <select
+                  value={editForm.countryId}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      countryId: e.target.value,
+                      brandId: "",
+                    }))
+                  }
+                  className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <option value="">Select a country</option>
+                  {countries.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-muted-foreground">
+                  Brand *
+                </label>
+                <select
+                  value={editForm.brandId}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      brandId: e.target.value,
+                    }))
+                  }
+                  disabled={!editForm.countryId}
+                  className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:bg-muted disabled:cursor-not-allowed"
+                >
+                  <option value="">
+                    {editForm.countryId
+                      ? "Select a brand"
+                      : "Select a country first"}
+                  </option>
+                  {brandsForCountry(editForm.countryId).map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
                     </option>
                   ))}
                 </select>
