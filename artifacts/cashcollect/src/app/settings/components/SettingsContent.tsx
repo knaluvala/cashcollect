@@ -141,7 +141,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export default function SettingsContent() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const [tab, setTab] = useState<SettingsTab>("profile");
 
@@ -178,7 +178,6 @@ export default function SettingsContent() {
   const [credentialConfigured, setCredentialConfigured] = useState(false);
 
   async function fetchUser() {
-    const token = localStorage.getItem("@cashcollect_web_token");
     if (!token) {
       setError("No authenticated user found. Please log in again.");
       return;
@@ -211,7 +210,6 @@ export default function SettingsContent() {
 
   useEffect(() => {
     if (user?.role !== "superadmin" || !user) return;
-    const token = localStorage.getItem("@cashcollect_web_token");
     setExternalConfigLoading(true);
     fetch(`${API_BASE}/external/collection-config`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -224,7 +222,7 @@ export default function SettingsContent() {
       })
       .catch(() => toast.error("Could not load external amount settings"))
       .finally(() => setExternalConfigLoading(false));
-  }, [user]);
+  }, [user, token]);
 
   function saveProfile() {
     toast.success("Profile updated successfully");
@@ -247,8 +245,6 @@ export default function SettingsContent() {
     }
 
     try {
-      const token = localStorage.getItem("@cashcollect_web_token");
-
       const res = await fetch(`${API_BASE}/auth/change-password`, {
         method: "POST",
         headers: {
@@ -284,7 +280,6 @@ export default function SettingsContent() {
       toast.error("Enter an external API endpoint before enabling the source");
       return;
     }
-    const token = localStorage.getItem("@cashcollect_web_token");
     setExternalConfigSaving(true);
     try {
       const res = await fetch(`${API_BASE}/external/collection-config`, {
