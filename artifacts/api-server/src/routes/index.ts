@@ -7,6 +7,8 @@ import usersRouter from "./users";
 import parlorsRouter from "./parlors";
 import routesRouter from "./routes";
 import authRouter from "./auth";
+import countriesRouter from "./countries";
+import brandsRouter from "./brands";
 
 const router: IRouter = Router();
 
@@ -18,5 +20,7 @@ router.use(collectionsRouter);
 router.use(usersRouter);
 router.use(parlorsRouter);
 router.use(routesRouter);
+router.use(countriesRouter);
+router.use(brandsRouter);
 
 export default router;

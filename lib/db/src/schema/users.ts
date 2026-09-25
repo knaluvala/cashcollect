@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, serial, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, serial, varchar, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -14,6 +14,8 @@ export const usersTable = pgTable("users", {
   mobile: varchar("mobile", { length: 50 }).notNull().default(""),
   department: varchar("department", { length: 100 }).notNull().default(""),
   profilePhoto: varchar("profile_photo", { length: 500 }).notNull().default(""),
+  countryId: integer("country_id"),
+  brandId: integer("brand_id"),
   lastLogin: timestamp("last_login", { mode: "string" }).defaultNow(),
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
@@ -30,6 +32,8 @@ export const insertUserSchema = createInsertSchema(usersTable, {
   mobile: z.string().max(50).default(""),
   department: z.string().max(100).default(""),
   profilePhoto: z.string().max(500).default(""),
+  countryId: z.number().int().positive().nullable().optional(),
+  brandId: z.number().int().positive().nullable().optional(),
 }).omit({ id: true, createdAt: true, updatedAt: true, lastLogin: true });
 
 export const updateUserSchema = insertUserSchema.partial();

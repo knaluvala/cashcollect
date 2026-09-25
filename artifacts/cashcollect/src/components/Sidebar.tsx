@@ -13,6 +13,8 @@ import {
   Settings,
   Bell,
   Map,
+  Globe,
+  Tag,
 } from "lucide-react";
 import Icon from "@/components/ui/AppIcon";
 import { useAuth } from "@/context/AuthContext";
@@ -62,6 +64,18 @@ const NAV_GROUPS = [
         label: "Route Master",
       },
       {
+        key: "nav-countries",
+        href: "/super-admin/country-master",
+        icon: Globe,
+        label: "Country Master",
+      },
+      {
+        key: "nav-brands",
+        href: "/super-admin/brand-master",
+        icon: Tag,
+        label: "Brand Master",
+      },
+      {
         key: "nav-settings",
         href: "/settings",
         icon: Settings,
@@ -102,6 +116,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             if (item.key === "nav-users") return isSuperAdmin;
             if (item.key === "nav-parlors") return isSuperAdmin;
             if (item.key === "nav-routes") return isSuperAdmin;
+            if (item.key === "nav-countries") return isSuperAdmin;
+            if (item.key === "nav-brands") return isSuperAdmin;
             return true;
           });
           if (visibleItems.length === 0) return null;

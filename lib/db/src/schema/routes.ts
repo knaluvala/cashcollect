@@ -11,6 +11,8 @@ export const routesTable = pgTable("routes", {
   agentCode: varchar("agent_code", { length: 50 }).notNull().default(""),
   supervisorName: varchar("supervisor_name", { length: 200 }).notNull().default(""),
   supervisorCode: varchar("supervisor_code", { length: 50 }).notNull().default(""),
+  countryId: integer("country_id"),
+  brandId: integer("brand_id"),
   createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
   updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
 });
@@ -29,6 +31,8 @@ export const insertRouteSchema = createInsertSchema(routesTable, {
   agentCode: z.string().max(50).default(""),
   supervisorName: z.string().max(200).default(""),
   supervisorCode: z.string().max(50).default(""),
+  countryId: z.number().int().positive().nullable().optional(),
+  brandId: z.number().int().positive().nullable().optional(),
 }).omit({ id: true, createdAt: true, updatedAt: true });
 
 export const updateRouteSchema = insertRouteSchema.partial();

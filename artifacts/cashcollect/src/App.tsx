@@ -8,6 +8,8 @@ import DailyCollectionPage from "@/app/daily-collection-entry/page";
 import ReportsPage from "@/app/reports/page";
 import ParlorMasterPage from "@/app/super-admin/parlor-master/page";
 import RouteMasterPage from "@/app/super-admin/route-master/page";
+import CountryMasterPage from "@/app/super-admin/country-master/page";
+import BrandMasterPage from "@/app/super-admin/brand-master/page";
 import UserManagementPage from "@/app/user-management/page";
 import NotificationsPage from "@/app/notifications/page";
 import SettingsPage from "@/app/settings/page";
@@ -73,6 +75,12 @@ function Router() {
       </Route>
       <Route path="/super-admin/route-master">
         {() => <SuperAdminRoute component={RouteMasterPage} />}
+      </Route>
+      <Route path="/super-admin/country-master">
+        {() => <SuperAdminRoute component={CountryMasterPage} />}
+      </Route>
+      <Route path="/super-admin/brand-master">
+        {() => <SuperAdminRoute component={BrandMasterPage} />}
       </Route>
       <Route path="/user-management">
         {() => <SuperAdminRoute component={UserManagementPage} />}
