@@ -147,7 +147,7 @@ export default function RouteMasterContent() {
     routes.find((r) => r.id === selectedRouteId) ?? routes[0];
 
   const assignedParlorCodes = new Set(
-    selectedRoute?.parlors.map((p) => p.code) ?? [],
+    routes.flatMap((r) => r.parlors.map((p) => p.code)),
   );
 
   const availableParlors = parlors.filter(
