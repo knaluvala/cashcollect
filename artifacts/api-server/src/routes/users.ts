@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { eq, like, or } from "drizzle-orm";
+import { eq, like, or, and } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   usersTable,
@@ -119,13 +119,20 @@ router.post("/users", requireSuperadminUnlessBootstrap, async (req, res) => {
     return;
   }
 
-  // Check for duplicate agentCode
+  // Check for duplicate agentCode within the same country
   const existingCode = await db
     .select()
     .from(usersTable)
-    .where(eq(usersTable.agentCode, data.agentCode));
+    .where(
+      and(
+        eq(usersTable.agentCode, data.agentCode),
+        eq(usersTable.countryId, data.countryId),
+      ),
+    );
   if (existingCode.length > 0) {
-    res.status(409).json({ error: "User code already exists" });
+    res
+      .status(409)
+      .json({ error: "User code already exists in this country" });
     return;
   }
 

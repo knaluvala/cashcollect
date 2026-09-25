@@ -58,10 +58,17 @@ router.post("/routes", async (req, res) => {
   const existing = await db
     .select()
     .from(routesTable)
-    .where(eq(routesTable.routeCode, data.routeCode));
+    .where(
+      and(
+        eq(routesTable.routeCode, data.routeCode),
+        eq(routesTable.countryId, data.countryId),
+      ),
+    );
 
   if (existing.length > 0) {
-    res.status(409).json({ error: "Route code already exists" });
+    res
+      .status(409)
+      .json({ error: "Route code already exists in this country" });
     return;
   }
 

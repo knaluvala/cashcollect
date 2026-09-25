@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, like, or } from "drizzle-orm";
+import { eq, like, or, and } from "drizzle-orm";
 import { db } from "@workspace/db";
 import {
   parlorsTable,
@@ -47,10 +47,17 @@ router.post("/parlors", async (req, res) => {
   const existing = await db
     .select()
     .from(parlorsTable)
-    .where(eq(parlorsTable.parlorCode, data.parlorCode));
+    .where(
+      and(
+        eq(parlorsTable.parlorCode, data.parlorCode),
+        eq(parlorsTable.countryId, data.countryId),
+      ),
+    );
 
   if (existing.length > 0) {
-    res.status(409).json({ error: "Parlor code already exists" });
+    res
+      .status(409)
+      .json({ error: "Parlor code already exists in this country" });
     return;
   }
 

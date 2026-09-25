@@ -1,21 +1,25 @@
-import { pgTable, varchar, serial, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, varchar, serial, timestamp, integer, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { parlorsTable } from "./parlors";
 
-export const routesTable = pgTable("routes", {
-  id: serial("id").primaryKey(),
-  routeCode: varchar("route_code", { length: 50 }).notNull().unique(),
-  description: varchar("description", { length: 500 }).notNull().default(""),
-  assignedAgent: varchar("assigned_agent", { length: 200 }).notNull().default(""),
-  agentCode: varchar("agent_code", { length: 50 }).notNull().default(""),
-  supervisorName: varchar("supervisor_name", { length: 200 }).notNull().default(""),
-  supervisorCode: varchar("supervisor_code", { length: 50 }).notNull().default(""),
-  countryId: integer("country_id"),
-  brandId: integer("brand_id"),
-  createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
-});
+export const routesTable = pgTable(
+  "routes",
+  {
+    id: serial("id").primaryKey(),
+    routeCode: varchar("route_code", { length: 50 }).notNull(),
+    description: varchar("description", { length: 500 }).notNull().default(""),
+    assignedAgent: varchar("assigned_agent", { length: 200 }).notNull().default(""),
+    agentCode: varchar("agent_code", { length: 50 }).notNull().default(""),
+    supervisorName: varchar("supervisor_name", { length: 200 }).notNull().default(""),
+    supervisorCode: varchar("supervisor_code", { length: 50 }).notNull().default(""),
+    countryId: integer("country_id").notNull(),
+    brandId: integer("brand_id").notNull(),
+    createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
+  },
+  (table) => [unique().on(table.countryId, table.routeCode)],
+);
 
 export const routeParlorsTable = pgTable("route_parlors", {
   id: serial("id").primaryKey(),
@@ -31,8 +35,8 @@ export const insertRouteSchema = createInsertSchema(routesTable, {
   agentCode: z.string().max(50).default(""),
   supervisorName: z.string().max(200).default(""),
   supervisorCode: z.string().max(50).default(""),
-  countryId: z.number().int().positive().nullable().optional(),
-  brandId: z.number().int().positive().nullable().optional(),
+  countryId: z.number().int().positive("Country is required"),
+  brandId: z.number().int().positive("Brand is required"),
 }).omit({ id: true, createdAt: true, updatedAt: true });
 
 export const updateRouteSchema = insertRouteSchema.partial();

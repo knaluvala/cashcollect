@@ -22,6 +22,10 @@ interface ParlorRow {
   parlorCode: string;
   parlorName: string;
   parlorType: string;
+  countryName: string;
+  brandName: string;
+  countryId: number | null;
+  brandId: number | null;
   status: "valid" | "error";
   errors: string[];
 }
@@ -51,13 +55,18 @@ interface SavedBrand {
 const VALID_TYPES = ["Mall", "Standalone", "Event", "Kiosk", "Cart"];
 
 const SAMPLE_DATA = [
-  ["Parlor Code", "Parlor Name", "Parlor Type"],
-  ["PRL-001", "Andheri West Scoop", "Mall"],
-  ["PRL-002", "Bandra Standalone", "Standalone"],
-  ["PRL-003", "Juhu Beach Event", "Event"],
+  ["Parlor Code", "Parlor Name", "Parlor Type", "Country", "Brand"],
+  ["PRL-001", "Andheri West Scoop", "Mall", "UAE", "Baskin Robbins"],
+  ["PRL-002", "Bandra Standalone", "Standalone", "UAE", "Baskin Robbins"],
+  ["PRL-003", "Juhu Beach Event", "Event", "KSA", "Baskin Robbins"],
 ];
 
-function validateRow(row: Record<string, string>, index: number): ParlorRow {
+function validateRow(
+  row: Record<string, string>,
+  index: number,
+  countries: { id: number; name: string }[],
+  brands: { id: number; name: string; countryId: number }[],
+): ParlorRow {
   const parlorCode = (
     row["Parlor Code"] ||
     row["parlor_code"] ||
@@ -82,6 +91,10 @@ function validateRow(row: Record<string, string>, index: number): ParlorRow {
   )
     .toString()
     .trim();
+  const countryName = (row["Country"] || row["country"] || "")
+    .toString()
+    .trim();
+  const brandName = (row["Brand"] || row["brand"] || "").toString().trim();
   const errors: string[] = [];
 
   if (!parlorCode) errors.push("Parlor Code is required");
@@ -93,12 +106,33 @@ function validateRow(row: Record<string, string>, index: number): ParlorRow {
     errors.push(`Parlor Type must be one of: ${VALID_TYPES.join(", ")}`);
   }
 
+  const matchedCountry = countries.find(
+    (c) => c.name.toLowerCase() === countryName.toLowerCase(),
+  );
+  if (!countryName) errors.push("Country is required");
+  else if (!matchedCountry) errors.push(`Unknown country: ${countryName}`);
+
+  const matchedBrand = matchedCountry
+    ? brands.find(
+        (b) =>
+          b.countryId === matchedCountry.id &&
+          b.name.toLowerCase() === brandName.toLowerCase(),
+      )
+    : undefined;
+  if (!brandName) errors.push("Brand is required");
+  else if (matchedCountry && !matchedBrand)
+    errors.push(`Unknown brand "${brandName}" for country ${countryName}`);
+
   return {
     parlorCode,
     parlorName,
     parlorType:
       VALID_TYPES.find((t) => t.toLowerCase() === parlorType.toLowerCase()) ||
       parlorType,
+    countryName,
+    brandName,
+    countryId: matchedCountry?.id ?? null,
+    brandId: matchedBrand?.id ?? null,
     status: errors.length === 0 ? "valid" : "error",
     errors,
   };
@@ -224,7 +258,9 @@ export default function ParlorMasterUpload() {
         return;
       }
 
-      const parsed = jsonData.map((row, i) => validateRow(row, i));
+      const parsed = jsonData.map((row, i) =>
+        validateRow(row, i, countries, brands),
+      );
       setRows(parsed);
       setUploadState("preview");
     } catch {
@@ -233,7 +269,7 @@ export default function ParlorMasterUpload() {
       );
       setUploadState("failed");
     }
-  }, []);
+  }, [countries, brands]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -278,6 +314,8 @@ export default function ParlorMasterUpload() {
             parlorCode: r.parlorCode,
             parlorName: r.parlorName,
             parlorType: r.parlorType,
+            countryId: r.countryId,
+            brandId: r.brandId,
           }),
         });
         if (res.ok) saved++;
@@ -752,7 +790,7 @@ export default function ParlorMasterUpload() {
               Expected Columns
             </p>
             <div className="flex flex-wrap gap-2">
-              {["Parlor Code", "Parlor Name", "Parlor Type"].map((col) => (
+              {["Parlor Code", "Parlor Name", "Parlor Type", "Country", "Brand"].map((col) => (
                 <span
                   key={col}
                   className="px-2.5 py-1 rounded-md bg-background border border-border text-xs font-medium text-foreground"
@@ -902,6 +940,12 @@ export default function ParlorMasterUpload() {
                         <SortIcon col={col.key} />
                       </th>
                     ))}
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Country
+                    </th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      Brand
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -965,12 +1009,22 @@ export default function ParlorMasterUpload() {
                           </div>
                         )}
                       </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {row.countryName || (
+                          <span className="text-muted-foreground italic">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground">
+                        {row.brandName || (
+                          <span className="text-muted-foreground italic">—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {displayRows.length === 0 && (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={7}
                         className="px-4 py-10 text-center text-sm text-muted-foreground"
                       >
                         No rows match the selected filter.

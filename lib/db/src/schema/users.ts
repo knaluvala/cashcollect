@@ -1,25 +1,29 @@
-import { pgTable, text, timestamp, serial, varchar, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, serial, varchar, integer, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const usersTable = pgTable("users", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 200 }).notNull(),
-  email: varchar("email", { length: 200 }).notNull().unique(),
-  role: varchar("role", { length: 50 }).notNull().default("agent"),
-  routeCode: varchar("route_code", { length: 50 }).notNull().default(""),
-  agentCode: varchar("agent_code", { length: 50 }).notNull().unique(),
-  passwordHash: varchar("password_hash", { length: 255 }).notNull().default(""),
-  status: varchar("status", { length: 50 }).notNull().default("active"),
-  mobile: varchar("mobile", { length: 50 }).notNull().default(""),
-  department: varchar("department", { length: 100 }).notNull().default(""),
-  profilePhoto: varchar("profile_photo", { length: 500 }).notNull().default(""),
-  countryId: integer("country_id"),
-  brandId: integer("brand_id"),
-  lastLogin: timestamp("last_login", { mode: "string" }).defaultNow(),
-  createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
-  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
-});
+export const usersTable = pgTable(
+  "users",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 200 }).notNull(),
+    email: varchar("email", { length: 200 }).notNull().unique(),
+    role: varchar("role", { length: 50 }).notNull().default("agent"),
+    routeCode: varchar("route_code", { length: 50 }).notNull().default(""),
+    agentCode: varchar("agent_code", { length: 50 }).notNull(),
+    passwordHash: varchar("password_hash", { length: 255 }).notNull().default(""),
+    status: varchar("status", { length: 50 }).notNull().default("active"),
+    mobile: varchar("mobile", { length: 50 }).notNull().default(""),
+    department: varchar("department", { length: 100 }).notNull().default(""),
+    profilePhoto: varchar("profile_photo", { length: 500 }).notNull().default(""),
+    countryId: integer("country_id").notNull(),
+    brandId: integer("brand_id").notNull(),
+    lastLogin: timestamp("last_login", { mode: "string" }).defaultNow(),
+    createdAt: timestamp("created_at", { mode: "string" }).defaultNow(),
+    updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow(),
+  },
+  (table) => [unique().on(table.countryId, table.agentCode)],
+);
 
 export const insertUserSchema = createInsertSchema(usersTable, {
   name: z.string().min(1, "Name is required").max(200),
@@ -32,8 +36,8 @@ export const insertUserSchema = createInsertSchema(usersTable, {
   mobile: z.string().max(50).default(""),
   department: z.string().max(100).default(""),
   profilePhoto: z.string().max(500).default(""),
-  countryId: z.number().int().positive().nullable().optional(),
-  brandId: z.number().int().positive().nullable().optional(),
+  countryId: z.number().int().positive("Country is required"),
+  brandId: z.number().int().positive("Brand is required"),
 }).omit({ id: true, createdAt: true, updatedAt: true, lastLogin: true });
 
 export const updateUserSchema = insertUserSchema.partial();

@@ -460,31 +460,56 @@ export default function UserManagementContent() {
         const imported: (Omit<AppUser, "id" | "createdAt"> & {
           password: string;
         })[] = rows
-          .map((row) => ({
-            name: row["Name"] || row["name"] || "",
-            email: row["Email"] || row["email"] || "",
-            role: (
-              row["Role"] ||
-              row["role"] ||
-              "agent"
-            ).toLowerCase() as UserRole,
-            routeCode:
-              row["Route Code"] || row["routeCode"] || row["route"] || "",
-            agentCode:
-              row["User Code"] || row["agentCode"] || row["code"] || "",
-            password: row["Password"] || row["password"] || "",
-            status: "active" as UserStatus,
-            countryId: null,
-            brandId: null,
-          }))
+          .map((row) => {
+            const countryName = (
+              row["Country"] ||
+              row["country"] ||
+              ""
+            ).toString().trim();
+            const brandName = (row["Brand"] || row["brand"] || "")
+              .toString()
+              .trim();
+            const matchedCountry = countries.find(
+              (c) => c.name.toLowerCase() === countryName.toLowerCase(),
+            );
+            const matchedBrand = matchedCountry
+              ? brands.find(
+                  (b) =>
+                    b.countryId === matchedCountry.id &&
+                    b.name.toLowerCase() === brandName.toLowerCase(),
+                )
+              : undefined;
+            return {
+              name: row["Name"] || row["name"] || "",
+              email: row["Email"] || row["email"] || "",
+              role: (
+                row["Role"] ||
+                row["role"] ||
+                "agent"
+              ).toLowerCase() as UserRole,
+              routeCode:
+                row["Route Code"] || row["routeCode"] || row["route"] || "",
+              agentCode:
+                row["User Code"] || row["agentCode"] || row["code"] || "",
+              password: row["Password"] || row["password"] || "",
+              status: "active" as UserStatus,
+              countryId: matchedCountry?.id ?? null,
+              brandId: matchedBrand?.id ?? null,
+            };
+          })
           .filter(
             (u) =>
-              u.name && u.email && u.agentCode && u.password.length >= 8,
+              u.name &&
+              u.email &&
+              u.agentCode &&
+              u.password.length >= 8 &&
+              u.countryId &&
+              u.brandId,
           );
 
         if (imported.length === 0) {
           toast.error(
-            "No valid rows found. Check columns: Name, Email, Role, Route Code, User Code, Password (min 8 characters)",
+            "No valid rows found. Check columns: Name, Email, Role, Route Code, User Code, Password (min 8 characters), Country, Brand",
           );
           return;
         }
@@ -534,7 +559,16 @@ export default function UserManagementContent() {
 
   function downloadTemplate() {
     const ws = XLSX.utils.aoa_to_sheet([
-      ["Name", "Email", "Role", "Route Code", "User Code", "Password"],
+      [
+        "Name",
+        "Email",
+        "Role",
+        "Route Code",
+        "User Code",
+        "Password",
+        "Country",
+        "Brand",
+      ],
       [
         "Rajan Kumar",
         "rajan@cashcollect.in",
@@ -542,6 +576,8 @@ export default function UserManagementContent() {
         "RT-04",
         "AGT-001",
         "Passw0rd1",
+        "UAE",
+        "Baskin Robbins",
       ],
       [
         "Meena Sharma",
@@ -550,6 +586,8 @@ export default function UserManagementContent() {
         "RT-04 & RT-05",
         "SUP-001",
         "Passw0rd2",
+        "UAE",
+        "Baskin Robbins",
       ],
     ]);
     const wb = XLSX.utils.book_new();
