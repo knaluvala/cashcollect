@@ -46,10 +46,11 @@ function fmtDBDate(s: string) {
 const fmtAmount = (n: number) => 'AED ' + n.toLocaleString('en-AE', { minimumFractionDigits: 2 });
 
 function AmountField({
-  id, label, helper, valueKey, externalValue, isLoading, source, externalError,
+  id, label, helper, valueKey, externalLabel, externalValue, isLoading, source, externalError,
   error, registerOptions, disabled, register,
 }: {
   id: string; label: string; helper: string; valueKey: 'cashAmount' | 'couponAmount' | 'ccAmount';
+  externalLabel: string;
   externalValue: number; isLoading: boolean; source?: string; externalError: string | null;
   error?: { message?: string };
   registerOptions: RegisterOptions<CollectionFormValues, 'cashAmount' | 'couponAmount' | 'ccAmount'>;
@@ -61,7 +62,7 @@ function AmountField({
       {/* External System Value */}
       <div className="rounded-lg border border-dashed border-border bg-muted/40 px-3 py-2">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">External System</span>
+          <span className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">{externalLabel}</span>
           <Database size={12} className="text-muted-foreground" />
         </div>
         {isLoading ? (
@@ -344,6 +345,7 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
               id={`cash-${parlor.id}`}
               label="Cash Amount"
               helper="Physical currency collected"
+              externalLabel="Cash Sales"
               valueKey="cashAmount"
               externalValue={externalData?.cashAmount ?? 0}
               isLoading={isLoadingExternal}
@@ -361,6 +363,7 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
               id={`coupon-${parlor.id}`}
               label="Coupon Amount"
               helper="Physical coupons redeemed"
+              externalLabel="Coupon Sales"
               valueKey="couponAmount"
               externalValue={externalData?.couponAmount ?? 0}
               isLoading={isLoadingExternal}
@@ -378,6 +381,7 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
               id={`cc-${parlor.id}`}
               label="Credit Card Total"
               helper="POS / card transaction total"
+              externalLabel="Credit Card Sales"
               valueKey="ccAmount"
               externalValue={externalData?.ccAmount ?? 0}
               isLoading={isLoadingExternal}

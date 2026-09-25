@@ -523,7 +523,7 @@ export default function NewEntryModal({
                       <div className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-1.5">
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-                            External System
+                            Cash Sales
                           </span>
                           <Database size={10} className="text-muted-foreground" />
                         </div>
@@ -581,7 +581,7 @@ export default function NewEntryModal({
                       <div className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-1.5">
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-                            External System
+                            Coupon Sales
                           </span>
                           <Database size={10} className="text-muted-foreground" />
                         </div>
@@ -639,7 +639,7 @@ export default function NewEntryModal({
                       <div className="rounded-md border border-dashed border-border bg-muted/40 px-2.5 py-1.5">
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground">
-                            External System
+                            Credit Card Sales
                           </span>
                           <Database size={10} className="text-muted-foreground" />
                         </div>
