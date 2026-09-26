@@ -41,6 +41,8 @@ function sanitizeUser(user: typeof usersTable.$inferSelect) {
     routeCode: user.routeCode,
     agentCode: user.agentCode,
     status: user.status,
+    countryId: user.countryId,
+    brandId: user.brandId,
   };
 }
 

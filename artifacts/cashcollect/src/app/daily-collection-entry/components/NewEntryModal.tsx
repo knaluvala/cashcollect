@@ -52,6 +52,7 @@ interface Props {
 }
 
 import { API_BASE } from "@/lib/apiBase";
+import { useAuth } from "@/context/AuthContext";
 
 const PARLOR_TYPE_COLORS: Record<ParlorType, string> = {
   Mall: "bg-blue-100 text-blue-700",
@@ -73,6 +74,10 @@ export default function NewEntryModal({
   parlors,
   defaultDate,
 }: Props) {
+  const { token } = useAuth();
+  const authHeaders: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
   const [search, setSearch] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [selectedParlor, setSelectedParlor] = useState<ParlorEntry | null>(
@@ -160,6 +165,7 @@ export default function NewEntryModal({
     // Fetch existing collection from DB
     fetch(
       `${API_BASE}/collections?date=${selectedDate}&parlorCode=${selectedParlor.parlorCode}`,
+      { headers: authHeaders },
     )
       .then((r) => r.json())
       .then((data) => {
@@ -207,7 +213,7 @@ export default function NewEntryModal({
         setExternalError(error.message);
       })
       .finally(() => setIsLoadingExternal(false));
-  }, [selectedParlor, selectedDate, reset]);
+  }, [selectedParlor, selectedDate, reset, token]);
 
   function selectParlor(parlor: ParlorEntry) {
     setSelectedParlor(parlor);
@@ -239,13 +245,13 @@ export default function NewEntryModal({
       if (dbId) {
         res = await fetch(`${API_BASE}/collections/${dbId}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           body: JSON.stringify(payload),
         });
       } else {
         res = await fetch(`${API_BASE}/collections`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           body: JSON.stringify(payload),
         });
       }
@@ -275,6 +281,7 @@ export default function NewEntryModal({
     try {
       const res = await fetch(`${API_BASE}/collections/${dbId}/submit`, {
         method: "POST",
+        headers: authHeaders,
       });
       const result = await res.json();
       if (!res.ok) {

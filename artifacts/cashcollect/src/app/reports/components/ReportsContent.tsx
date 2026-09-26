@@ -165,7 +165,9 @@ export default function ReportsContent() {
         fetch(`${API_BASE}/users`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         }),
-        fetch(`${API_BASE}/parlors`),
+        fetch(`${API_BASE}/parlors`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }),
       ]);
 
       const usersData = await usersRes.json();
@@ -186,7 +188,9 @@ export default function ReportsContent() {
   const fetchSupervisorAgentCodes = async () => {
     if (!user || user.role !== "supervisor" || !user.agentCode) return;
     try {
-      const res = await fetch(`${API_BASE}/routes`);
+      const res = await fetch(`${API_BASE}/routes`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await res.json();
       const routesData: { supervisorCode?: string; agentCode?: string }[] =
         data.routes || [];

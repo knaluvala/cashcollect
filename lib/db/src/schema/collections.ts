@@ -1,4 +1,4 @@
-import { pgTable, text, date, numeric, timestamp, serial, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, date, numeric, timestamp, serial, varchar, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -16,6 +16,8 @@ export const collectionsTable = pgTable("collections", {
   ccAmount: numeric("cc_amount", { precision: 12, scale: 2 }).notNull().default("0"),
   notes: text("notes").default(""),
   status: varchar("status", { length: 50 }).notNull().default("entered"),
+  countryId: integer("country_id").notNull(),
+  brandId: integer("brand_id").notNull(),
   submittedAt: timestamp("submitted_at", { mode: "string" }),
   acknowledgedAt: timestamp("acknowledged_at", { mode: "string" }),
   acknowledgedBy: varchar("acknowledged_by", { length: 200 }),
@@ -32,7 +34,10 @@ export const insertCollectionSchema = createInsertSchema(collectionsTable, {
   submittedAt: z.string().optional(),
   acknowledgedAt: z.string().optional(),
   acknowledgedBy: z.string().optional(),
-}).omit({ id: true, createdAt: true, updatedAt: true });
+})
+  // countryId/brandId are derived server-side from the resolved parlor,
+  // never trusted from the client — see POST /api/collections.
+  .omit({ id: true, createdAt: true, updatedAt: true, countryId: true, brandId: true });
 
 export const updateCollectionSchema = insertCollectionSchema.partial().omit({
   parlorCode: true,

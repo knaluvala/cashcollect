@@ -17,6 +17,7 @@ import {
 import { toast } from "sonner";
 
 import { API_BASE } from "@/lib/apiBase";
+import { useAuth } from "@/context/AuthContext";
 
 interface ParlorRow {
   parlorCode: string;
@@ -151,6 +152,10 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export default function ParlorMasterUpload() {
+  const { token } = useAuth();
+  const authHeaders: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
   const [rows, setRows] = useState<ParlorRow[]>([]);
   const [fileName, setFileName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -219,6 +224,7 @@ export default function ParlorMasterUpload() {
     try {
       const res = await fetch(
         `${API_BASE}/parlors?search=${encodeURIComponent(existingSearch)}`,
+        { headers: authHeaders },
       );
       const data = await res.json();
       setExistingParlors(data.parlors || []);
@@ -227,7 +233,7 @@ export default function ParlorMasterUpload() {
     } finally {
       setLoadingExisting(false);
     }
-  }, [existingSearch]);
+  }, [existingSearch, token]);
 
   useEffect(() => {
     fetchExistingParlors();
@@ -309,7 +315,7 @@ export default function ParlorMasterUpload() {
       try {
         const res = await fetch(`${API_BASE}/parlors`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           body: JSON.stringify({
             parlorCode: r.parlorCode,
             parlorName: r.parlorName,
@@ -360,7 +366,7 @@ export default function ParlorMasterUpload() {
     try {
       const res = await fetch(`${API_BASE}/parlors`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           parlorCode: newParlor.parlorCode.trim().toUpperCase(),
           parlorName: newParlor.parlorName.trim(),
@@ -427,7 +433,7 @@ export default function ParlorMasterUpload() {
     try {
       const res = await fetch(`${API_BASE}/parlors/${editParlor.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           parlorName: editForm.parlorName.trim(),
           parlorType: editForm.parlorType,
@@ -457,7 +463,7 @@ export default function ParlorMasterUpload() {
     try {
       const res = await fetch(`${API_BASE}/parlors/${id}`, {
         method: "DELETE",
-        headers: { "X-Parlor-Delete-Confirmed": "true" },
+        headers: { "X-Parlor-Delete-Confirmed": "true", ...authHeaders },
       });
       if (res.ok) {
         toast.success("Parlor deleted");

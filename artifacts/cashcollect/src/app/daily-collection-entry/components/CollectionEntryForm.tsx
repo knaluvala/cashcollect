@@ -29,6 +29,7 @@ interface Props {
 }
 
 import { API_BASE } from "@/lib/apiBase";
+import { useAuth } from "@/context/AuthContext";
 
 const PARLOR_TYPE_COLORS: Record<ParlorType, string> = {
   Mall: 'bg-blue-100 text-blue-700',
@@ -109,6 +110,10 @@ function AmountField({
 }
 
 export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: Props) {
+  const { token } = useAuth();
+  const authHeaders: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -146,7 +151,9 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
   useEffect(() => {
     let cancelled = false;
     // Fetch existing DB record
-    fetch(`${API_BASE}/collections?date=${date}&parlorCode=${parlor.parlorCode}`)
+    fetch(`${API_BASE}/collections?date=${date}&parlorCode=${parlor.parlorCode}`, {
+      headers: authHeaders,
+    })
       .then((r) => r.json())
       .then((data) => {
         if (cancelled) return;
@@ -189,7 +196,7 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
       });
 
     return () => { cancelled = true; };
-  }, [parlor.parlorCode, date, reset]);
+  }, [parlor.parlorCode, date, reset, token]);
 
   const cashVal = parseFloat(watch('cashAmount') || '0') || 0;
   const couponVal = parseFloat(watch('couponAmount') || '0') || 0;
@@ -218,13 +225,13 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
       if (dbId) {
         res = await fetch(`${API_BASE}/collections/${dbId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify(payload),
         });
       } else {
         res = await fetch(`${API_BASE}/collections`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...authHeaders },
           body: JSON.stringify(payload),
         });
       }
@@ -256,7 +263,10 @@ export default function CollectionEntryForm({ parlor, date, onSave, onSubmit }: 
     }
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/collections/${dbId}/submit`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/collections/${dbId}/submit`, {
+        method: 'POST',
+        headers: authHeaders,
+      });
       const result = await res.json();
       if (!res.ok) {
         toast.error(result.error || 'Failed to submit');

@@ -7,29 +7,45 @@ import {
   insertRouteSchema,
   updateRouteSchema,
 } from "@workspace/db/schema";
+import { authenticate, requireRole } from "../middlewares/authenticate";
 
 const router: IRouter = Router();
 
-// GET /api/routes — list all routes with optional search
-router.get("/routes", async (req, res) => {
-  const search = (req.query.search as string | undefined) ?? "";
+function parseIdParam(value: string | string[] | undefined): number {
+  return typeof value === "string" ? parseInt(value, 10) : NaN;
+}
 
-  let routeRows;
+// GET /api/routes — list routes with optional search, scoped to the
+// caller's country/brand unless they're a superadmin
+router.get("/routes", authenticate, async (req, res) => {
+  const search = (req.query.search as string | undefined) ?? "";
+  const user = req.user!;
+  const isSuperadmin = user.role.trim().toLowerCase() === "superadmin";
+
+  const conditions = [];
   if (search.trim()) {
     const q = `%${search}%`;
-    routeRows = await db
-      .select()
-      .from(routesTable)
-      .where(
-        or(
-          like(routesTable.routeCode, q),
-          like(routesTable.description, q),
-          like(routesTable.assignedAgent, q)
-        )
-      );
-  } else {
-    routeRows = await db.select().from(routesTable);
+    conditions.push(
+      or(
+        like(routesTable.routeCode, q),
+        like(routesTable.description, q),
+        like(routesTable.assignedAgent, q),
+      ),
+    );
   }
+  if (!isSuperadmin) {
+    conditions.push(
+      and(
+        eq(routesTable.countryId, user.countryId ?? -1),
+        eq(routesTable.brandId, user.brandId ?? -1),
+      ),
+    );
+  }
+
+  const routeRows = await db
+    .select()
+    .from(routesTable)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
 
   // Fetch parlors for each route
   const parlors = await db.select().from(routeParlorsTable);
@@ -45,7 +61,7 @@ router.get("/routes", async (req, res) => {
 });
 
 // POST /api/routes — create a new route
-router.post("/routes", async (req, res) => {
+router.post("/routes", authenticate, requireRole("superadmin"), async (req, res) => {
   const body = req.body;
   const parsed = insertRouteSchema.safeParse(body);
   if (!parsed.success) {
@@ -81,8 +97,8 @@ router.post("/routes", async (req, res) => {
 });
 
 // PUT /api/routes/:id — update existing route
-router.put("/routes/:id", async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+router.put("/routes/:id", authenticate, requireRole("superadmin"), async (req, res) => {
+  const id = parseIdParam(req.params.id);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;
@@ -115,7 +131,7 @@ router.put("/routes/:id", async (req, res) => {
 });
 
 // DELETE /api/routes/:id — delete a route and its parlor assignments
-router.delete("/routes/:id", async (req, res) => {
+router.delete("/routes/:id", authenticate, requireRole("superadmin"), async (req, res) => {
   if (req.get("X-Route-Delete-Confirmed") !== "true") {
     res.status(428).json({
       error: "Route deletion requires explicit confirmation.",
@@ -123,7 +139,7 @@ router.delete("/routes/:id", async (req, res) => {
     return;
   }
 
-  const id = parseInt(req.params.id, 10);
+  const id = parseIdParam(req.params.id);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;
@@ -147,8 +163,8 @@ router.delete("/routes/:id", async (req, res) => {
 });
 
 // POST /api/routes/:routeId/parlors — add a parlor to a route
-router.post("/routes/:routeId/parlors", async (req, res) => {
-  const routeId = parseInt(req.params.routeId, 10);
+router.post("/routes/:routeId/parlors", authenticate, requireRole("superadmin"), async (req, res) => {
+  const routeId = parseIdParam(req.params.routeId);
   if (Number.isNaN(routeId)) {
     res.status(400).json({ error: "Invalid routeId" });
     return;
@@ -189,9 +205,10 @@ router.post("/routes/:routeId/parlors", async (req, res) => {
 });
 
 // DELETE /api/routes/:routeId/parlors/:parlorCode — remove a parlor from a route
-router.delete("/routes/:routeId/parlors/:parlorCode", async (req, res) => {
-  const routeId = parseInt(req.params.routeId, 10);
-  const parlorCode = req.params.parlorCode;
+router.delete("/routes/:routeId/parlors/:parlorCode", authenticate, requireRole("superadmin"), async (req, res) => {
+  const routeId = parseIdParam(req.params.routeId);
+  const parlorCode =
+    typeof req.params.parlorCode === "string" ? req.params.parlorCode : "";
   if (Number.isNaN(routeId)) {
     res.status(400).json({ error: "Invalid routeId" });
     return;

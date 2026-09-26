@@ -126,7 +126,9 @@ export default function UserManagementContent() {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch(`${API_BASE}/routes`);
+        const res = await fetch(`${API_BASE}/routes`, {
+          headers: authHeaders,
+        });
         const data = await res.json();
         if (!cancelled) setRoutes(data.routes ?? []);
       } catch {
@@ -137,7 +139,8 @@ export default function UserManagementContent() {
     return () => {
       cancelled = true;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   // Fetch countries/brands for the Country/Brand selectors
   useEffect(() => {

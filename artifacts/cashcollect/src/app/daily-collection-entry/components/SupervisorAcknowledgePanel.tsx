@@ -124,7 +124,10 @@ export default function SupervisorAcknowledgePanel({
         `${API_BASE}/collections/${item.id}/acknowledge`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({
             acknowledgedBy: supervisorName ?? "Supervisor",
             acknowledgedAt: new Date().toISOString(),

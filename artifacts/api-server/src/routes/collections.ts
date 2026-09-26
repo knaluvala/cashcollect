@@ -6,6 +6,7 @@ import {
   collectionsTable,
   externalCollectionConfigTable,
   routesTable,
+  parlorsTable,
   insertCollectionSchema,
   updateExternalCollectionConfigSchema,
   updateCollectionSchema,
@@ -15,6 +16,10 @@ import { authenticate, requireRole } from "../middlewares/authenticate";
 import { z } from "zod";
 
 const router: IRouter = Router();
+
+function parseIdParam(value: string | string[] | undefined): number {
+  return typeof value === "string" ? parseInt(value, 10) : NaN;
+}
 
 function triggerExternalAcknowledgeAsync(collection: any) {
   const url = process.env.EXTERNAL_ACK_URL;
@@ -73,7 +78,7 @@ function triggerExternalAcknowledgeAsync(collection: any) {
 }
 
 // GET /api/collections?date=YYYY-MM-DD&parlorCode=XXX
-router.get("/collections", async (req, res) => {
+router.get("/collections", authenticate, async (req, res) => {
   const date = req.query.date as string;
   const parlorCode = req.query.parlorCode as string;
 
@@ -82,21 +87,30 @@ router.get("/collections", async (req, res) => {
     return;
   }
 
+  const user = req.user!;
+  const isSuperadmin = user.role.trim().toLowerCase() === "superadmin";
+
+  const conditions = [
+    eq(collectionsTable.collectionDate, date),
+    eq(collectionsTable.parlorCode, parlorCode),
+  ];
+  // parlorCode is only unique per country (Phase 2); non-superadmin callers
+  // are scoped to their own country to avoid matching another country's
+  // same-coded parlor's collection.
+  if (!isSuperadmin) {
+    conditions.push(eq(collectionsTable.countryId, user.countryId ?? -1));
+  }
+
   const rows = await db
     .select()
     .from(collectionsTable)
-    .where(
-      and(
-        eq(collectionsTable.collectionDate, date),
-        eq(collectionsTable.parlorCode, parlorCode),
-      ),
-    );
+    .where(and(...conditions));
 
   res.json({ collection: rows[0] ?? null });
 });
 
 // POST /api/collections — create a new collection
-router.post("/collections", async (req, res) => {
+router.post("/collections", authenticate, async (req, res) => {
   const body = req.body;
   const parsed = insertCollectionSchema.safeParse(body);
   if (!parsed.success) {
@@ -105,7 +119,37 @@ router.post("/collections", async (req, res) => {
   }
 
   const data = parsed.data;
-  // Check if already exists
+  const user = req.user!;
+  const isSuperadmin = user.role.trim().toLowerCase() === "superadmin";
+
+  // Resolve the parlor to derive countryId/brandId server-side (never
+  // trusted from the client) and, for non-superadmin, to enforce that the
+  // parlor is actually within the caller's own country/brand. parlorCode
+  // is only unique per country (Phase 2), so non-superadmin lookups must
+  // scope by their own country to avoid matching another country's
+  // same-coded parlor.
+  const parlorConditions = [eq(parlorsTable.parlorCode, data.parlorCode)];
+  if (!isSuperadmin) {
+    parlorConditions.push(eq(parlorsTable.countryId, user.countryId ?? -1));
+  }
+  const [parlor] = await db
+    .select()
+    .from(parlorsTable)
+    .where(and(...parlorConditions));
+
+  if (!isSuperadmin && (!parlor || parlor.brandId !== user.brandId)) {
+    res.status(403).json({
+      error: "Parlor is outside your assigned country/brand",
+    });
+    return;
+  }
+  if (!parlor) {
+    res.status(400).json({ error: "Unknown parlor code" });
+    return;
+  }
+
+  // Check if already exists, scoped to the same country as the parlor
+  // being collected for.
   const existing = await db
     .select()
     .from(collectionsTable)
@@ -113,6 +157,7 @@ router.post("/collections", async (req, res) => {
       and(
         eq(collectionsTable.collectionDate, data.collectionDate),
         eq(collectionsTable.parlorCode, data.parlorCode),
+        eq(collectionsTable.countryId, parlor.countryId),
       ),
     );
 
@@ -131,6 +176,8 @@ router.post("/collections", async (req, res) => {
       cashAmount: String(data.cashAmount),
       couponAmount: String(data.couponAmount),
       ccAmount: String(data.ccAmount),
+      countryId: parlor.countryId,
+      brandId: parlor.brandId,
     })
     .returning();
 
@@ -138,8 +185,8 @@ router.post("/collections", async (req, res) => {
 });
 
 // PUT /api/collections/:id — update existing draft
-router.put("/collections/:id", async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+router.put("/collections/:id", authenticate, async (req, res) => {
+  const id = parseIdParam(req.params.id);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;
@@ -373,8 +420,12 @@ async function triggerExternalAcknowledge(collection: any) {
 }
 
 // POST /api/collections/:id/acknowledge — supervisor acknowledges receipt
-router.post("/collections/:id/acknowledge", async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+router.post(
+  "/collections/:id/acknowledge",
+  authenticate,
+  requireRole("supervisor", "superadmin"),
+  async (req, res) => {
+  const id = parseIdParam(req.params.id);
 
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -433,9 +484,10 @@ router.post("/collections/:id/acknowledge", async (req, res) => {
   res.json({
     ...updated[0],
     externalTrigger,
-  }); 
+  });
        */
-});
+  },
+);
 
 type ExternalSummary = {
   cashAmount: number;
@@ -705,8 +757,8 @@ router.get("/external/parlor-summary/:parlorCode/:date", async (req, res) => {
 });
 
 // POST /api/collections/:id/submit — submit to supervisor
-router.post("/collections/:id/submit", async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+router.post("/collections/:id/submit", authenticate, async (req, res) => {
+  const id = parseIdParam(req.params.id);
 
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
@@ -791,8 +843,8 @@ router.get(
 );
 
 // GET /api/collections/:id — fetch a single collection by id
-router.get("/collections/:id", async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+router.get("/collections/:id", authenticate, async (req, res) => {
+  const id = parseIdParam(req.params.id);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;

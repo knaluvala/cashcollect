@@ -86,7 +86,12 @@ export default function DailyCollectionContent() {
   useEffect(() => {
     async function loadAssignedParlors() {
       try {
-        const res = await fetch(`${API_BASE}/routes`);
+        const authHeaders: Record<string, string> = token
+          ? { Authorization: `Bearer ${token}` }
+          : {};
+        const res = await fetch(`${API_BASE}/routes`, {
+          headers: authHeaders,
+        });
         const data = await res.json();
 
         const routes = data.routes ?? [];
@@ -97,7 +102,9 @@ export default function DailyCollectionContent() {
           return true;
         });
 
-        const parlorRes = await fetch(`${API_BASE}/parlors`);
+        const parlorRes = await fetch(`${API_BASE}/parlors`, {
+          headers: authHeaders,
+        });
         const parlorData = await parlorRes.json();
         const allParlors = parlorData.parlors ?? [];
 
@@ -138,7 +145,7 @@ export default function DailyCollectionContent() {
     }
 
     loadAssignedParlors();
-  }, [role, agentCode, supervisorCode]);
+  }, [role, agentCode, supervisorCode, token]);
 
   const [parlors, setParlors] = useState<ParlorEntry[]>([]);
   const [activeParlorId, setActiveParlorId] = useState<string>("");

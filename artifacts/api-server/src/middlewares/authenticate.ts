@@ -15,6 +15,8 @@ export type AuthUser = {
   email: string;
   role: string;
   agentCode: string;
+  countryId: number | null;
+  brandId: number | null;
 };
 
 declare global {
@@ -25,7 +27,10 @@ declare global {
   }
 }
 
-function isAuthUser(value: unknown): value is AuthUser {
+// countryId/brandId are checked loosely (rather than required) so tokens
+// issued before these claims existed keep working — they just decode with
+// no scope until the holder logs in again and gets a fresh token.
+function isAuthUser(value: unknown): value is Omit<AuthUser, "countryId" | "brandId"> {
   const user = value as AuthUser;
 
   return (
@@ -59,7 +64,14 @@ export function authenticate(
       return;
     }
 
-    req.user = decoded;
+    const rawCountryId = (decoded as Partial<AuthUser>).countryId;
+    const rawBrandId = (decoded as Partial<AuthUser>).brandId;
+
+    req.user = {
+      ...decoded,
+      countryId: typeof rawCountryId === "number" ? rawCountryId : null,
+      brandId: typeof rawBrandId === "number" ? rawBrandId : null,
+    };
     next();
   } catch {
     res.status(401).json({ error: "Invalid or expired token" });

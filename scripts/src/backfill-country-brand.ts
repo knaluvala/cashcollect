@@ -7,6 +7,7 @@ import {
   parlorsTable,
   routesTable,
   usersTable,
+  collectionsTable,
 } from "@workspace/db";
 
 const UAE_BRANDS = ["Baskin Robbins", "Halla Shawarma", "Jimmy Johns"];
@@ -83,6 +84,43 @@ async function main() {
     .where(isNull(usersTable.countryId))
     .returning({ id: usersTable.id });
   console.log(`Backfilled ${usersUpdated.length} users -> UAE / ${BACKFILL_BRAND_NAME}`);
+
+  // Collections are derived from their referenced parlor rather than
+  // blanket-assigned, since that's the authoritative source of truth.
+  const collectionsToBackfill = await db
+    .select({ id: collectionsTable.id, parlorCode: collectionsTable.parlorCode })
+    .from(collectionsTable)
+    .where(isNull(collectionsTable.countryId));
+
+  const allParlors = await db
+    .select({
+      parlorCode: parlorsTable.parlorCode,
+      countryId: parlorsTable.countryId,
+      brandId: parlorsTable.brandId,
+    })
+    .from(parlorsTable);
+  const parlorByCode = new Map(allParlors.map((p) => [p.parlorCode, p]));
+
+  let collectionsUpdated = 0;
+  let collectionsSkipped = 0;
+  for (const collection of collectionsToBackfill) {
+    const parlor = parlorByCode.get(collection.parlorCode);
+    if (!parlor) {
+      collectionsSkipped++;
+      continue;
+    }
+    await db
+      .update(collectionsTable)
+      .set({ countryId: parlor.countryId, brandId: parlor.brandId })
+      .where(eq(collectionsTable.id, collection.id));
+    collectionsUpdated++;
+  }
+  console.log(
+    `Backfilled ${collectionsUpdated} collections from their parlor` +
+      (collectionsSkipped > 0
+        ? ` (${collectionsSkipped} skipped — parlor code not found)`
+        : ""),
+  );
 
   console.log("Backfill complete.");
 }

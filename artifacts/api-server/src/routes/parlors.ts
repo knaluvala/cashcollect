@@ -6,35 +6,51 @@ import {
   insertParlorSchema,
   updateParlorSchema,
 } from "@workspace/db/schema";
+import { authenticate, requireRole } from "../middlewares/authenticate";
 
 const router: IRouter = Router();
 
-// GET /api/parlors — list all parlors with optional search
-router.get("/parlors", async (req, res) => {
-  const search = (req.query.search as string | undefined) ?? "";
+function parseIdParam(value: string | string[] | undefined): number {
+  return typeof value === "string" ? parseInt(value, 10) : NaN;
+}
 
-  let rows;
+// GET /api/parlors — list parlors with optional search, scoped to the
+// caller's country/brand unless they're a superadmin
+router.get("/parlors", authenticate, async (req, res) => {
+  const search = (req.query.search as string | undefined) ?? "";
+  const user = req.user!;
+  const isSuperadmin = user.role.trim().toLowerCase() === "superadmin";
+
+  const conditions = [];
   if (search.trim()) {
     const q = `%${search}%`;
-    rows = await db
-      .select()
-      .from(parlorsTable)
-      .where(
-        or(
-          like(parlorsTable.parlorCode, q),
-          like(parlorsTable.parlorName, q),
-          like(parlorsTable.parlorType, q)
-        )
-      );
-  } else {
-    rows = await db.select().from(parlorsTable);
+    conditions.push(
+      or(
+        like(parlorsTable.parlorCode, q),
+        like(parlorsTable.parlorName, q),
+        like(parlorsTable.parlorType, q),
+      ),
+    );
   }
+  if (!isSuperadmin) {
+    conditions.push(
+      and(
+        eq(parlorsTable.countryId, user.countryId ?? -1),
+        eq(parlorsTable.brandId, user.brandId ?? -1),
+      ),
+    );
+  }
+
+  const rows = await db
+    .select()
+    .from(parlorsTable)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
 
   res.json({ parlors: rows });
 });
 
 // POST /api/parlors — create a new parlor
-router.post("/parlors", async (req, res) => {
+router.post("/parlors", authenticate, requireRole("superadmin"), async (req, res) => {
   const body = req.body;
   const parsed = insertParlorSchema.safeParse(body);
   if (!parsed.success) {
@@ -70,8 +86,8 @@ router.post("/parlors", async (req, res) => {
 });
 
 // PUT /api/parlors/:id — update existing parlor
-router.put("/parlors/:id", async (req, res) => {
-  const id = parseInt(req.params.id, 10);
+router.put("/parlors/:id", authenticate, requireRole("superadmin"), async (req, res) => {
+  const id = parseIdParam(req.params.id);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;
@@ -104,7 +120,7 @@ router.put("/parlors/:id", async (req, res) => {
 });
 
 // DELETE /api/parlors/:id — delete a parlor
-router.delete("/parlors/:id", async (req, res) => {
+router.delete("/parlors/:id", authenticate, requireRole("superadmin"), async (req, res) => {
   if (req.get("X-Parlor-Delete-Confirmed") !== "true") {
     res.status(428).json({
       error: "Parlor deletion requires explicit confirmation.",
@@ -112,7 +128,7 @@ router.delete("/parlors/:id", async (req, res) => {
     return;
   }
 
-  const id = parseInt(req.params.id, 10);
+  const id = parseIdParam(req.params.id);
   if (Number.isNaN(id)) {
     res.status(400).json({ error: "Invalid id" });
     return;

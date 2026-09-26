@@ -68,6 +68,9 @@ const TYPE_COLORS: Record<string, string> = {
 
 export default function RouteMasterContent() {
   const { token } = useAuth();
+  const authHeaders: Record<string, string> = token
+    ? { Authorization: `Bearer ${token}` }
+    : {};
   const [routes, setRoutes] = useState<RouteApi[]>([]);
   const [parlors, setParlors] = useState<Parlor[]>([]);
   const [agents, setAgents] = useState<UserLov[]>([]);
@@ -100,6 +103,7 @@ export default function RouteMasterContent() {
     try {
       const res = await fetch(
         `${API_BASE}/routes?search=${encodeURIComponent(routeSearch)}`,
+        { headers: authHeaders },
       );
       const data = await res.json();
       const routeList = data.routes || [];
@@ -112,11 +116,11 @@ export default function RouteMasterContent() {
     } finally {
       setLoading(false);
     }
-  }, [routeSearch, selectedRouteId]);
+  }, [routeSearch, selectedRouteId, token]);
 
   const fetchParlors = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/parlors`);
+      const res = await fetch(`${API_BASE}/parlors`, { headers: authHeaders });
       const data = await res.json();
       const parlorList = (data.parlors || []).map((p: any) => ({
         code: p.parlorCode,
@@ -127,7 +131,7 @@ export default function RouteMasterContent() {
     } catch {
       // Silently ignore
     }
-  }, []);
+  }, [token]);
 
   const fetchUsersForLov = useCallback(async () => {
     try {
@@ -215,7 +219,7 @@ export default function RouteMasterContent() {
         `${API_BASE}/routes/${selectedRoute.id}/parlors`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeaders },
           body: JSON.stringify({ parlorCode: parlor.code }),
         },
       );
@@ -238,6 +242,7 @@ export default function RouteMasterContent() {
         `${API_BASE}/routes/${selectedRoute.id}/parlors/${parlorCode}`,
         {
           method: "DELETE",
+          headers: authHeaders,
         },
       );
       if (res.ok) {
@@ -267,7 +272,7 @@ export default function RouteMasterContent() {
     try {
       const res = await fetch(`${API_BASE}/routes`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders },
         body: JSON.stringify({
           routeCode: newRoute.routeCode.trim().toUpperCase(),
           description: newRoute.description.trim() || "—",
@@ -309,7 +314,7 @@ export default function RouteMasterContent() {
     try {
       const res = await fetch(`${API_BASE}/routes/${id}`, {
         method: "DELETE",
-        headers: { "X-Route-Delete-Confirmed": "true" },
+        headers: { "X-Route-Delete-Confirmed": "true", ...authHeaders },
       });
       if (res.ok) {
         toast.success("Route deleted");
